@@ -975,27 +975,44 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
     <li class="step" data-key="m5-5">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">5.5</span> Уведомления в Пачку<span class="tag opt">по желанию</span></h3>
+        <h3><span class="num">5.5</span> Уведомления в Пачку<span class="tag key">свой бот</span></h3>
         <p>
-          Пачка умеет превращать чужой JSON в человеческое сообщение шаблоном
-          на стороне бота. <b>Заведите отдельного бота</b> — не того, что шлёт
-          уведомления из Home Assistant.
+          Схема такая: в чате <b>Кинозал</b> живут четыре бота — по одному
+          на Radarr, Prowlarr, Jellyfin и Seerr. Home Assistant говорит
+          отдельно, своим ботом в чате <b>Мониторинг</b>.
         </p>
         <p>
-          В Пачке: новый бот → вкладка «Входящий вебхук» → шаблон
-          (движок Liquid):
+          Готовые Liquid-шаблоны лежат в репозитории, в каталоге
+          <code>pachca/</code>. Для Radarr:
         </p>
-        <div class="code"><button class="copy" type="button">копировать</button><pre><code>🎬 **{{ movie.title }}** ({{ movie.year }})
-{{ eventType }} · {{ movieFile.quality }}</code></pre></div>
+        <ul>
+          <li>Пачка → <b>Автоматизации → Интеграции → Чат-боты и Вебхуки →
+            Создать</b>, имя <b>Radarr</b>;</li>
+          <li>поле шаблона: движок <b>Liquid</b>, содержимое
+            <code>pachca/radarr.liquid</code> целиком;</li>
+          <li>вкладка <b>Входящий вебхук</b> → скопировать URL;</li>
+          <li>добавить бота <b>только в чат Кинозал</b>.</li>
+        </ul>
         <p>
-          В Radarr: <b>Settings → Connect → «+» → Webhook</b>, URL вебхука,
-          метод POST, события <b>On Import</b> и <b>On Upgrade</b>.
+          В Radarr: <b>Settings → Connect → «+» → Webhook</b>, этот URL,
+          метод POST, события <b>On Grab</b>, <b>On File Import</b>,
+          <b>On File Upgrade</b>, <b>On Health Issue</b>,
+          <b>On Manual Interaction Required</b>. Кнопка <b>Test</b> пришлёт
+          «Проверка связи из Radarr» — это и проверяет, что шаблон сохранён верно.
         </p>
-        <div class="note crit"><b>Почему обязательно отдельный бот.</b> Шаблон
-          задаётся на боте и применяется ко всем входящим для него сообщениям.
-          Повесив шаблон на бота Home Assistant, вы сломаете все его
-          уведомления: они приходят как <code>{"message": "…"}</code>
-          и под шаблон Radarr не подойдут.</div>
+        <div class="note crit"><b>Почему у каждого сервиса свой бот.</b> Шаблон
+          задаётся на боте и применяется ко всем его сообщениям — не на
+          вебхуке и не на чате. Одним ботом четыре разных payload не
+          обслужить. И тем более нельзя вешать шаблон на бота
+          Home Assistant: тот шлёт готовый текст
+          <code>{"message": "…"}</code>, шаблон Radarr отрендерится
+          в пустоту, и уведомления мониторинга молча прекратятся.</div>
+        <div class="note why"><b>Prowlarr настраивается так же</b> — бот
+          «Prowlarr», шаблон <code>pachca/prowlarr.liquid</code>, события
+          <b>On Health Issue</b> и <b>On Health Restored</b>. Из всех
+          уведомлений стека эти — самые ценные: молча отвалившийся
+          индексатор выглядит как «Radarr вдруг перестал что-либо
+          находить», и причину без подсказки ищут часами.</div>
       </div>
     </li>
 
@@ -1208,12 +1225,33 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
     <li class="step" data-key="m7-4">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">7.4</span> Уведомления<span class="tag opt">по желанию</span></h3>
+        <h3><span class="num">7.4</span> Уведомления в Пачку</h3>
         <p>
-          <b>Settings → Notifications → Webhook</b>, URL второго бота Пачки
-          из шага 5.5. Событие <b>Request Automatically Approved</b> и
-          <b>Media Available</b> — самые полезные: первое говорит, что процесс
-          пошёл, второе — что можно смотреть.
+          Заведите бота <b>Seerr</b> в чате Кинозал, шаблон —
+          <code>pachca/seerr.liquid</code>. Затем в Seerr:
+          <b>Settings → Notifications → Webhook</b>.
+        </p>
+        <div class="tablewrap">
+          <table>
+            <tbody>
+              <tr><td>Webhook URL</td><td>вебхук бота Seerr</td></tr>
+              <tr><td>JSON Payload</td><td>содержимое <code>pachca/payloads/seerr.json</code></td></tr>
+              <tr><td>События</td><td>Request Pending, Request Automatically Approved,
+                Media Available, Request Failed</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note why"><b>У Seerr payload задаёте вы сами</b> — в отличие от
+          Radarr, где JSON фиксирован. Поэтому здесь два файла, которые
+          правятся вместе: <code>payloads/seerr.json</code> определяет, что
+          Seerr отправит, а <code>seerr.liquid</code> — как Пачка это покажет.
+          Если поменяете поле в одном, поменяйте и во втором.</div>
+        <div class="note warn"><b>Самое важное событие — Request Failed.</b>
+          Остальные приятны, но не срочны. Это означает, что запрос завис
+          и без вас не поедет: обычно нет раздач или кончилось место на томе.</div>
+        <p>
+          Jellyfin настраивается похоже, но требует плагина Webhook:
+          подробности и точные поля — в <code>pachca/README.md</code>.
         </p>
       </div>
     </li>
