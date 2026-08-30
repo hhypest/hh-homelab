@@ -51,6 +51,12 @@ PERSONAL = [
 
 SKIP_BINARY = {".png", ".jpg", ".jpeg", ".gif", ".zip", ".ico", ".woff", ".woff2"}
 
+# Файл, в котором эти образцы записаны, проверять на них же бессмысленно.
+# Сейчас он и не срабатывает — по случайности, из-за \b в самих выражениях, —
+# но полагаться на такое нельзя: стоит переписать один шаблон, и проверка
+# начнёт ругаться на собственный исходник.
+SKIP_SELF = {"scripts/validate_docs.py", "scripts/validate_config.py"}
+
 
 class Checker(HTMLParser):
     def __init__(self) -> None:
@@ -140,7 +146,7 @@ def main() -> int:
     scanned = 0
     for name in tracked:
         path = ROOT / name
-        if not path.is_file() or path.suffix.lower() in SKIP_BINARY:
+        if not path.is_file() or path.suffix.lower() in SKIP_BINARY or name in SKIP_SELF:
             continue
         try:
             content = path.read_text(encoding="utf-8")
