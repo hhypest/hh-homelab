@@ -119,7 +119,7 @@ jobs:
     name: Docker Compose · оба стека
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Проверить, что файлы разворачиваются
         run: |
           docker compose -f media/compose.yaml config --quiet
