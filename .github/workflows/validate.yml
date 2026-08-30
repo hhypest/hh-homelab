@@ -1,7 +1,13 @@
-name: Проверка конфигурации
+name: Проверки
 
 # Гоняется на каждый push и pull request. Задача — не пропустить в main
-# сломанный YAML, неработающий Jinja-шаблон или случайно закоммиченный секрет.
+# сломанный YAML, неработающий шаблон, ссылку в несуществующую сущность
+# или случайно закоммиченный секрет.
+#
+# Проверки разбиты на отдельные задачи намеренно: в списке проверок PR
+# сразу видно, что именно сломалось, и не нужно листать общий журнал.
+# Задачи независимы и идут параллельно.
+
 on:
   push:
     branches: [main]
@@ -11,33 +17,117 @@ on:
 permissions:
   contents: read
 
+# Новый push в ту же ветку отменяет предыдущий прогон: досматривать
+# результаты по коду, который уже переписан, незачем.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.13"
+
 jobs:
-  validate:
-    name: YAML, шаблоны и секреты
+
+  yaml:
+    name: YAML · форматирование
     runs-on: ubuntu-latest
-
     steps:
-      - name: Забрать репозиторий
-        uses: actions/checkout@v4
-
-      - name: Поставить Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-
-      - name: Поставить зависимости
-        run: pip install --quiet pyyaml jinja2 yamllint python-liquid
-
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - run: pip install -r requirements-dev.txt
       - name: yamllint
-        run: yamllint -c .yamllint media homeassistant .github
+        run: yamllint -c .yamllint media homeassistant pachca .github
 
-      - name: Разбор YAML, компиляция шаблонов, поиск секретов
+  config:
+    name: Конфигурация · YAML, Jinja, секреты
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: Разбор YAML и компиляция шаблонов
         run: python3 scripts/validate_config.py
 
-      - name: Liquid-шаблоны Пачки на примерах payload
+  entities:
+    name: Конфигурация · ссылки на сущности
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: Сверка entity_id и поиск дубликатов
+        run: python3 scripts/validate_entities.py
+
+  python:
+    name: Python · ruff и тесты
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Скрипты запускаются внутри контейнера Home Assistant, а его версию
+        # Python мы не выбираем — она меняется с обновлением образа.
+        # Поэтому проверяем на диапазоне, а не на одной версии.
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: ruff
+        run: ruff check .
+      - name: pytest
+        run: python3 -m pytest
+
+  pachca:
+    name: Пачка · Liquid-шаблоны
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: Рендер шаблонов на примерах payload
         run: python3 scripts/render_pachca.py --check
 
-      - name: Проверить docker compose
+  docs:
+    name: Документация · страницы, ссылки, обезличивание
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: Целостность HTML, ссылки и личные данные
+        run: python3 scripts/validate_docs.py
+
+  compose:
+    name: Docker Compose · оба стека
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Проверить, что файлы разворачиваются
         run: |
           docker compose -f media/compose.yaml config --quiet
           docker compose -f homeassistant/compose.yaml config --quiet
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Убедиться, что порты хоста не заняты дважды
+        run: python3 scripts/check_ports.py media/compose.yaml homeassistant/compose.yaml

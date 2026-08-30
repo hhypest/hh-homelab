@@ -72,7 +72,7 @@ def main() -> int:
                 continue
             try:
                 text = render(template, payload)
-            except Exception as err:  # noqa: BLE001 — интересует любая поломка шаблона
+            except Exception as err:
                 problems.append(f"{template.name} на {sample.name}: {type(err).__name__}: {err}")
                 continue
 

@@ -113,7 +113,7 @@ def main() -> int:
             if "{{" in text or "{%" in text:
                 try:
                     env.parse(text)
-                except Exception as err:  # noqa: BLE001 — интересует любая поломка шаблона
+                except Exception as err:
                     snippet = " ".join(text.split())[:90]
                     problems.append(f"{rel}: шаблон не компилируется — {err}\n         {snippet}")
 

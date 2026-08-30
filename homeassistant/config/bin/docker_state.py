@@ -27,12 +27,16 @@ Monitor Docker снимает CPU и память — это дорогая оп
 """
 
 import json
+import os
 import sys
-import urllib.request
 import urllib.error
+import urllib.request
 
-PROXY = "http://127.0.0.1:2375"
-TIMEOUT = 8
+# Адрес по умолчанию — тот, на котором dockerproxy опубликован в compose.yaml.
+# Переопределяется переменной окружения: это нужно тестам, чтобы не занимать
+# настоящий порт, и пригодится, если прокси однажды переедет.
+PROXY = os.environ.get("DOCKER_PROXY_URL", "http://127.0.0.1:2375")
+TIMEOUT = int(os.environ.get("DOCKER_PROXY_TIMEOUT", "8"))
 
 # Контейнеры, за которыми следим. Держите список в согласии с packages/docker.yaml.
 WATCHED = [
@@ -68,7 +72,7 @@ def main() -> None:
             containers = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as err:
         # 403 означает, что в прокси не разрешён CONTAINERS=1
-        fail("proxy HTTP %s" % err.code)
+        fail(f"proxy HTTP {err.code}")
         return
     except Exception as err:  # таймаут, отказ соединения, битый JSON
         fail(type(err).__name__)
@@ -88,7 +92,7 @@ def main() -> None:
         container = found.get(name)
         if container is None:
             down_names.append(name)
-            down_detail.append("%s — контейнера нет" % name)
+            down_detail.append(f"{name} — контейнера нет")
             continue
 
         state = (container.get("State") or "").lower()
@@ -97,7 +101,7 @@ def main() -> None:
             running += 1
         else:
             down_names.append(name)
-            down_detail.append("%s — %s" % (name, status or state))
+            down_detail.append(f"{name} — {status or state}")
             # Код 137 = процесс убит сигналом SIGKILL, почти всегда это
             # нехватка памяти. Отдельный флаг, чтобы подсказать причину.
             if "(137)" in status:

@@ -16,10 +16,10 @@
     python3 /config/bin/http_check.py http://127.0.0.1:9080/ 200,401,403
 """
 
-import sys
 import ssl
-import urllib.request
+import sys
 import urllib.error
+import urllib.request
 
 OK_CODES = {200, 201, 204, 301, 302, 401, 403}
 TIMEOUT = 6
@@ -40,16 +40,22 @@ def main() -> None:
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
 
-    request = urllib.request.Request(url, method="GET",
-                                     headers={"User-Agent": "HomeAssistant-check/1.0"})
     try:
+        # Построение Request тоже внутри try: на строке, которая не похожа
+        # на URL, оно бросает ValueError — и без этого скрипт падал бы
+        # с трассировкой, ничего не напечатав. Сенсор при пустом выводе
+        # уходит в unknown, и автоматизация «сервис не отвечает» молчит.
+        request = urllib.request.Request(
+            url, method="GET",
+            headers={"User-Agent": "HomeAssistant-check/1.0"},
+        )
         with urllib.request.urlopen(request, timeout=TIMEOUT, context=ctx) as response:
             print("ON" if response.status in codes else "OFF")
     except urllib.error.HTTPError as err:
         # Сервис ответил — значит, он жив, даже если код «неуспешный»
         print("ON" if err.code in codes else "OFF")
     except Exception:
-        # Таймаут, отказ в соединении, DNS — сервис недоступен
+        # Таймаут, отказ в соединении, DNS, битый адрес — считаем недоступным
         print("OFF")
 
 
