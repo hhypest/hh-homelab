@@ -8,11 +8,17 @@
 Home Assistant, дашборд и подробный чек-лист развёртывания. Секретов здесь
 нет — только шаблоны с заглушками.
 
-📋 **[Чек-лист развёртывания](https://hhypest.github.io/hh-homelab/)** —
-шестьдесят шагов с объяснением каждого; отметки сохраняются в браузере.
-Ссылка заработает после включения GitHub Pages: *Settings → Pages → Source:
-Deploy from a branch → main → /docs*. До этого файл лежит в
-[`docs/index.html`](docs/index.html).
+📋 Два чек-листа с объяснением каждого шага; отметки сохраняются в браузере:
+
+- **[Развёртывание Home Assistant](https://hhypest.github.io/hh-homelab/)** —
+  60 шагов: метрики NAS и контейнеров, уведомления, телевизор, Алиса.
+  ([`docs/index.html`](docs/index.html))
+- **[Настройка медиа-стека](https://hhypest.github.io/hh-homelab/media-stack.html)** —
+  37 шагов: папки и хардлинки, qBittorrent, Prowlarr, Radarr, Jellyfin, Seerr.
+  ([`docs/media-stack.html`](docs/media-stack.html))
+
+Ссылки заработают после включения GitHub Pages: *Settings → Pages → Source:
+Deploy from a branch → main → /docs*.
 
 ---
 
@@ -89,8 +95,9 @@ hh-homelab/
 │           ├── media_tv.yaml        телевизор, приставка, сценарии, ночь
 │           └── alice.yaml           голосовой отчёт о состоянии сервера
 ├── docs/
-│   ├── index.html                   чек-лист развёртывания
-│   └── keenetic.md                  разбор конфигурации роутера
+│   ├── index.html                   чек-лист: Home Assistant
+│   ├── media-stack.html             чек-лист: медиа-стек
+│   └── keenetic.md                  что важно знать про роутер
 └── scripts/
     └── validate_config.py           проверка YAML и шаблонов без запуска HA
 ```
@@ -129,9 +136,9 @@ cd homeassistant && sudo docker compose up -d
 и так далее): там уже лежат рабочие базы и кэши, и переносить их ради
 единообразия — лишний риск без выгоды.
 
-Дальше в интерфейсе Home Assistant подключаются интеграции — Synology DSM,
-Jellyfin, Radarr, qBittorrent, LG webOS, Android TV Remote — и ставятся три
-компонента из HACS.
+Дальше — по чек-листам: сначала [медиа-стек](docs/media-stack.html)
+(папки, хардлинки, связка шести приложений в конвейер), затем
+[Home Assistant](docs/index.html) (интеграции, уведомления, телевизор, Алиса).
 
 ### Что ставится из HACS
 
@@ -177,6 +184,12 @@ Jellyfin, Radarr, qBittorrent, LG webOS, Android TV Remote — и ставятс
 по состоянию плеера невозможно — в обоих случаях там `playing`. Автоматизация
 ставит паузу и даёт пять минут нажать play: бодрствующий человек нажмёт,
 спящий — нет.
+
+**Файл в библиотеке и раздающийся торрент — одни и те же данные.** Radarr
+импортирует хардлинком, а не копией: место занято один раз, импорт мгновенный,
+раздача не прерывается. Ради этого `/volume1/data` монтируется в qBittorrent
+и Radarr одним томом целиком — две отдельные папки сломали бы всю схему,
+причём молча.
 
 ---
 

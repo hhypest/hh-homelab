@@ -14,6 +14,8 @@
   body{margin:0;font-size:14px}
   img{max-width:100%}
   [hidden]{display:none!important}
+  .crosslink{margin-top:20px;font-size:13.5px;color:var(--muted)}
+  .crosslink a{color:var(--home);font-weight:500}
 </style>
 <style>
 /* ==========================================================================
@@ -288,6 +290,9 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
       <span class="fact">Алиса <b>10.0.50.50</b></span>
       <span class="fact">HA <b>:8123</b></span>
     </div>
+  
+    <p class="crosslink">Соседний документ: <a href="media-stack.html">настройка медиа-стека</a>
+      — qBittorrent, Prowlarr, Radarr, Jellyfin и Seerr.</p>
   </div>
 </header>
 
@@ -344,7 +349,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
       <text x="40" y="194" font-size="11.5" font-weight="600" fill="var(--iot)" letter-spacing=".06em">СЕГМЕНТ IOT · 10.0.50.0/24</text>
       <rect x="54" y="252" width="200" height="72" rx="8" fill="none" stroke="currentColor" stroke-width="1.4"></rect>
       <text x="154" y="282" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Алиса Мини 3</text>
-      <text x="154" y="301" text-anchor="middle" font-size="11" fill="currentColor" opacity=".7">10.0.50.50 · Wi-Fi hhIoT</text>
+      <text x="154" y="301" text-anchor="middle" font-size="11" fill="currentColor" opacity=".7">10.0.50.50 · Wi-Fi IoT</text>
 
       <!-- сегмент Home -->
       <rect x="330" y="170" width="566" height="260" rx="10" fill="none" stroke="var(--home)" stroke-width="1.4"></rect>
@@ -661,7 +666,7 @@ curl -m 3 http://192.168.3.53:2375/version
       <div class="step-body">
         <h3><span class="num">3.1</span> Создать владельца</h3>
         <p>
-          Имя, логин, длинный пароль. Название дома — <b>hhHome</b>, чтобы совпадало
+          Имя, логин, длинный пароль. Название дома — <b>Home</b>, чтобы совпадало
           с именем вашей Wi-Fi сети и не путаться потом. Местоположение можно указать
           мышкой на карте, координаты подставятся в профиль.
         </p>
@@ -1636,7 +1641,7 @@ jellyfin_user_id: "a1b2c3d4e5f6..."</code></pre></div>
         <p>
           В вашей конфигурации политика <code>Policy0</code> («Def») разрешает только
           <code>Wireguard0</code> и явно запрещает <code>ISP</code>, и назначена она обоим
-          сегментам и поимённо всем устройствам, включая <code>hhNAS</code>. То есть
+          сегментам и поимённо всем устройствам, включая <code>NAS</code>. То есть
           <b>весь исходящий трафик NAS уходит в туннель «VPN»</b>.
         </p>
         <p>
@@ -1662,7 +1667,7 @@ curl -sS -o /dev/null -w 'github: %{http_code}\n' https://github.com/</code></pr
             «Маршрут до узла», IP сервиса, интерфейс «Провайдер». Минус — у облаков
             адреса меняются.</li>
           <li><b>Отдельная политика для NAS.</b> <i>Интернет → Приоритеты подключений</i> →
-            создать политику только с ISP → назначить её <code>hhNAS</code>. Учтите:
+            создать политику только с ISP → назначить её <code>NAS</code>. Учтите:
             Prowlarr и qBittorrent тоже выйдут из-под VPN.</li>
           <li><b>Оставить как есть</b> и слать уведомления другим каналом — например,
             в мобильное приложение Home Assistant.</li>
@@ -2016,8 +2021,8 @@ sudo docker image prune -f</code></pre></div>
       <thead><tr><th>Адрес</th><th>Что это</th><th>Сегмент</th><th>Порты</th></tr></thead>
       <tbody>
         <tr><td class="num-col"><code>192.168.3.1</code></td><td>Keenetic Hopper SE, шлюз</td><td>Home</td><td>8080 / 8083 · SSH 2022 · telnet 2023</td></tr>
-        <tr><td class="num-col"><code>192.168.3.50</code></td><td>hhPC</td><td>Home</td><td>—</td></tr>
-        <tr><td class="num-col"><code>192.168.3.51</code></td><td>hhPhone</td><td>Home</td><td>—</td></tr>
+        <tr><td class="num-col"><code>192.168.3.50</code></td><td>рабочий ПК</td><td>Home</td><td>—</td></tr>
+        <tr><td class="num-col"><code>192.168.3.51</code></td><td>телефон</td><td>Home</td><td>—</td></tr>
         <tr><td class="num-col"><code>192.168.3.52</code></td><td>LG 32LK540BPLA</td><td>Home</td><td>3000 / 3001 (webOS)</td></tr>
         <tr><td class="num-col"><code>192.168.3.53</code></td><td>Synology DS725+</td><td>Home</td><td>см. ниже</td></tr>
         <tr><td class="num-col"><code>192.168.3.54</code></td><td>RockTek GX1 (Google TV)</td><td>Home</td><td>6466 / 6467</td></tr>

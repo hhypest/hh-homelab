@@ -15,7 +15,10 @@
 default_config:
 
 homeassistant:
-  name: hhHome
+  # Имя дома в интерфейсе. В публичном репозитории оставлено нейтральным:
+  # совпадение с именем вашей Wi-Fi сети — лишняя зацепка для тех, кто
+  # сопоставляет SSID с координатами. Локально можно назвать как угодно.
+  name: Home
   latitude: !secret home_latitude
   longitude: !secret home_longitude
   elevation: !secret home_elevation

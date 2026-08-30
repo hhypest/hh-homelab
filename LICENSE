@@ -19,3 +19,33 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+Примечание к лицензии
+=====================
+
+Лицензия распространяется на содержимое этого репозитория: файлы Docker
+Compose, конфигурацию Home Assistant, вспомогательные скрипты и документацию.
+
+Она НЕ распространяется на стороннее программное обеспечение, которое эта
+конфигурация запускает или устанавливает. У каждого из них своя лицензия:
+
+  Home Assistant Core        Apache-2.0
+  Jellyfin                   GPL-2.0
+  Radarr, Prowlarr           GPL-3.0
+  qBittorrent                GPL-2.0 (с исключением для OpenSSL)
+  Seerr                      MIT
+  FlareSolverr               MIT
+  docker-socket-proxy        Apache-2.0
+  monitor_docker             MIT
+  yandex_smart_home          MIT
+  YandexStation              MIT
+
+Образы контейнеров подтягиваются из публичных реестров и в репозитории не
+хранятся; исходники компонентов HACS тоже — их ставит и обновляет сам HACS.
+
+Конфигурация написана под конкретное железо и конкретную сеть. Берите её как
+образец и разбирайтесь, что делает каждая строка, прежде чем применять у себя:
+автор не несёт ответственности за потерянные данные, забитые диски и
+выключенный посреди фильма телевизор.

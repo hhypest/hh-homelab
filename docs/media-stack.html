@@ -1,0 +1,1656 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Пошаговая настройка медиа-стека на Synology DS725+: папки и хардлинки, qBittorrent, Prowlarr, Radarr, Jellyfin, Seerr.">
+<title>Медиа-стек на DS725+</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;font-size:14px}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+  .crosslink{margin-top:20px;font-size:13.5px;color:var(--muted)}
+  .crosslink a{color:var(--home);font-weight:500}
+</style>
+<style>
+/* ==========================================================================
+   Токены. Светлая палитра — на голом :root, тёмная переопределяет только их.
+   ========================================================================== */
+:root{
+  --ground:#F1F5F6;
+  --surface:#FFFFFF;
+  --surface-2:#E7EDEF;
+  --ink:#0E1A1E;
+  --ink-2:#3F5259;
+  --muted:#6A7E86;
+  --line:#D2DEE2;
+  --line-strong:#B2C3C9;
+  --home:#0D6B75;
+  --iot:#95590F;
+  --ok:#2A6B46;
+  --crit:#A22F26;
+  --code-bg:#0E1A1E;
+  --code-ink:#D6E3E7;
+  --code-dim:#7C949C;
+  --shadow:0 1px 2px rgba(14,26,30,.06), 0 8px 24px -16px rgba(14,26,30,.30);
+  --radius:10px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0B1214;
+    --surface:#121D21;
+    --surface-2:#19272C;
+    --ink:#E3EDF0;
+    --ink-2:#A7BBC2;
+    --muted:#7C939B;
+    --line:#22343B;
+    --line-strong:#354F59;
+    --home:#4FC2CD;
+    --iot:#DFA254;
+    --ok:#5EBD85;
+    --crit:#E8786C;
+    --code-bg:#080F11;
+    --code-ink:#CEDFE4;
+    --code-dim:#6D858D;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0B1214;
+  --surface:#121D21;
+  --surface-2:#19272C;
+  --ink:#E3EDF0;
+  --ink-2:#A7BBC2;
+  --muted:#7C939B;
+  --line:#22343B;
+  --line-strong:#354F59;
+  --home:#4FC2CD;
+  --iot:#DFA254;
+  --ok:#5EBD85;
+  --crit:#E8786C;
+  --code-bg:#080F11;
+  --code-ink:#CEDFE4;
+  --code-dim:#6D858D;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"IBM Plex Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  font-size:15.5px;
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:"Golos Text","IBM Plex Sans",system-ui,sans-serif;text-wrap:balance;margin:0}
+a{color:var(--home)}
+code,kbd,pre{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+
+/* ---------- каркас ---------- */
+.wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+.layout{display:grid;grid-template-columns:248px minmax(0,1fr);gap:48px;align-items:start}
+
+/* ---------- шапка ---------- */
+header.top{
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,var(--surface),var(--ground));
+}
+.top .wrap{padding-top:44px;padding-bottom:34px}
+.eyebrow{
+  font-family:"Golos Text",sans-serif;font-weight:600;font-size:11.5px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;
+}
+h1{font-size:clamp(30px,4.4vw,46px);font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.lede{max-width:64ch;margin-top:14px;color:var(--ink-2);font-size:17px}
+.facts{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.fact{
+  display:inline-flex;align-items:center;gap:7px;
+  border:1px solid var(--line);border-radius:100px;background:var(--surface);
+  padding:5px 13px;font-size:12.5px;color:var(--ink-2);
+}
+.fact b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+.dot.home{background:var(--home)}
+.dot.iot{background:var(--iot)}
+
+/* ---------- боковая навигация ---------- */
+nav.rail{position:sticky;top:24px;padding:24px 0 60px}
+.progress{
+  border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);
+  padding:14px;display:flex;align-items:center;gap:13px;margin-bottom:20px;box-shadow:var(--shadow);
+}
+.ring{flex:none}
+.ring circle{fill:none;stroke-width:5}
+.ring .bg{stroke:var(--line)}
+.ring .fg{stroke:var(--home);stroke-linecap:round;transition:stroke-dashoffset .35s ease}
+.progress .txt{font-size:12.5px;line-height:1.35;color:var(--muted)}
+.progress .txt b{display:block;font-family:"Golos Text",sans-serif;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+.reset{
+  appearance:none;border:1px solid var(--line);background:transparent;color:var(--muted);
+  font:inherit;font-size:11.5px;padding:2px 8px;border-radius:6px;cursor:pointer;margin-top:4px;
+}
+.reset:hover{color:var(--ink);border-color:var(--line-strong)}
+nav.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
+nav.rail a{
+  display:flex;gap:10px;align-items:baseline;
+  padding:6px 10px;border-radius:7px;text-decoration:none;color:var(--ink-2);font-size:13.5px;
+  border-left:2px solid transparent;
+}
+nav.rail a:hover{background:var(--surface-2);color:var(--ink)}
+nav.rail a.active{background:var(--surface);color:var(--ink);border-left-color:var(--home);font-weight:500}
+nav.rail a .n{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px;min-width:16px}
+nav.rail a.done .n::after{content:"✓";color:var(--ok)}
+nav.rail a.done .n{font-size:0}
+
+/* ---------- секции ---------- */
+main{padding:34px 0 120px;min-width:0}
+section{margin-bottom:56px;scroll-margin-top:20px}
+.sec-head{border-top:2px solid var(--ink);padding-top:14px;margin-bottom:22px}
+.sec-head .kicker{
+  font-family:"Golos Text",sans-serif;font-size:11.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--muted);font-weight:600;
+}
+h2{font-size:clamp(21px,2.6vw,27px);font-weight:700;letter-spacing:-.015em;margin-top:4px}
+.sec-head p{margin:10px 0 0;color:var(--ink-2);max-width:68ch}
+
+/* ---------- шаги ---------- */
+ol.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
+li.step{
+  display:grid;grid-template-columns:28px minmax(0,1fr);gap:14px;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 18px;box-shadow:var(--shadow);transition:opacity .2s ease;
+}
+li.step.checked{opacity:.55}
+li.step.checked h3{text-decoration:line-through;text-decoration-color:var(--line-strong)}
+.step-check{position:relative;display:block;width:22px;height:22px;margin-top:2px;cursor:pointer}
+.step-check input{position:absolute;opacity:0;width:22px;height:22px;margin:0;cursor:pointer}
+.step-check .box{
+  display:block;width:22px;height:22px;border:1.5px solid var(--line-strong);
+  border-radius:6px;background:var(--ground);transition:.15s ease;
+}
+.step-check input:focus-visible + .box{outline:2px solid var(--home);outline-offset:2px}
+.step-check input:checked + .box{background:var(--home);border-color:var(--home)}
+.step-check .box::after{
+  content:"";position:absolute;left:7px;top:3px;width:6px;height:11px;
+  border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(45deg) scale(0);
+  transition:transform .15s ease;
+}
+.step-check input:checked + .box::after{transform:rotate(45deg) scale(1)}
+.step-body{min-width:0}
+.step-body h3{font-size:16.5px;font-weight:600;letter-spacing:-.005em;display:flex;gap:9px;align-items:baseline}
+.step-body h3 .num{
+  font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:500;
+  color:var(--home);flex:none;padding-top:1px;
+}
+.step-body p{margin:9px 0 0;color:var(--ink-2);max-width:70ch}
+.step-body p:first-of-type{margin-top:7px}
+.step-body ul{margin:9px 0 0;padding-left:20px;color:var(--ink-2);max-width:70ch}
+.step-body li{margin:3px 0}
+.step-body b,.step-body strong{color:var(--ink);font-weight:600}
+
+/* ---------- врезки ---------- */
+.note{
+  margin-top:12px;padding:11px 14px;border-left:3px solid var(--line-strong);
+  background:var(--surface-2);border-radius:0 7px 7px 0;font-size:14px;color:var(--ink-2);
+  max-width:72ch;
+}
+.note b:first-child{color:var(--ink)}
+.note.why{border-left-color:var(--home)}
+.note.warn{border-left-color:var(--iot)}
+.note.crit{border-left-color:var(--crit)}
+.note p{margin:6px 0 0}
+.note p:first-child{margin:0}
+
+/* ---------- код ---------- */
+.code{position:relative;margin-top:12px}
+.code pre{
+  margin:0;background:var(--code-bg);color:var(--code-ink);
+  padding:14px 16px;border-radius:8px;overflow-x:auto;
+  font-size:12.8px;line-height:1.62;border:1px solid var(--line);
+}
+.code pre .c{color:var(--code-dim)}
+.code .copy{
+  position:absolute;top:8px;right:8px;appearance:none;cursor:pointer;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);
+  color:var(--code-dim);font-family:"IBM Plex Sans",sans-serif;font-size:11px;
+  padding:3px 9px;border-radius:5px;opacity:0;transition:.15s ease;
+}
+.code:hover .copy,.code .copy:focus-visible{opacity:1}
+.code .copy:hover{color:#fff;background:rgba(255,255,255,.14)}
+code:not(pre code){
+  background:var(--surface-2);border:1px solid var(--line);
+  padding:1px 5px;border-radius:4px;font-size:.88em;color:var(--ink);
+}
+.path{color:var(--home)}
+
+/* ---------- таблицы ---------- */
+.tablewrap{overflow-x:auto;margin-top:14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.8px;min-width:520px}
+th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{
+  font-family:"Golos Text",sans-serif;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);font-weight:600;background:var(--surface-2);
+}
+tbody tr:last-child td{border-bottom:none}
+td code{white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+
+/* ---------- диаграмма ---------- */
+figure{margin:0 0 26px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px 18px 16px;box-shadow:var(--shadow)}
+figure svg{display:block;width:100%;max-width:100%;height:auto;color:var(--ink-2)}
+figcaption{margin-top:14px;font-size:13.5px;color:var(--muted);max-width:74ch}
+
+/* ---------- метки ---------- */
+.tag{
+  display:inline-block;font-family:"Golos Text",sans-serif;font-size:10.5px;font-weight:600;
+  letter-spacing:.07em;text-transform:uppercase;padding:2px 7px;border-radius:4px;
+  border:1px solid currentColor;vertical-align:2px;margin-left:8px;
+}
+.tag.opt{color:var(--muted)}
+.tag.later{color:var(--iot)}
+.tag.key{color:var(--home)}
+
+footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);font-size:13px}
+
+@media (max-width:940px){
+  .layout{grid-template-columns:1fr;gap:0}
+  nav.rail{position:static;padding:18px 0 0}
+  nav.rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px}
+  main{padding-top:24px}
+}
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important;animation:none !important}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="eyebrow">Настройка приложений · DS725+ · 30 августа 2026</div>
+    <h1>Медиа-стек на DS725+</h1>
+    <p class="lede">
+      Шесть контейнеров уже запущены — осталось заставить их работать как один
+      конвейер: запрос в Seerr превращается в фильм в библиотеке Jellyfin без
+      единого лишнего копирования по диску.
+    </p>
+    <div class="facts">
+      <span class="fact"><span class="dot home"></span>NAS <b>192.168.3.53</b></span>
+      <span class="fact">сеть Docker <b>media</b></span>
+      <span class="fact">данные <b>/volume1/data</b></span>
+      <span class="fact">контейнеров <b>6</b></span>
+      <span class="fact">телевизор <b>1366×768</b></span>
+    </div>
+  
+    <p class="crosslink">Соседний документ: <a href="index.html">развёртывание Home Assistant</a>
+      — метрики, уведомления в Пачку и управление телевизором.</p>
+  </div>
+</header>
+
+<div class="wrap layout">
+
+<nav class="rail" aria-label="Разделы">
+  <div class="progress">
+    <svg class="ring" width="46" height="46" viewBox="0 0 46 46" aria-hidden="true">
+      <circle class="bg" cx="23" cy="23" r="19"></circle>
+      <circle class="fg" cx="23" cy="23" r="19" transform="rotate(-90 23 23)"
+              stroke-dasharray="119.4" stroke-dashoffset="119.4"></circle>
+    </svg>
+    <div class="txt">
+      <b><span id="p-done">0</span> / <span id="p-total">0</span></b>
+      шагов выполнено
+      <button class="reset" id="reset" type="button">сбросить</button>
+    </div>
+  </div>
+  <ol id="toc"></ol>
+</nav>
+
+<main>
+
+<section id="s0">
+  <div class="sec-head">
+    <div class="kicker">Раздел 0</div>
+    <h2>Как устроен конвейер</h2>
+    <p>
+      Шесть приложений передают друг другу работу по цепочке. Настраивать их
+      нужно в порядке этой цепочки: Radarr бесполезен без индексаторов Prowlarr,
+      Prowlarr нечего отдавать без клиента загрузки, а Seerr не с чем связываться,
+      пока не готово всё остальное.
+    </p>
+  </div>
+
+  <figure>
+    <svg viewBox="0 0 900 430" role="img"
+         aria-label="Схема конвейера: Seerr передаёт запрос в Radarr, Radarr ищет через Prowlarr в индексаторах, при защите Cloudflare Prowlarr обращается к FlareSolverr, найденный торрент уходит в qBittorrent, скачанные файлы лежат в /data/torrents, Radarr создаёт на них хардлинк в /data/media, оттуда Jellyfin отдаёт фильм на приставку и телевизор.">
+      <defs>
+        <marker id="mar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
+        </marker>
+      </defs>
+
+      <!-- верхний ряд: поиск -->
+      <rect x="16" y="44" width="142" height="56" rx="8" fill="none" stroke="currentColor" stroke-width="1.4"></rect>
+      <text x="87" y="68" text-anchor="middle" font-size="12.5" font-weight="600" fill="currentColor">Seerr</text>
+      <text x="87" y="85" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".7">:5055 · «хочу фильм»</text>
+
+      <rect x="210" y="44" width="142" height="56" rx="8" fill="none" stroke="var(--home)" stroke-width="1.6"></rect>
+      <text x="281" y="68" text-anchor="middle" font-size="12.5" font-weight="600" fill="var(--home)">Radarr</text>
+      <text x="281" y="85" text-anchor="middle" font-size="10.5" fill="var(--home)" opacity=".85">:7878 · дирижёр</text>
+
+      <rect x="404" y="44" width="142" height="56" rx="8" fill="none" stroke="currentColor" stroke-width="1.4"></rect>
+      <text x="475" y="68" text-anchor="middle" font-size="12.5" font-weight="600" fill="currentColor">Prowlarr</text>
+      <text x="475" y="85" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".7">:9696 · индексаторы</text>
+
+      <rect x="598" y="44" width="150" height="56" rx="8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="5 4"></rect>
+      <text x="673" y="68" text-anchor="middle" font-size="12.5" font-weight="600" fill="currentColor">Трекеры</text>
+      <text x="673" y="85" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".7">в интернете</text>
+
+      <line x1="160" y1="72" x2="206" y2="72" stroke="currentColor" stroke-width="1.3" marker-end="url(#mar)"></line>
+      <text x="183" y="63" text-anchor="middle" font-size="10" fill="currentColor" opacity=".75">запрос</text>
+      <line x1="354" y1="72" x2="400" y2="72" stroke="currentColor" stroke-width="1.3" marker-end="url(#mar)"></line>
+      <text x="377" y="63" text-anchor="middle" font-size="10" fill="currentColor" opacity=".75">поиск</text>
+      <line x1="548" y1="72" x2="594" y2="72" stroke="currentColor" stroke-width="1.3" marker-end="url(#mar)"></line>
+
+      <!-- FlareSolverr -->
+      <rect x="404" y="150" width="142" height="48" rx="8" fill="none" stroke="var(--iot)" stroke-width="1.4"></rect>
+      <text x="475" y="170" text-anchor="middle" font-size="12" font-weight="600" fill="var(--iot)">FlareSolverr</text>
+      <text x="475" y="187" text-anchor="middle" font-size="10.5" fill="var(--iot)" opacity=".85">:8191 · обход Cloudflare</text>
+      <line x1="475" y1="146" x2="475" y2="104" stroke="var(--iot)" stroke-width="1.3" marker-start="url(#mar)" marker-end="url(#mar)"></line>
+
+      <!-- нижний ряд: файлы -->
+      <rect x="16" y="252" width="152" height="56" rx="8" fill="none" stroke="currentColor" stroke-width="1.4"></rect>
+      <text x="92" y="276" text-anchor="middle" font-size="12.5" font-weight="600" fill="currentColor">qBittorrent</text>
+      <text x="92" y="293" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".7">:9080 · качает</text>
+
+      <rect x="220" y="252" width="170" height="56" rx="8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="4 3"></rect>
+      <text x="305" y="276" text-anchor="middle" font-size="11.5" font-weight="600" fill="currentColor">/data/torrents</text>
+      <text x="305" y="293" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".7">раздача продолжается</text>
+
+      <rect x="442" y="252" width="170" height="56" rx="8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="4 3"></rect>
+      <text x="527" y="276" text-anchor="middle" font-size="11.5" font-weight="600" fill="currentColor">/data/media</text>
+      <text x="527" y="293" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".7">библиотека</text>
+
+      <rect x="664" y="252" width="140" height="56" rx="8" fill="none" stroke="currentColor" stroke-width="1.4"></rect>
+      <text x="734" y="276" text-anchor="middle" font-size="12.5" font-weight="600" fill="currentColor">Jellyfin</text>
+      <text x="734" y="293" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".7">:8096</text>
+
+      <line x1="170" y1="280" x2="216" y2="280" stroke="currentColor" stroke-width="1.3" marker-end="url(#mar)"></line>
+      <line x1="392" y1="280" x2="438" y2="280" stroke="var(--home)" stroke-width="1.8" marker-end="url(#mar)"></line>
+      <text x="415" y="271" text-anchor="middle" font-size="10" fill="var(--home)" font-weight="600">хардлинк</text>
+      <text x="415" y="326" text-anchor="middle" font-size="9.5" fill="var(--home)" opacity=".8">не копия — место не удваивается</text>
+      <line x1="616" y1="280" x2="660" y2="280" stroke="currentColor" stroke-width="1.3" marker-end="url(#mar)"></line>
+
+      <!-- Radarr → qBittorrent -->
+      <polyline points="281,104 281,218 92,218 92,248" fill="none" stroke="var(--home)" stroke-width="1.6" marker-end="url(#mar)"></polyline>
+      <text x="190" y="211" text-anchor="middle" font-size="10" fill="var(--home)">торрент в очередь</text>
+
+      <!-- qBittorrent → Radarr: импорт -->
+      <polyline points="527,248 527,228 640,228 640,110" fill="none" stroke="currentColor" stroke-width="1.1" stroke-dasharray="4 3"></polyline>
+      <text x="648" y="180" font-size="10" fill="currentColor" opacity=".7">импорт делает</text>
+      <text x="648" y="194" font-size="10" fill="currentColor" opacity=".7">Radarr</text>
+
+      <!-- телевизор -->
+      <rect x="664" y="352" width="140" height="52" rx="8" fill="none" stroke="currentColor" stroke-width="1.4"></rect>
+      <text x="734" y="374" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">GX1 → телевизор</text>
+      <text x="734" y="391" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".7">прямое воспроизведение</text>
+      <line x1="734" y1="312" x2="734" y2="348" stroke="currentColor" stroke-width="1.3" marker-end="url(#mar)"></line>
+    </svg>
+    <figcaption>
+      Ключевое место — стрелка «хардлинк» посередине. Radarr не копирует файл
+      из папки загрузок в библиотеку, а создаёт на него вторую ссылку: данные
+      на диске остаются в одном экземпляре, импорт происходит мгновенно,
+      и раздача при этом не прерывается. Всё, что делает раздел 1, — готовит
+      условия, при которых это вообще возможно.
+    </figcaption>
+  </figure>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Приложение</th><th>Роль в конвейере</th><th>Настраивать</th></tr></thead>
+      <tbody>
+        <tr><td><b>qBittorrent</b></td><td>качает и раздаёт</td><td>первым — от него зависят все</td></tr>
+        <tr><td><b>FlareSolverr</b></td><td>обходит защиту Cloudflare для индексаторов</td><td>вторым, проверить и забыть</td></tr>
+        <tr><td><b>Prowlarr</b></td><td>единый список трекеров, раздаёт его остальным</td><td>третьим</td></tr>
+        <tr><td><b>Radarr</b></td><td>решает что качать, следит за качеством, импортирует</td><td>четвёртым</td></tr>
+        <tr><td><b>Jellyfin</b></td><td>отдаёт библиотеку на устройства</td><td>пятым</td></tr>
+        <tr><td><b>Seerr</b></td><td>витрина запросов поверх Radarr и Jellyfin</td><td>последним</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note why">
+    <b>Три способа обратиться к одному и тому же сервису.</b>
+    <p>
+      Изнутри сети Docker <code>media</code> — по имени контейнера:
+      <code>http://radarr:7878</code>. Так приложения находят друг друга,
+      и так нужно писать адреса в их настройках.
+    </p>
+    <p>
+      Из Home Assistant — по <code>127.0.0.1:7878</code>: он работает в сети
+      хоста, где опубликованы все порты.
+    </p>
+    <p>
+      Из браузера — по <code>192.168.3.53:7878</code>. Путаница между этими
+      тремя формами и есть самая частая причина «Test failed» при настройке.
+    </p>
+  </div>
+</section>
+
+<section id="s1">
+  <div class="sec-head">
+    <div class="kicker">Раздел 1</div>
+    <h2>Папки и хардлинки</h2>
+    <p>
+      Самый важный раздел, и единственный, который тяжело переделать потом.
+      Если структуру папок сделать неправильно, всё будет работать — просто
+      каждый фильм займёт на диске вдвое больше места, а импорт будет длиться
+      минутами вместо мгновения.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="m1-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">1.1</span> Создать структуру</h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo mkdir -p /volume1/data/torrents/movies
+sudo mkdir -p /volume1/data/torrents/incomplete
+sudo mkdir -p /volume1/data/media/movies
+
+<span class="c"># Те же PUID:PGID, что у контейнеров в compose.yaml</span>
+sudo chown -R 1026:100 /volume1/data
+sudo chmod -R 775 /volume1/data</code></pre></div>
+        <p>
+          Если позже добавите сериалы и Sonarr — по той же схеме появятся
+          <code>torrents/tv</code> и <code>media/tv</code>. Схема расширяется,
+          не ломаясь.
+        </p>
+      </div>
+    </li>
+
+    <li class="step" data-key="m1-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">1.2</span> Понять, почему монтирование именно такое<span class="tag key">суть</span></h3>
+        <p>
+          В <code>compose.yaml</code> и qBittorrent, и Radarr получают
+          <b>один и тот же том целиком</b>:
+        </p>
+        <div class="code"><pre><code>volumes:
+  - /volume1/data:/data</code></pre></div>
+        <p>
+          Внутри обоих контейнеров пути выглядят одинаково —
+          <code>/data/torrents/…</code> и <code>/data/media/…</code>, — и это
+          одна файловая система. Только при таком условии Radarr может создать
+          хардлинк: вторую ссылку на те же данные вместо копии.
+        </p>
+        <div class="note crit"><b>Как выглядит распространённая ошибка.</b>
+          Смонтировать <code>/volume1/data/torrents:/downloads</code> и
+          <code>/volume1/data/media:/movies</code> двумя отдельными строками.
+          Внутри контейнера это выглядит как две разные файловые системы,
+          хардлинк невозможен, и Radarr честно копирует файл. Внешне всё
+          работает — просто диск кончается вдвое быстрее, а импорт фильма
+          на 20 ГБ занимает пару минут вместо доли секунды.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m1-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">1.3</span> Убедиться, что хардлинки работают</h3>
+        <p>Проверка занимает двадцать секунд и снимает все сомнения:</p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo touch /volume1/data/torrents/hardlink.test
+sudo ln /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test
+ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</code></pre></div>
+        <p>
+          В первой колонке — номер inode. <b>Если числа совпадают, хардлинк
+          создан</b> и всё настроено верно. Во второй колонке будет
+          <code>2</code> — столько ссылок теперь у этих данных.
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo rm /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</code></pre></div>
+        <div class="note why"><b>Что это значит на практике.</b> Пока существует
+          хотя бы одна ссылка, данные лежат на диске. Поэтому фильм,
+          одновременно раздающийся из <code>torrents</code> и видимый в
+          библиотеке <code>media</code>, занимает место <b>один раз</b>.
+          Раздавать после импорта ничего не стоит — и это меняет отношение
+          к настройке лимитов раздачи в шаге 2.6.</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s2">
+  <div class="sec-head">
+    <div class="kicker">Раздел 2</div>
+    <h2>qBittorrent</h2>
+    <p>
+      Веб-интерфейс на <a href="http://192.168.3.53:9080">192.168.3.53:9080</a>.
+      Настраиваем первым: на него будут ссылаться и Prowlarr, и Radarr.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="m2-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.1</span> Найти временный пароль и сменить его<span class="tag key">сразу</span></h3>
+        <p>
+          Современные версии qBittorrent не имеют пароля по умолчанию: при
+          первом запуске генерируется случайный и печатается в лог контейнера.
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo docker logs qbittorrent 2>&amp;1 | grep -i -B2 -A2 "temporary password"</code></pre></div>
+        <p>
+          Логин — <code>admin</code>, пароль из вывода. Сразу после входа:
+          <b>Настройки → Веб-интерфейс → Аутентификация</b>, задать своё имя
+          пользователя и пароль, сохранить.
+        </p>
+        <div class="note warn"><b>Строки в логе нет?</b> Это баг конкретной версии
+          4.6.1, где пароль генерировался, но не печатался. Обновите образ —
+          <code>sudo docker compose pull &amp;&amp; sudo docker compose up -d</code>
+          в каталоге <code>media</code> — и посмотрите лог заново.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m2-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.2</span> Включить VueTorrent</h3>
+        <p>
+          В <code>compose.yaml</code> уже подключён мод
+          <code>vuetorrent-lsio-mod</code> — современный интерфейс вместо
+          стандартного. Осталось его включить:
+        </p>
+        <p>
+          <b>Настройки → Веб-интерфейс → Использовать альтернативный
+          веб-интерфейс</b> → включить, в поле пути указать:
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>/vuetorrent</code></pre></div>
+        <p>Сохранить и обновить страницу.</p>
+        <div class="note warn"><b>Если после сохранения интерфейс не открывается</b> —
+          путь указан неверно и qBittorrent отдаёт пустую страницу. Лечится
+          правкой конфига без интерфейса:
+          <code>sudo docker exec -it qbittorrent sed -i '/AlternativeUIEnabled/d' /config/qBittorrent/qBittorrent.conf</code>,
+          затем перезапуск контейнера.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m2-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.3</span> Задать пути загрузок</h3>
+        <p><b>Настройки → Загрузки</b>:</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Параметр</th><th>Значение</th></tr></thead>
+            <tbody>
+              <tr><td>Путь сохранения по умолчанию</td><td><code>/data/torrents</code></td></tr>
+              <tr><td>Хранить незавершённые торренты в</td><td>включить, <code>/data/torrents/incomplete</code></td></tr>
+              <tr><td>Режим управления торрентами по умолчанию</td><td><b>Автоматический</b></td></tr>
+              <tr><td>При смене категории торрента</td><td><b>Переместить торрент</b></td></tr>
+              <tr><td>Добавлять расширение .!qB к незавершённым</td><td>включить</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note why"><b>Автоматический режим</b> означает, что путь
+          сохранения определяется категорией, а не запоминается для каждого
+          торрента отдельно. Именно на это опирается Radarr: он передаёт
+          категорию, и файл сам оказывается в нужной папке.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m2-4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.4</span> Создать категорию <code>movies</code></h3>
+        <p>
+          В боковой панели, правой кнопкой по «Категории» →
+          <b>Добавить категорию</b>:
+        </p>
+        <div class="tablewrap">
+          <table>
+            <tbody>
+              <tr><td>Имя</td><td><code>movies</code></td></tr>
+              <tr><td>Путь сохранения</td><td><code>/data/torrents/movies</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Ровно это имя мы укажем в Radarr на шаге 5.4. Regex, пробелы и
+          заглавные буквы не нужны — Radarr сравнивает строку буквально.
+        </p>
+      </div>
+    </li>
+
+    <li class="step" data-key="m2-5">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.5</span> Ограничить число соединений<span class="tag key">важно для сети</span></h3>
+        <p><b>Настройки → Соединение</b>:</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Параметр</th><th>Значение</th></tr></thead>
+            <tbody>
+              <tr><td>Порт входящих соединений</td><td><code>6881</code> — совпадает с проброшенным в compose</td></tr>
+              <tr><td>Глобальное максимальное число соединений</td><td><b>150</b></td></tr>
+              <tr><td>Максимум соединений на торрент</td><td><b>40</b></td></tr>
+              <tr><td>Глобальное число слотов отдачи</td><td><b>8</b></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note crit"><b>Почему это не придирка.</b> Ваш Keenetic держит
+          таблицу отслеживания соединений на 32 768 записей. Торрент-клиент
+          без ограничений легко открывает несколько тысяч соединений
+          одновременно, а каждое живёт в этой таблице ещё какое-то время
+          после закрытия. Переполнение таблицы выглядит не как «медленный
+          торрент», а как «интернет в доме залип» — у всех сразу, включая
+          телевизор и телефон. Полторы сотни соединений забирают несколько
+          процентов таблицы и оставляют запас остальным.</div>
+        <div class="note warn"><b>Для приватных трекеров</b> в том же разделе
+          отключите DHT, PEX и Local Peer Discovery: правила большинства
+          приватных трекеров это требуют, а пользы от них там нет.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m2-6">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.6</span> Настроить раздачу</h3>
+        <p>
+          <b>Настройки → BitTorrent → Лимиты раздачи</b>: включить «При
+          достижении рейтинга» — например, <code>2.0</code> — и действие
+          <b>Приостановить торрент</b>.
+        </p>
+        <div class="note why"><b>Приостановить, а не удалить.</b> Благодаря
+          хардлинкам из раздела 1 раздающийся торрент и фильм в библиотеке —
+          это одни и те же данные на диске. Удаление торрента вместе с файлами
+          <b>не освободит места</b>, пока существует вторая ссылка из
+          библиотеки, зато оборвёт раздачу. Единственное, что даёт удаление, —
+          более короткий список в интерфейсе; цена — испорченный рейтинг
+          на приватных трекерах.</div>
+        <div class="note warn"><b>Про входящие соединения.</b> Если весь трафик
+          NAS идёт через VPN-туннель без проброса портов, до вас не достучится
+          никто извне: раздача идёт только тем пирам, к которым qBittorrent
+          подключился сам. Клиент при этом исправен — просто рейтинг растёт
+          медленнее. Если у провайдера туннеля есть port forwarding,
+          пробросьте на нём <code>6881</code>.</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s3">
+  <div class="sec-head">
+    <div class="kicker">Раздел 3</div>
+    <h2>FlareSolverr</h2>
+    <p>
+      Самый простой из шести: у него нет интерфейса и нет настроек. Внутри —
+      headless-браузер, который проходит проверку Cloudflare вместо Prowlarr.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="m3-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">3.1</span> Проверить, что отвечает</h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>curl -s http://127.0.0.1:8191/ | python3 -m json.tool</code></pre></div>
+        <p>
+          Ожидаемый ответ содержит <code>"msg": "FlareSolverr is ready!"</code>
+          и версию. Адрес для Prowlarr запомните в другой форме —
+          <code>http://flaresolverr:8191</code>, по имени контейнера.
+        </p>
+      </div>
+    </li>
+
+    <li class="step" data-key="m3-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">3.2</span> Решить, нужен ли он вообще</h3>
+        <p>
+          FlareSolverr требуется только тем индексаторам, которые прячутся
+          за проверкой Cloudflare. Если все ваши трекеры приватные и такой
+          защиты не имеют — контейнер можно не поднимать.
+        </p>
+        <div class="note why"><b>Он самый прожорливый в стеке.</b> Внутри
+          полноценный Chromium: 200–350 МБ в покое и до 700 МБ плюс целое ядро
+          на несколько секунд, когда решает проверку. На двухъядерном R1600 это
+          заметно. Если он не нужен — закомментируйте сервис в
+          <code>media/compose.yaml</code>; если нужен изредка — оставьте, но
+          знайте, кого искать в списке «больше всех памяти» на дашборде
+          Home Assistant.</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s4">
+  <div class="sec-head">
+    <div class="kicker">Раздел 4</div>
+    <h2>Prowlarr</h2>
+    <p>
+      Единый список трекеров для всего стека:
+      <a href="http://192.168.3.53:9696">192.168.3.53:9696</a>. Индексаторы
+      добавляются здесь один раз и автоматически появляются в Radarr —
+      руками их там заводить не нужно и вредно.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="m4-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">4.1</span> Включить аутентификацию</h3>
+        <p>
+          При первом открытии Prowlarr сам попросит завести учётную запись:
+          метод <b>Forms (Login page)</b>, имя и пароль. Начиная с первой
+          версии обойти этот экран нельзя, и правильно.
+        </p>
+        <p>
+          Заодно запомните, где лежит ключ API — он понадобится дальше:
+          <b>Settings → General → Security → API Key</b>.
+        </p>
+      </div>
+    </li>
+
+    <li class="step" data-key="m4-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">4.2</span> Добавить индексаторы</h3>
+        <p>
+          <b>Indexers → Add Indexer</b>, найти трекер по названию. Для приватных
+          понадобятся учётные данные или passkey из профиля на сайте трекера.
+        </p>
+        <p>
+          После добавления нажмите <b>Test</b> у каждого. Зелёная галка —
+          Prowlarr смог выполнить поиск от вашего имени.
+        </p>
+        <div class="note warn"><b>Красный крест с упоминанием Cloudflare или
+          «challenge»</b> — этому индексатору нужен FlareSolverr. Не удаляйте
+          его, переходите к следующему шагу.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m4-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">4.3</span> Привязать FlareSolverr</h3>
+        <p>
+          <b>Settings → Indexers → Indexer Proxies → «+»</b> → выбрать
+          <b>FlareSolverr</b>:
+        </p>
+        <div class="tablewrap">
+          <table>
+            <tbody>
+              <tr><td>Name</td><td><code>flaresolverr</code></td></tr>
+              <tr><td>Tags</td><td><code>flaresolverr</code> — создать новый тег</td></tr>
+              <tr><td>Host</td><td><code>http://flaresolverr:8191</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Затем откройте каждый индексатор, которому нужен обход, и добавьте
+          ему <b>тот же тег</b> <code>flaresolverr</code> в поле Tags.
+          Прокси применяется только к отмеченным тегом — остальные ходят
+          напрямую и не тратят время на запуск браузера.
+        </p>
+        <div class="note why"><b>Почему адрес по имени контейнера.</b> Prowlarr
+          и FlareSolverr стоят в одной сети Docker <code>media</code>, где
+          встроенный DNS разрешает имена сервисов. Адрес
+          <code>127.0.0.1:8191</code> здесь не сработает: внутри контейнера
+          Prowlarr это он сам.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m4-4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">4.4</span> Связать с Radarr</h3>
+        <p>
+          Понадобится ключ API из Radarr: откройте
+          <a href="http://192.168.3.53:7878">192.168.3.53:7878</a> →
+          <b>Settings → General → API Key</b> и скопируйте.
+        </p>
+        <p>В Prowlarr: <b>Settings → Apps → «+» → Radarr</b>:</p>
+        <div class="tablewrap">
+          <table>
+            <tbody>
+              <tr><td>Sync Level</td><td><b>Full Sync</b></td></tr>
+              <tr><td>Prowlarr Server</td><td><code>http://prowlarr:9696</code></td></tr>
+              <tr><td>Radarr Server</td><td><code>http://radarr:7878</code></td></tr>
+              <tr><td>API Key</td><td>ключ из Radarr</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Нажать <b>Test</b>, затем <b>Save</b>.</p>
+        <div class="note why"><b>Full Sync</b> означает, что Prowlarr не только
+          добавит индексаторы в Radarr, но и будет поддерживать их в
+          актуальном состоянии: изменили настройки трекера здесь — они
+          доедут туда сами.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m4-5">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">4.5</span> Убедиться, что индексаторы доехали</h3>
+        <p>
+          В Radarr: <b>Settings → Indexers</b> — там должны появиться те же
+          трекеры, что и в Prowlarr.
+        </p>
+        <div class="note crit"><b>Не редактируйте их в Radarr.</b> При следующей
+          синхронизации Prowlarr перезапишет изменения, и вы будете долго
+          искать, почему настройка «не сохраняется». Все правки — только
+          в Prowlarr.</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s5">
+  <div class="sec-head">
+    <div class="kicker">Раздел 5</div>
+    <h2>Radarr</h2>
+    <p>
+      Дирижёр конвейера: <a href="http://192.168.3.53:7878">192.168.3.53:7878</a>.
+      Он решает, что качать, следит за качеством, забирает готовое у qBittorrent
+      и раскладывает по библиотеке.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="m5-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">5.1</span> Аутентификация и корневая папка</h3>
+        <p>
+          Завести учётную запись при первом входе, метод <b>Forms</b>.
+        </p>
+        <p>
+          <b>Settings → Media Management → Root Folders → Add Root Folder</b>:
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>/data/media/movies</code></pre></div>
+        <div class="note warn"><b>Путь пишется так, как его видит контейнер.</b>
+          Не <code>/volume1/data/media/movies</code> — внутри Radarr такого
+          пути не существует. Если поле не принимает значение или показывает
+          ошибку доступа, проверьте владельца папки: <code>1026:100</code>.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m5-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">5.2</span> Включить хардлинки<span class="tag key">ради этого всё</span></h3>
+        <p>
+          <b>Settings → Media Management</b>, переключить наверху
+          <b>Show Advanced</b> (иначе параметра не видно):
+        </p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Параметр</th><th>Значение</th></tr></thead>
+            <tbody>
+              <tr><td>Use Hardlinks instead of Copy</td><td><b>включить</b></td></tr>
+              <tr><td>Import Extra Files</td><td>включить, <code>srt, sub, ass</code></td></tr>
+              <tr><td>Unmonitor Deleted Movies</td><td>включить</td></tr>
+              <tr><td>Rename Movies</td><td>включить</td></tr>
+              <tr><td>Replace Illegal Characters</td><td>включить</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Схема именования — что-то в этом духе:</p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>{Movie CleanTitle} ({Release Year}) {imdb-{ImdbId}} [{Quality Full}][{MediaInfo VideoCodec}]</code></pre></div>
+        <p>
+          Идентификатор IMDb в имени папки — не украшение: по нему Jellyfin
+          находит правильный фильм даже когда название переведено или в нём
+          опечатка.
+        </p>
+      </div>
+    </li>
+
+    <li class="step" data-key="m5-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">5.3</span> Профиль качества под ваш телевизор<span class="tag key">экономия</span></h3>
+        <p>
+          <b>Settings → Profiles → Quality Profiles</b>. Разумный набор для
+          вашей связки — разрешить <code>Bluray-720p</code>,
+          <code>WEBDL-720p</code>, <code>WEBRip-720p</code>,
+          <code>Bluray-1080p</code>, <code>WEBDL-1080p</code>,
+          <code>WEBRip-1080p</code>; всё, что выше 1080p, <b>выключить</b>.
+        </p>
+        <p>
+          Ограничение размера: <b>Settings → Quality</b>, для 1080p поставить
+          верхнюю границу порядка <code>15 ГБ</code> на фильм.
+        </p>
+        <div class="note why"><b>Почему не 4K.</b> LG 32LK540B — это матрица
+          1366×768. Даже 1080p телевизор показывает с уменьшением, а 4K-файл
+          на 60 ГБ отличается от 1080p на 8 ГБ ровно ничем — кроме занятого
+          места и риска, что приставке не хватит сил на прямое
+          воспроизведение. HDR на этой матрице тоже не отображается.
+          Профиль до 1080p экономит диск в разы, ничего не теряя на экране.</div>
+        <div class="note warn"><b>Про кодеки.</b> RockTek GX1 на Realtek RTD1325
+          аппаратно тянет H.264, H.265 и AV1 — прямое воспроизведение будет
+          почти всегда. Но если однажды соберётесь смотреть с телефона или
+          из браузера, помните: транскодировать эти файлы NAS будет
+          программно, на двух ядрах.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m5-4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">5.4</span> Подключить qBittorrent</h3>
+        <p><b>Settings → Download Clients → «+» → qBittorrent</b>:</p>
+        <div class="tablewrap">
+          <table>
+            <tbody>
+              <tr><td>Host</td><td><code>qbittorrent</code></td></tr>
+              <tr><td>Port</td><td><code>9080</code></td></tr>
+              <tr><td>Username / Password</td><td>те, что задали в шаге 2.1</td></tr>
+              <tr><td>Category</td><td><code>movies</code> — ровно как в шаге 2.4</td></tr>
+              <tr><td>Remove Completed</td><td>выключить</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Нажать <b>Test</b> — должна появиться зелёная галка.</p>
+        <div class="note warn"><b>Порт именно 9080, а не 8080.</b> В
+          <code>compose.yaml</code> задано <code>WEBUI_PORT=9080</code>, и
+          внутри сети Docker обращаться нужно к нему же — публикация портов
+          на хосте здесь ни при чём.</div>
+        <div class="note why"><b>Remove Completed выключен намеренно.</b> Пусть
+          лимиты раздачи из шага 2.6 решают судьбу торрента. Если разрешить
+          Radarr удалять завершённые, раздача оборвётся сразу после импорта —
+          а места это, благодаря хардлинкам, всё равно не освободит.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m5-5">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">5.5</span> Уведомления в Пачку<span class="tag opt">по желанию</span></h3>
+        <p>
+          Пачка умеет превращать чужой JSON в человеческое сообщение шаблоном
+          на стороне бота. <b>Заведите отдельного бота</b> — не того, что шлёт
+          уведомления из Home Assistant.
+        </p>
+        <p>
+          В Пачке: новый бот → вкладка «Входящий вебхук» → шаблон
+          (движок Liquid):
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>🎬 **{{ movie.title }}** ({{ movie.year }})
+{{ eventType }} · {{ movieFile.quality }}</code></pre></div>
+        <p>
+          В Radarr: <b>Settings → Connect → «+» → Webhook</b>, URL вебхука,
+          метод POST, события <b>On Import</b> и <b>On Upgrade</b>.
+        </p>
+        <div class="note crit"><b>Почему обязательно отдельный бот.</b> Шаблон
+          задаётся на боте и применяется ко всем входящим для него сообщениям.
+          Повесив шаблон на бота Home Assistant, вы сломаете все его
+          уведомления: они приходят как <code>{"message": "…"}</code>
+          и под шаблон Radarr не подойдут.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m5-6">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">5.6</span> Добавить первый фильм</h3>
+        <p>
+          <b>Movies → Add New</b>, найти что-нибудь заведомо доступное,
+          выбрать корневую папку и профиль, включить <b>Start search for
+          missing movie</b>, добавить.
+        </p>
+        <p>
+          Дальше смотрите <b>Activity → Queue</b>: там появится торрент,
+          и статус будет меняться от загрузки к импорту.
+        </p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s6">
+  <div class="sec-head">
+    <div class="kicker">Раздел 6</div>
+    <h2>Jellyfin</h2>
+    <p>
+      Витрина библиотеки: <a href="http://192.168.3.53:8096">192.168.3.53:8096</a>.
+      Главная задача настройки — сделать так, чтобы он как можно реже
+      транскодировал.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="m6-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">6.1</span> Пройти мастер и добавить библиотеку</h3>
+        <p>
+          Язык, учётная запись администратора, затем <b>Add Media Library</b>:
+        </p>
+        <div class="tablewrap">
+          <table>
+            <tbody>
+              <tr><td>Content type</td><td>Movies</td></tr>
+              <tr><td>Display name</td><td>Фильмы</td></tr>
+              <tr><td>Folder</td><td><code>/data/media/movies</code></td></tr>
+              <tr><td>Preferred metadata language</td><td>Русский</td></tr>
+              <tr><td>Country</td><td>Россия</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note why"><b>Библиотека смотрит только в media.</b> В
+          <code>compose.yaml</code> Jellyfin получает
+          <code>/volume1/data/media:/data/media:ro</code> — доступ только на
+          чтение и только к готовой библиотеке. Папку с загрузками он не видит
+          вовсе, и это правильно: недокачанные файлы в библиотеке ни к чему.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m6-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">6.2</span> Транскодирование: оставить выключенным<span class="tag key">важно</span></h3>
+        <p>
+          <b>Панель → Воспроизведение → Транскодирование</b>. Аппаратное
+          ускорение — <b>None</b>, и это не оплошность:
+        </p>
+        <div class="note crit"><b>У AMD Ryzen R1600 нет встроенной графики.</b>
+          Аппаратного кодировщика в DS725+ физически нет — включать нечего.
+          Любое транскодирование идёт программно на двух ядрах: один поток
+          1080p забирает их почти целиком, два уже рвутся. Если в списке
+          ускорителей что-то выберется, работать это не начнёт, зато
+          воспроизведение будет падать с ошибкой.</div>
+        <p>Что стоит включить в том же разделе:</p>
+        <div class="tablewrap">
+          <table>
+            <tbody>
+              <tr><td>Throttle Transcodes</td><td>включить — не даёт разогнать CPU в потолок</td></tr>
+              <tr><td>Transcoding thread count</td><td><code>2</code> — оставить ядро системе</td></tr>
+              <tr><td>Allow subtitle extraction on the fly</td><td>выключить — частая скрытая причина нагрузки</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m6-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">6.3</span> Отключить лишнее</h3>
+        <ul>
+          <li><b>DLNA</b> — если не пользуетесь, выключить: постоянные
+            широковещательные рассылки в домашнем сегменте не нужны никому;</li>
+          <li><b>Панель → Расписания</b> — сдвинуть сканирование библиотеки
+            и генерацию превью на ночь;</li>
+          <li><b>Chapter image extraction</b> — выключить, это самая тяжёлая
+            фоновая задача на слабом процессоре.</li>
+        </ul>
+      </div>
+    </li>
+
+    <li class="step" data-key="m6-4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">6.4</span> Завести пользователя для приставки</h3>
+        <p>
+          <b>Панель → Пользователи → «+»</b>. Отдельная учётная запись удобнее
+          общей административной: у неё своя история просмотра, на которой
+          строится сценарий «Продолжить просмотр» в Home Assistant.
+        </p>
+        <p>
+          Именно её идентификатор пойдёт в <code>secrets.yaml</code> как
+          <code>jellyfin_user_id</code>.
+        </p>
+      </div>
+    </li>
+
+    <li class="step" data-key="m6-5">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">6.5</span> Настроить клиент на приставке</h3>
+        <p>
+          На RockTek GX1 установить Jellyfin из Google Play, адрес сервера —
+          <code>http://192.168.3.53:8096</code>, вход под пользователем
+          из шага 6.4.
+        </p>
+        <p>
+          В настройках клиента выставить максимальное качество
+          <b>Auto / Direct play</b>.
+        </p>
+        <div class="note why"><b>Как проверить, что транскода нет.</b> Запустите
+          фильм и откройте <b>Панель → Активность</b> в Jellyfin. Строка
+          <code>Direct playing</code> — файл отдаётся как есть, процессор
+          свободен. Строка <code>Transcoding</code> с указанием кодеков —
+          NAS пережимает видео на лету, и это надо расследовать: обычно виноват
+          либо звук DTS, либо формат субтитров.</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s7">
+  <div class="sec-head">
+    <div class="kicker">Раздел 7</div>
+    <h2>Seerr</h2>
+    <p>
+      Витрина запросов: <a href="http://192.168.3.53:5055">192.168.3.53:5055</a>.
+      Ставится последним, потому что связывается со всем остальным.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="m7-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">7.1</span> Подключить Jellyfin</h3>
+        <p>
+          В мастере выбрать <b>Jellyfin</b>, адрес сервера:
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>http://jellyfin:8096</code></pre></div>
+        <p>
+          Войти учётной записью администратора Jellyfin, затем на следующем
+          шаге отметить библиотеку «Фильмы» и запустить сканирование.
+        </p>
+      </div>
+    </li>
+
+    <li class="step" data-key="m7-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">7.2</span> Подключить Radarr</h3>
+        <p><b>Settings → Services → Add Radarr Server</b>:</p>
+        <div class="tablewrap">
+          <table>
+            <tbody>
+              <tr><td>Default Server</td><td>включить</td></tr>
+              <tr><td>Hostname</td><td><code>radarr</code></td></tr>
+              <tr><td>Port</td><td><code>7878</code></td></tr>
+              <tr><td>API Key</td><td>из Radarr → Settings → General</td></tr>
+              <tr><td>Quality Profile</td><td>тот, что собрали в шаге 5.3</td></tr>
+              <tr><td>Root Folder</td><td><code>/data/media/movies</code></td></tr>
+              <tr><td>Minimum Availability</td><td><b>Released</b></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Нажать <b>Test</b>, затем сохранить.</p>
+        <div class="note warn"><b>Minimum Availability = Released</b> — иначе
+          Radarr начнёт искать фильм, которого ещё нет в природе, и будет
+          дёргать индексаторы месяцами.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m7-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">7.3</span> Пользователи и права</h3>
+        <p>
+          <b>Settings → Users → Import Users from Jellyfin</b>. Для домашних
+          можно включить <b>Auto-Approve</b> — тогда запрос уходит в Radarr
+          сразу, без вашего подтверждения.
+        </p>
+        <div class="note why"><b>Квоты стоит выставить даже дома.</b>
+          <b>Settings → Users → General → Global Movie Request Limit</b>,
+          например 5 фильмов в неделю. Двухбайтовый NAS с двумя дисками
+          заполняется быстрее, чем кажется, а гость с безлимитом
+          и списком «топ-250» способен занять терабайт за вечер.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m7-4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">7.4</span> Уведомления<span class="tag opt">по желанию</span></h3>
+        <p>
+          <b>Settings → Notifications → Webhook</b>, URL второго бота Пачки
+          из шага 5.5. Событие <b>Request Automatically Approved</b> и
+          <b>Media Available</b> — самые полезные: первое говорит, что процесс
+          пошёл, второе — что можно смотреть.
+        </p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s8">
+  <div class="sec-head">
+    <div class="kicker">Раздел 8</div>
+    <h2>Сквозная проверка</h2>
+    <p>
+      Один запрос, прошедший всю цепочку, проверяет больше, чем десять
+      отдельных кнопок «Test».
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="m8-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">8.1</span> Запросить фильм и проследить путь</h3>
+        <p>
+          В Seerr найти фильм и нажать <b>Request</b>. Дальше смотреть по
+          порядку:
+        </p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Где смотреть</th><th>Что должно произойти</th></tr></thead>
+            <tbody>
+              <tr><td>Seerr → Requests</td><td>запрос переходит в <b>Approved</b></td></tr>
+              <tr><td>Radarr → Movies</td><td>фильм появился, отмечен как отслеживаемый</td></tr>
+              <tr><td>Radarr → Activity → Queue</td><td>идёт загрузка, виден индексатор и релиз</td></tr>
+              <tr><td>qBittorrent</td><td>торрент с категорией <code>movies</code></td></tr>
+              <tr><td>Radarr → Activity → History</td><td>событие <b>Imported</b></td></tr>
+              <tr><td>Jellyfin → Фильмы</td><td>фильм в библиотеке с обложкой</td></tr>
+              <tr><td>Seerr → Requests</td><td>статус <b>Available</b></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Если застряло — смотрите логи того звена, на котором остановилось:</p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo docker logs -f --tail 80 radarr
+sudo docker logs -f --tail 80 prowlarr
+sudo docker logs -f --tail 80 qbittorrent</code></pre></div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m8-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">8.2</span> Проверить, что импорт прошёл хардлинком<span class="tag key">главная проверка</span></h3>
+        <p>
+          Найдите файл в обеих папках и сравните номера inode:
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo find /volume1/data -name '*.mkv' -newermt '-1 hour' -printf '%i\t%n\t%p\n' | sort -n</code></pre></div>
+        <p>
+          Первая колонка — inode, вторая — число ссылок, третья — путь.
+          <b>Один и тот же inode на двух строках и цифра 2 во второй колонке —
+          хардлинк создан, всё работает как задумано.</b>
+        </p>
+        <div class="note crit"><b>Разные inode и по единице в колонке ссылок</b>
+          означают, что Radarr скопировал файл. Проверьте: включён ли
+          <b>Use Hardlinks instead of Copy</b> (шаг 5.2), и смонтирован ли
+          в обоих контейнерах один том <code>/volume1/data:/data</code>,
+          а не две отдельные папки (шаг 1.2). До исправления каждый фильм
+          будет занимать двойное место.</div>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code><span class="c"># Сколько реально занято — с учётом того, что хардлинки считаются один раз</span>
+sudo du -sh --count-links=no /volume1/data/torrents /volume1/data/media 2>/dev/null || sudo du -sh /volume1/data
+df -h /volume1</code></pre></div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s9">
+  <div class="sec-head">
+    <div class="kicker">Раздел 9</div>
+    <h2>Обслуживание</h2>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="m9-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">9.1</span> Включить встроенные бэкапы</h3>
+        <p>
+          У Radarr и Prowlarr есть свои: <b>Settings → General → Backups</b>,
+          интервал 7 дней, хранить 10. Они складываются в
+          <code>/config/Backups</code> внутри контейнера, то есть в
+          <code>/volume1/docker/&lt;сервис&gt;/config</code> на NAS.
+        </p>
+        <p>
+          Убедитесь, что <code>/volume1/docker</code> входит в задание
+          Hyper Backup — там же лежит и конфигурация Home Assistant.
+        </p>
+      </div>
+    </li>
+
+    <li class="step" data-key="m9-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">9.2</span> Порядок обновления</h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/media
+sudo docker compose pull
+sudo docker compose up -d
+sudo docker image prune -f</code></pre></div>
+        <div class="note warn"><b>Обновляйте медиа-стек и Home Assistant порознь</b>
+          и не в один день. Если после обновления что-то сломается, вы будете
+          точно знать, что именно, — а не гадать между шестью приложениями
+          и полусотней интеграций.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m9-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">9.3</span> Следить за местом</h3>
+        <p>
+          Home Assistant уже присылает в Пачку предупреждение при 85 %
+          и тревогу при 93 % заполнения тома. Когда придёт первое — самое
+          время пройтись по завершённым раздачам.
+        </p>
+        <p>
+          Освобождает место только удаление <b>обеих</b> ссылок: и торрента
+          с файлами в qBittorrent, и фильма в Radarr. Удаление чего-то одного
+          не даст ничего — данные останутся по второй ссылке.
+        </p>
+      </div>
+    </li>
+
+    <li class="step" data-key="m9-4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">9.4</span> Раз в квартал заглядывать в Prowlarr</h3>
+        <p>
+          <b>Indexers</b> — проверить, что все зелёные. Трекеры меняют домены,
+          закрываются и вводят новую защиту; молча переставший работать
+          индексатор выглядит как «Radarr ничего не находит».
+        </p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s10">
+  <div class="sec-head">
+    <div class="kicker">Раздел 10</div>
+    <h2>Если что-то пошло не так</h2>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Симптом</th><th>Вероятная причина</th><th>Что делать</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Каждый фильм занимает вдвое больше места</td>
+          <td>импорт идёт копированием, а не хардлинком</td>
+          <td>шаг 8.2 для диагностики, затем шаги 1.2 и 5.2</td>
+        </tr>
+        <tr>
+          <td>Не могу войти в qBittorrent</td>
+          <td>пароль генерируется случайно при первом запуске</td>
+          <td>шаг 2.1: искать «temporary password» в логах контейнера</td>
+        </tr>
+        <tr>
+          <td>Radarr: «Test failed» на qBittorrent</td>
+          <td>указан <code>127.0.0.1</code> или порт 8080</td>
+          <td>хост <code>qbittorrent</code>, порт <code>9080</code></td>
+        </tr>
+        <tr>
+          <td>Индексатор красный, в ошибке Cloudflare</td>
+          <td>не привязан FlareSolverr</td>
+          <td>шаг 4.3: тег <code>flaresolverr</code> на самом индексаторе, а не только на прокси</td>
+        </tr>
+        <tr>
+          <td>Radarr ничего не находит</td>
+          <td>индексаторы не доехали из Prowlarr либо отвалились</td>
+          <td>Radarr → Settings → Indexers; Prowlarr → Apps → Test</td>
+        </tr>
+        <tr>
+          <td>Торрент скачался, но не импортируется</td>
+          <td>категория не совпадает, или Radarr не видит файл по своему пути</td>
+          <td>Activity → Queue, навести на предупреждение — там точная причина</td>
+        </tr>
+        <tr>
+          <td>Интернет в доме «залипает» во время загрузок</td>
+          <td>переполнена таблица соединений на роутере</td>
+          <td>шаг 2.5: ограничить число соединений</td>
+        </tr>
+        <tr>
+          <td>Ничего не раздаётся, рейтинг стоит</td>
+          <td>входящие не проходят через VPN-туннель</td>
+          <td>это ожидаемо; проброс порта у провайдера туннеля, если он есть</td>
+        </tr>
+        <tr>
+          <td>Jellyfin буферизует, NAS шумит</td>
+          <td>идёт программное транскодирование</td>
+          <td>Панель → Активность: посмотреть, что именно пережимается; шаг 6.5</td>
+        </tr>
+        <tr>
+          <td>Seerr не видит Jellyfin</td>
+          <td>указан внешний адрес вместо имени контейнера</td>
+          <td><code>http://jellyfin:8096</code></td>
+        </tr>
+        <tr>
+          <td>Фильм в библиотеке, но Seerr пишет «запросить»</td>
+          <td>Seerr не пересканировал библиотеку</td>
+          <td>Settings → Jellyfin → Sync Libraries → Start Scan</td>
+        </tr>
+        <tr>
+          <td>Radarr не пишет в папку</td>
+          <td>права на <code>/volume1/data</code></td>
+          <td><code>sudo chown -R 1026:100 /volume1/data</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="sA">
+  <div class="sec-head">
+    <div class="kicker">Приложение A</div>
+    <h2>Адреса и порты</h2>
+    <p>Один и тот же сервис адресуется по-разному в зависимости от того, кто спрашивает.</p>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Сервис</th>
+          <th>Внутри сети <code>media</code></th>
+          <th>Из Home Assistant</th>
+          <th>Из браузера</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>qBittorrent</td><td><code>qbittorrent:9080</code></td><td><code>127.0.0.1:9080</code></td><td><code>192.168.3.53:9080</code></td></tr>
+        <tr><td>Prowlarr</td><td><code>prowlarr:9696</code></td><td><code>127.0.0.1:9696</code></td><td><code>192.168.3.53:9696</code></td></tr>
+        <tr><td>Radarr</td><td><code>radarr:7878</code></td><td><code>127.0.0.1:7878</code></td><td><code>192.168.3.53:7878</code></td></tr>
+        <tr><td>FlareSolverr</td><td><code>flaresolverr:8191</code></td><td><code>127.0.0.1:8191</code></td><td><code>192.168.3.53:8191</code></td></tr>
+        <tr><td>Jellyfin</td><td><code>jellyfin:8096</code></td><td><code>127.0.0.1:8096</code></td><td><code>192.168.3.53:8096</code></td></tr>
+        <tr><td>Seerr</td><td><code>seerr:5055</code></td><td><code>127.0.0.1:5055</code></td><td><code>192.168.3.53:5055</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note why" style="margin-top:20px">
+    <b>Почему Home Assistant ходит по localhost.</b> Он запущен в сети хоста —
+    это нужно для обнаружения телевизора и Wake-on-LAN. В такой сети все
+    опубликованные порты контейнеров доступны на <code>127.0.0.1</code>,
+    зато имена контейнеров из сети <code>media</code> не разрешаются:
+    для host-режима этой сети как бы не существует.
+  </div>
+</section>
+
+<section id="sB">
+  <div class="sec-head">
+    <div class="kicker">Приложение B</div>
+    <h2>Структура данных</h2>
+  </div>
+
+  <div class="code"><pre><code>/volume1/data/                     <span class="c">← один том, смонтирован как /data</span>
+├── torrents/
+│   ├── incomplete/                <span class="c">незавершённые загрузки</span>
+│   └── movies/                    <span class="c">категория qBittorrent, раздача</span>
+└── media/
+    └── movies/                    <span class="c">библиотека Jellyfin</span>
+        └── Название (2024) {imdb-tt1234567} [Bluray-1080p][x264]/
+            └── Название (2024) [Bluray-1080p][x264].mkv
+
+/volume1/docker/                   <span class="c">← конфигурации, в data не лезут</span>
+├── qbittorrent/config
+├── prowlarr/config
+├── radarr/config
+├── jellyfin/{config,cache}
+├── seerr/config
+└── hh-homelab/                    <span class="c">этот репозиторий</span>
+    └── homeassistant/config       <span class="c">рабочая конфигурация HA</span></code></pre></div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Контейнер</th><th>Монтирование</th><th>Права</th></tr></thead>
+      <tbody>
+        <tr><td>qBittorrent</td><td><code>/volume1/data:/data</code></td><td>чтение и запись</td></tr>
+        <tr><td>Radarr</td><td><code>/volume1/data:/data</code></td><td>чтение и запись</td></tr>
+        <tr><td>Jellyfin</td><td><code>/volume1/data/media:/data/media:ro</code></td><td>только чтение</td></tr>
+        <tr><td>Prowlarr, FlareSolverr, Seerr</td><td>—</td><td>к данным не обращаются</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note why" style="margin-top:20px">
+    <b>Владелец всего дерева — <code>1026:100</code></b>, те же PUID и PGID,
+    что заданы контейнерам в <code>compose.yaml</code>. Маска
+    <code>UMASK=002</code> означает, что новые файлы создаются с правами
+    группы на запись: это позволяет вам разбирать библиотеку из File Station
+    под своей учётной записью, не воюя с правами.
+  </div>
+</section>
+
+</main>
+</div>
+
+<footer>
+  <div class="wrap">
+    Настройка приложений медиа-стека на Synology DS725+: qBittorrent, FlareSolverr,
+    Prowlarr, Radarr, Jellyfin, Seerr. Данные — в /volume1/data, конфигурации —
+    в /volume1/docker. Отметки сохраняются в этом браузере.
+  </div>
+</footer>
+
+<script>
+(function () {
+  var KEY = 'media-ds725-checklist-v1';
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; }
+    catch (e) { return {}; }
+  }
+  function save(state) {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  }
+
+  var state = load();
+  var steps = Array.prototype.slice.call(document.querySelectorAll('li.step'));
+  var ring = document.querySelector('.ring .fg');
+  var CIRC = 2 * Math.PI * 19;
+  var doneEl = document.getElementById('p-done');
+  var totalEl = document.getElementById('p-total');
+
+  /* ---- оглавление строится из секций ---- */
+  var toc = document.getElementById('toc');
+  var sections = Array.prototype.slice.call(document.querySelectorAll('main section'));
+  sections.forEach(function (sec) {
+    var h2 = sec.querySelector('h2');
+    if (!h2) return;
+    var kicker = sec.querySelector('.kicker');
+    var label = (kicker ? kicker.textContent.replace(/Раздел\s*/i, '').replace(/Приложение\s*/i, '') : '').trim();
+    var li = document.createElement('li');
+    var a = document.createElement('a');
+    a.href = '#' + sec.id;
+    a.dataset.sec = sec.id;
+    a.innerHTML = '<span class="n">' + label + '</span><span>' +
+      h2.textContent.replace(/\s*(когда приедет|план)\s*$/i, '').trim() + '</span>';
+    li.appendChild(a);
+    toc.appendChild(li);
+  });
+
+  /* ---- отметка раздела как пройденного ---- */
+  function refreshToc() {
+    sections.forEach(function (sec) {
+      var boxes = sec.querySelectorAll('li.step input[type=checkbox]');
+      var link = toc.querySelector('a[data-sec="' + sec.id + '"]');
+      if (!link) return;
+      var all = boxes.length > 0;
+      Array.prototype.forEach.call(boxes, function (b) { if (!b.checked) all = false; });
+      link.classList.toggle('done', all);
+    });
+  }
+
+  function refreshProgress() {
+    var done = steps.filter(function (s) { return s.classList.contains('checked'); }).length;
+    doneEl.textContent = done;
+    totalEl.textContent = steps.length;
+    ring.setAttribute('stroke-dasharray', CIRC.toFixed(1));
+    ring.setAttribute('stroke-dashoffset', (CIRC * (1 - (steps.length ? done / steps.length : 0))).toFixed(1));
+    refreshToc();
+  }
+
+  steps.forEach(function (step) {
+    var key = step.dataset.key;
+    var input = step.querySelector('input[type=checkbox]');
+    if (!input) return;
+    input.id = 'chk-' + key;
+    if (state[key]) { input.checked = true; step.classList.add('checked'); }
+    input.addEventListener('change', function () {
+      step.classList.toggle('checked', input.checked);
+      state[key] = input.checked;
+      if (!input.checked) delete state[key];
+      save(state);
+      refreshProgress();
+    });
+  });
+
+  document.getElementById('reset').addEventListener('click', function () {
+    steps.forEach(function (step) {
+      var input = step.querySelector('input[type=checkbox]');
+      if (input) { input.checked = false; }
+      step.classList.remove('checked');
+    });
+    state = {};
+    save(state);
+    refreshProgress();
+  });
+
+  refreshProgress();
+
+  /* ---- кнопки «копировать» ---- */
+  Array.prototype.forEach.call(document.querySelectorAll('.code .copy'), function (btn) {
+    btn.addEventListener('click', function () {
+      var pre = btn.parentNode.querySelector('pre');
+      if (!pre) return;
+      var text = pre.innerText;
+      var done = function () {
+        var old = btn.textContent;
+        btn.textContent = 'скопировано';
+        setTimeout(function () { btn.textContent = old; }, 1400);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () {});
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) {}
+        document.body.removeChild(ta);
+      }
+    });
+  });
+
+  /* ---- подсветка текущего раздела ---- */
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        var link = toc.querySelector('a[data-sec="' + entry.target.id + '"]');
+        if (!link) return;
+        if (entry.isIntersecting) {
+          Array.prototype.forEach.call(toc.querySelectorAll('a'), function (a) { a.classList.remove('active'); });
+          link.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-10% 0px -75% 0px' });
+    sections.forEach(function (s) { obs.observe(s); });
+  }
+})();
+</script>
+
+</body>
+</html>
