@@ -4,5 +4,7 @@
   "series": "Тёмные воды", "season": "2", "episode": "4",
   "user": "guest", "client": "Jellyfin Web", "device": "Chrome",
   "address": "192.168.3.50", "playMethod": "DirectPlay",
-  "playedToCompletion": "", "position": "", "server": "NAS"
+  "playedToCompletion": "", "position": "",
+  "width": "1280", "height": "720", "videoCodec": "h264",
+  "server": "NAS"
 }

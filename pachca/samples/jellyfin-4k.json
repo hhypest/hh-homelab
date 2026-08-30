@@ -1,10 +1,10 @@
 {
   "service": "jellyfin", "event": "PlaybackStart",
-  "item": "Северный ветер", "itemType": "Movie", "year": "2024",
+  "item": "Дюна", "itemType": "Movie", "year": "2021",
   "series": "", "season": "", "episode": "",
   "user": "hhypest", "client": "Jellyfin Android TV", "device": "RockTek GX1",
   "address": "192.168.3.54", "playMethod": "Transcode",
   "playedToCompletion": "", "position": "",
-  "width": "1920", "height": "804", "videoCodec": "hevc",
+  "width": "3840", "height": "1600", "videoCodec": "hevc",
   "server": "NAS"
 }

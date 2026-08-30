@@ -1,0 +1,10 @@
+{
+  "service": "jellyfin", "event": "AuthenticationFailure",
+  "item": "", "itemType": "", "year": "",
+  "series": "", "season": "", "episode": "",
+  "user": "admin", "client": "Jellyfin Web", "device": "Chrome",
+  "address": "10.0.50.7", "playMethod": "",
+  "playedToCompletion": "", "position": "",
+  "width": "", "height": "", "videoCodec": "",
+  "server": "NAS"
+}

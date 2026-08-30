@@ -95,6 +95,24 @@ def test_каждый_pip_install_ставит_наш_файл_зависимо�
             )
 
 
+def test_каждый_запускаемый_скрипт_существует(workflow):
+    """
+    Задача может звать скрипт, которого в репозитории нет: файл
+    переименовали, а workflow забыли. Узнавать об этом на GitHub незачем.
+    """
+    import shlex
+
+    for job_name, step in steps(workflow):
+        for line in (step.get("run") or "").splitlines():
+            parts = shlex.split(line, comments=True)
+            for index, word in enumerate(parts):
+                if word.endswith(".py") and index and parts[index - 1].startswith("python"):
+                    assert (ROOT / word).is_file(), (
+                        f"задача «{job_name}» запускает {word}, "
+                        f"а такого файла в репозитории нет"
+                    )
+
+
 def test_у_каждой_задачи_есть_checkout(workflow):
     for job_name, job in (workflow.get("jobs") or {}).items():
         uses = [(s.get("uses") or "") for s in job.get("steps") or []]

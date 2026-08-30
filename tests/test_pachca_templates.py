@@ -122,6 +122,89 @@ def test_транскодирование_помечается_предупре�
     assert "⚠️" not in direct
 
 
+def test_разрешение_считается_по_ширине_а_не_по_высоте() -> None:
+    """
+    Главная ловушка. Кинематографический кадр 2.39:1 в честном 1080p —
+    это 1920×804. По высоте его пришлось бы назвать 720p, и уведомление
+    врало бы на каждом втором фильме. Ширина у всех форматов одинакова,
+    поэтому раскладка идёт по ней.
+    """
+    payload = json.loads((PACHCA / "samples/jellyfin-transcode.json").read_text(encoding="utf-8"))
+    assert payload["height"] == "804", "пример потерял широкий кадр — проверка стала бессмысленной"
+    text = render(PACHCA / "jellyfin.liquid", payload)
+    assert "1080p" in text, f"широкий кадр назван неверно: {text!r}"
+    assert "720p" not in text
+
+
+@pytest.mark.parametrize(
+    "width,expected",
+    [
+        ("3840", "2160p"),
+        ("2560", "1440p"),
+        ("1920", "1080p"),
+        ("1280", "720p"),
+        ("1024", "576p"),
+        ("720", "480p"),
+        ("320", "SD"),
+    ],
+)
+def test_ширина_превращается_в_привычную_метку(width: str, expected: str) -> None:
+    payload = json.loads((PACHCA / "samples/jellyfin-transcode.json").read_text(encoding="utf-8"))
+    text = render(PACHCA / "jellyfin.liquid", {**payload, "width": width, "height": "0"})
+    assert expected in text, f"ширина {width} дала не «{expected}»: {text!r}"
+
+
+def test_высота_выручает_когда_ширины_нет() -> None:
+    """Поле может не приехать; тогда считаем по высоте, а не молчим."""
+    payload = json.loads((PACHCA / "samples/jellyfin-transcode.json").read_text(encoding="utf-8"))
+    text = render(PACHCA / "jellyfin.liquid", {**payload, "width": "", "height": "1080"})
+    assert "1080p" in text
+
+
+def test_событие_без_файла_не_показывает_разрешение() -> None:
+    """
+    У входа в систему и блокировки учётной записи видеодорожки нет вовсе.
+    Пустые поля не должны превратиться ни в «0p», ни в висящий разделитель.
+    """
+    payload = json.loads((PACHCA / "samples/jellyfin-authfail.json").read_text(encoding="utf-8"))
+    text = render(PACHCA / "jellyfin.liquid", payload)
+    for junk in ("0p", "SD", " · \n", "· ·"):
+        assert junk not in text, f"в сообщении осталось «{junk}»: {text!r}"
+
+
+def test_кодек_показывается_человеческим_именем() -> None:
+    """
+    Jellyfin называет кодеки как ffmpeg: hevc, h264. На DS725+ нет
+    аппаратного декодера, и по кодеку сразу видно, откуда взялось
+    транскодирование — но только если он написан узнаваемо.
+    """
+    payload = json.loads((PACHCA / "samples/jellyfin-transcode.json").read_text(encoding="utf-8"))
+    assert "HEVC" in render(PACHCA / "jellyfin.liquid", payload)
+    assert "H.264" in render(PACHCA / "jellyfin.liquid", {**payload, "videoCodec": "h264"})
+    assert "AV1" in render(PACHCA / "jellyfin.liquid", {**payload, "videoCodec": "av1"})
+    # Незнакомый кодек не должен исчезать — пусть будет хотя бы как есть.
+    assert "PRORES" in render(PACHCA / "jellyfin.liquid", {**payload, "videoCodec": "prores"})
+
+
+def test_разрешение_видно_и_при_пополнении_библиотеки() -> None:
+    """
+    Radarr умеет притащить не то качество. Разрешение в уведомлении
+    «появилось в Jellyfin» — самый ранний момент, когда это заметно.
+    """
+    payload = json.loads((PACHCA / "samples/jellyfin-itemadded.json").read_text(encoding="utf-8"))
+    assert "1080p" in render(PACHCA / "jellyfin.liquid", payload)
+
+
+def test_поля_разрешения_есть_в_payload_и_в_шаблоне() -> None:
+    """Два файла правятся вместе; проверка на то, что про второй не забыли."""
+    payload = (PACHCA / "payloads/jellyfin.handlebars").read_text(encoding="utf-8")
+    liquid = (PACHCA / "jellyfin.liquid").read_text(encoding="utf-8")
+    for source, target in (("Video_0_Width", "width"), ("Video_0_Height", "height"),
+                           ("Video_0_Codec", "videoCodec")):
+        assert source in payload, f"{source} пропал из payloads/jellyfin.handlebars"
+        assert target in liquid, f"поле {target} не используется в jellyfin.liquid"
+
+
 def test_маршрутизатор_узнаёт_всех_отправителей() -> None:
     """Один бот на всё — запасной вариант, но он должен работать."""
     router = PACHCA / "media-router.liquid"
