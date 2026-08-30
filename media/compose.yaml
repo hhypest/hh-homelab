@@ -1,0 +1,127 @@
+# =============================================================================
+#  Медиа-стек для Synology DS725+ (192.168.3.53)
+#  Проект Container Manager: /volume1/docker/hh-homelab/media
+# =============================================================================
+#  Шесть контейнеров в общей bridge-сети `media`. Все веб-интерфейсы
+#  опубликованы на хосте, поэтому Home Assistant, работающий в host-сети,
+#  достаёт их по 127.0.0.1 — см. homeassistant/config/packages/monitoring.yaml.
+#
+#  Порты: 9080 и 6881 (qBittorrent), 9696 (Prowlarr), 7878 (Radarr),
+#  8191 (FlareSolverr), 8096 и 7359 (Jellyfin), 5055 (Seerr).
+#
+#  PUID/PGID 1026:100 — пользователь DSM, владеющий /volume1/data.
+#  Проверить свои: `id ваш_логин` по SSH на NAS.
+# =============================================================================
+
+services:
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    restart: unless-stopped
+    environment:
+      - PUID=1026
+      - PGID=100
+      - UMASK=002
+      - TZ=Europe/Moscow
+      - WEBUI_PORT=9080
+      - TORRENTING_PORT=6881
+      - DOCKER_MODS=ghcr.io/vuetorrent/vuetorrent-lsio-mod:latest
+    volumes:
+      - /volume1/docker/qbittorrent/config:/config
+      - /volume1/data:/data
+      - /volume1/docker/qbittorrent/watch:/watch
+    ports:
+      - "9080:9080"
+      - "6881:6881"
+      - "6881:6881/udp"
+    networks:
+      - media
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    restart: unless-stopped
+    environment:
+      - PUID=1026
+      - PGID=100
+      - UMASK=002
+      - TZ=Europe/Moscow
+    volumes:
+      - /volume1/docker/prowlarr/config:/config
+    ports:
+      - "9696:9696"
+    networks:
+      - media
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    restart: unless-stopped
+    environment:
+      - PUID=1026
+      - PGID=100
+      - UMASK=002
+      - TZ=Europe/Moscow
+    volumes:
+      - /volume1/docker/radarr/config:/config
+      - /volume1/data:/data
+    ports:
+      - "7878:7878"
+    networks:
+      - media
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=info
+      - TZ=Europe/Moscow
+    ports:
+      - "8191:8191"
+    networks:
+      - media
+
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    restart: unless-stopped
+    environment:
+      - PUID=1026
+      - PGID=100
+      - UMASK=002
+      - TZ=Europe/Moscow
+      - JELLYFIN_PublishedServerUrl=http://192.168.3.53:8096
+    volumes:
+      - /volume1/docker/jellyfin/config:/config
+      - /volume1/docker/jellyfin/cache:/cache
+      - /volume1/data/media:/data/media:ro
+    ports:
+      - "8096:8096"
+      - "7359:7359/udp"
+    networks:
+      - media
+
+  seerr:
+    image: ghcr.io/seerr-team/seerr:latest
+    container_name: seerr
+    init: true
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Moscow
+      - LOG_LEVEL=info
+      - PORT=5055
+    volumes:
+      - /volume1/docker/seerr/config:/app/config
+    ports:
+      - "5055:5055"
+    depends_on:
+      - radarr
+      - jellyfin
+    networks:
+      - media
+
+networks:
+  media:
+    name: media
+    driver: bridge

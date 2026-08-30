@@ -1,0 +1,2275 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Пошаговый чек-лист развёртывания Home Assistant на Synology DS725+: метрики NAS и контейнеров, уведомления в Пачку, управление телевизором через Алису.">
+<title>Home Assistant на DS725+</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;font-size:14px}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+</style>
+<style>
+/* ==========================================================================
+   Токены. Светлая палитра — на голом :root, тёмная переопределяет только их.
+   ========================================================================== */
+:root{
+  --ground:#F1F5F6;
+  --surface:#FFFFFF;
+  --surface-2:#E7EDEF;
+  --ink:#0E1A1E;
+  --ink-2:#3F5259;
+  --muted:#6A7E86;
+  --line:#D2DEE2;
+  --line-strong:#B2C3C9;
+  --home:#0D6B75;
+  --iot:#95590F;
+  --ok:#2A6B46;
+  --crit:#A22F26;
+  --code-bg:#0E1A1E;
+  --code-ink:#D6E3E7;
+  --code-dim:#7C949C;
+  --shadow:0 1px 2px rgba(14,26,30,.06), 0 8px 24px -16px rgba(14,26,30,.30);
+  --radius:10px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0B1214;
+    --surface:#121D21;
+    --surface-2:#19272C;
+    --ink:#E3EDF0;
+    --ink-2:#A7BBC2;
+    --muted:#7C939B;
+    --line:#22343B;
+    --line-strong:#354F59;
+    --home:#4FC2CD;
+    --iot:#DFA254;
+    --ok:#5EBD85;
+    --crit:#E8786C;
+    --code-bg:#080F11;
+    --code-ink:#CEDFE4;
+    --code-dim:#6D858D;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0B1214;
+  --surface:#121D21;
+  --surface-2:#19272C;
+  --ink:#E3EDF0;
+  --ink-2:#A7BBC2;
+  --muted:#7C939B;
+  --line:#22343B;
+  --line-strong:#354F59;
+  --home:#4FC2CD;
+  --iot:#DFA254;
+  --ok:#5EBD85;
+  --crit:#E8786C;
+  --code-bg:#080F11;
+  --code-ink:#CEDFE4;
+  --code-dim:#6D858D;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"IBM Plex Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  font-size:15.5px;
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:"Golos Text","IBM Plex Sans",system-ui,sans-serif;text-wrap:balance;margin:0}
+a{color:var(--home)}
+code,kbd,pre{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+
+/* ---------- каркас ---------- */
+.wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+.layout{display:grid;grid-template-columns:248px minmax(0,1fr);gap:48px;align-items:start}
+
+/* ---------- шапка ---------- */
+header.top{
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,var(--surface),var(--ground));
+}
+.top .wrap{padding-top:44px;padding-bottom:34px}
+.eyebrow{
+  font-family:"Golos Text",sans-serif;font-weight:600;font-size:11.5px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;
+}
+h1{font-size:clamp(30px,4.4vw,46px);font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.lede{max-width:64ch;margin-top:14px;color:var(--ink-2);font-size:17px}
+.facts{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.fact{
+  display:inline-flex;align-items:center;gap:7px;
+  border:1px solid var(--line);border-radius:100px;background:var(--surface);
+  padding:5px 13px;font-size:12.5px;color:var(--ink-2);
+}
+.fact b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+.dot.home{background:var(--home)}
+.dot.iot{background:var(--iot)}
+
+/* ---------- боковая навигация ---------- */
+nav.rail{position:sticky;top:24px;padding:24px 0 60px}
+.progress{
+  border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);
+  padding:14px;display:flex;align-items:center;gap:13px;margin-bottom:20px;box-shadow:var(--shadow);
+}
+.ring{flex:none}
+.ring circle{fill:none;stroke-width:5}
+.ring .bg{stroke:var(--line)}
+.ring .fg{stroke:var(--home);stroke-linecap:round;transition:stroke-dashoffset .35s ease}
+.progress .txt{font-size:12.5px;line-height:1.35;color:var(--muted)}
+.progress .txt b{display:block;font-family:"Golos Text",sans-serif;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+.reset{
+  appearance:none;border:1px solid var(--line);background:transparent;color:var(--muted);
+  font:inherit;font-size:11.5px;padding:2px 8px;border-radius:6px;cursor:pointer;margin-top:4px;
+}
+.reset:hover{color:var(--ink);border-color:var(--line-strong)}
+nav.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
+nav.rail a{
+  display:flex;gap:10px;align-items:baseline;
+  padding:6px 10px;border-radius:7px;text-decoration:none;color:var(--ink-2);font-size:13.5px;
+  border-left:2px solid transparent;
+}
+nav.rail a:hover{background:var(--surface-2);color:var(--ink)}
+nav.rail a.active{background:var(--surface);color:var(--ink);border-left-color:var(--home);font-weight:500}
+nav.rail a .n{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px;min-width:16px}
+nav.rail a.done .n::after{content:"✓";color:var(--ok)}
+nav.rail a.done .n{font-size:0}
+
+/* ---------- секции ---------- */
+main{padding:34px 0 120px;min-width:0}
+section{margin-bottom:56px;scroll-margin-top:20px}
+.sec-head{border-top:2px solid var(--ink);padding-top:14px;margin-bottom:22px}
+.sec-head .kicker{
+  font-family:"Golos Text",sans-serif;font-size:11.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--muted);font-weight:600;
+}
+h2{font-size:clamp(21px,2.6vw,27px);font-weight:700;letter-spacing:-.015em;margin-top:4px}
+.sec-head p{margin:10px 0 0;color:var(--ink-2);max-width:68ch}
+
+/* ---------- шаги ---------- */
+ol.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
+li.step{
+  display:grid;grid-template-columns:28px minmax(0,1fr);gap:14px;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 18px;box-shadow:var(--shadow);transition:opacity .2s ease;
+}
+li.step.checked{opacity:.55}
+li.step.checked h3{text-decoration:line-through;text-decoration-color:var(--line-strong)}
+.step-check{position:relative;display:block;width:22px;height:22px;margin-top:2px;cursor:pointer}
+.step-check input{position:absolute;opacity:0;width:22px;height:22px;margin:0;cursor:pointer}
+.step-check .box{
+  display:block;width:22px;height:22px;border:1.5px solid var(--line-strong);
+  border-radius:6px;background:var(--ground);transition:.15s ease;
+}
+.step-check input:focus-visible + .box{outline:2px solid var(--home);outline-offset:2px}
+.step-check input:checked + .box{background:var(--home);border-color:var(--home)}
+.step-check .box::after{
+  content:"";position:absolute;left:7px;top:3px;width:6px;height:11px;
+  border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(45deg) scale(0);
+  transition:transform .15s ease;
+}
+.step-check input:checked + .box::after{transform:rotate(45deg) scale(1)}
+.step-body{min-width:0}
+.step-body h3{font-size:16.5px;font-weight:600;letter-spacing:-.005em;display:flex;gap:9px;align-items:baseline}
+.step-body h3 .num{
+  font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:500;
+  color:var(--home);flex:none;padding-top:1px;
+}
+.step-body p{margin:9px 0 0;color:var(--ink-2);max-width:70ch}
+.step-body p:first-of-type{margin-top:7px}
+.step-body ul{margin:9px 0 0;padding-left:20px;color:var(--ink-2);max-width:70ch}
+.step-body li{margin:3px 0}
+.step-body b,.step-body strong{color:var(--ink);font-weight:600}
+
+/* ---------- врезки ---------- */
+.note{
+  margin-top:12px;padding:11px 14px;border-left:3px solid var(--line-strong);
+  background:var(--surface-2);border-radius:0 7px 7px 0;font-size:14px;color:var(--ink-2);
+  max-width:72ch;
+}
+.note b:first-child{color:var(--ink)}
+.note.why{border-left-color:var(--home)}
+.note.warn{border-left-color:var(--iot)}
+.note.crit{border-left-color:var(--crit)}
+.note p{margin:6px 0 0}
+.note p:first-child{margin:0}
+
+/* ---------- код ---------- */
+.code{position:relative;margin-top:12px}
+.code pre{
+  margin:0;background:var(--code-bg);color:var(--code-ink);
+  padding:14px 16px;border-radius:8px;overflow-x:auto;
+  font-size:12.8px;line-height:1.62;border:1px solid var(--line);
+}
+.code pre .c{color:var(--code-dim)}
+.code .copy{
+  position:absolute;top:8px;right:8px;appearance:none;cursor:pointer;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);
+  color:var(--code-dim);font-family:"IBM Plex Sans",sans-serif;font-size:11px;
+  padding:3px 9px;border-radius:5px;opacity:0;transition:.15s ease;
+}
+.code:hover .copy,.code .copy:focus-visible{opacity:1}
+.code .copy:hover{color:#fff;background:rgba(255,255,255,.14)}
+code:not(pre code){
+  background:var(--surface-2);border:1px solid var(--line);
+  padding:1px 5px;border-radius:4px;font-size:.88em;color:var(--ink);
+}
+.path{color:var(--home)}
+
+/* ---------- таблицы ---------- */
+.tablewrap{overflow-x:auto;margin-top:14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.8px;min-width:520px}
+th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{
+  font-family:"Golos Text",sans-serif;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);font-weight:600;background:var(--surface-2);
+}
+tbody tr:last-child td{border-bottom:none}
+td code{white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+
+/* ---------- диаграмма ---------- */
+figure{margin:0 0 26px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px 18px 16px;box-shadow:var(--shadow)}
+figure svg{display:block;width:100%;max-width:100%;height:auto;color:var(--ink-2)}
+figcaption{margin-top:14px;font-size:13.5px;color:var(--muted);max-width:74ch}
+
+/* ---------- метки ---------- */
+.tag{
+  display:inline-block;font-family:"Golos Text",sans-serif;font-size:10.5px;font-weight:600;
+  letter-spacing:.07em;text-transform:uppercase;padding:2px 7px;border-radius:4px;
+  border:1px solid currentColor;vertical-align:2px;margin-left:8px;
+}
+.tag.opt{color:var(--muted)}
+.tag.later{color:var(--iot)}
+.tag.key{color:var(--home)}
+
+footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);font-size:13px}
+
+@media (max-width:940px){
+  .layout{grid-template-columns:1fr;gap:0}
+  nav.rail{position:static;padding:18px 0 0}
+  nav.rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px}
+  main{padding-top:24px}
+}
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important;animation:none !important}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="eyebrow">Чек-лист развёртывания · DS725+ · 29 августа 2026</div>
+    <h1>Home Assistant на DS725+</h1>
+    <p class="lede">
+      Метрики NAS и контейнеров, уведомления в Пачку, управление телевизором LG голосом
+      через Алису — без единого изменения в изоляции сетевых сегментов на Keenetic.
+    </p>
+    <div class="facts">
+      <span class="fact"><span class="dot home"></span>Home <b>192.168.3.0/24</b></span>
+      <span class="fact"><span class="dot iot"></span>IoT <b>10.0.50.0/24</b></span>
+      <span class="fact">NAS <b>192.168.3.53</b></span>
+      <span class="fact">LG TV <b>192.168.3.52</b></span>
+      <span class="fact">Алиса <b>10.0.50.50</b></span>
+      <span class="fact">HA <b>:8123</b></span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap layout">
+
+<nav class="rail" aria-label="Разделы">
+  <div class="progress">
+    <svg class="ring" width="46" height="46" viewBox="0 0 46 46" aria-hidden="true">
+      <circle class="bg" cx="23" cy="23" r="19"></circle>
+      <circle class="fg" cx="23" cy="23" r="19" transform="rotate(-90 23 23)"
+              stroke-dasharray="119.4" stroke-dashoffset="119.4"></circle>
+    </svg>
+    <div class="txt">
+      <b><span id="p-done">0</span> / <span id="p-total">0</span></b>
+      шагов выполнено
+      <button class="reset" id="reset" type="button">сбросить</button>
+    </div>
+  </div>
+  <ol id="toc"></ol>
+</nav>
+
+<main>
+<section id="s0">
+  <div class="sec-head">
+    <div class="kicker">Раздел 0</div>
+    <h2>Что получится</h2>
+    <p>
+      Home Assistant становится седьмым контейнером на DS725+ и работает в сети хоста —
+      это единственный режим, в котором он видит телевизор по SSDP и умеет будить его
+      magic-пакетом. Всё остальное вырастает вокруг него.
+    </p>
+  </div>
+
+  <figure>
+    <svg viewBox="0 0 920 540" role="img"
+         aria-label="Схема: Алиса из IoT-сегмента отдаёт команду в облако Яндекса, оттуда через Yaha Cloud она приходит в Home Assistant на NAS в домашнем сегменте. Home Assistant локально управляет телевизором LG и приставкой RockTek GX1, снимает метрики контейнеров через docker-socket-proxy и шлёт уведомления в Пачку. Сегменты сети остаются изолированными.">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
+        </marker>
+      </defs>
+
+      <!-- облако -->
+      <rect x="250" y="20" width="270" height="60" rx="8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="5 4"></rect>
+      <text x="385" y="45" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Облако Яндекса + Yaha Cloud</text>
+      <text x="385" y="63" text-anchor="middle" font-size="11" fill="currentColor" opacity=".7">навык «Умный дом»</text>
+
+      <rect x="640" y="20" width="180" height="60" rx="8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="5 4"></rect>
+      <text x="730" y="45" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Пачка</text>
+      <text x="730" y="63" text-anchor="middle" font-size="11" fill="currentColor" opacity=".7">входящий вебхук</text>
+
+      <!-- сегмент IoT -->
+      <rect x="24" y="170" width="260" height="260" rx="10" fill="none" stroke="var(--iot)" stroke-width="1.4" stroke-dasharray="6 4"></rect>
+      <text x="40" y="194" font-size="11.5" font-weight="600" fill="var(--iot)" letter-spacing=".06em">СЕГМЕНТ IOT · 10.0.50.0/24</text>
+      <rect x="54" y="252" width="200" height="72" rx="8" fill="none" stroke="currentColor" stroke-width="1.4"></rect>
+      <text x="154" y="282" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Алиса Мини 3</text>
+      <text x="154" y="301" text-anchor="middle" font-size="11" fill="currentColor" opacity=".7">10.0.50.50 · Wi-Fi hhIoT</text>
+
+      <!-- сегмент Home -->
+      <rect x="330" y="170" width="566" height="260" rx="10" fill="none" stroke="var(--home)" stroke-width="1.4"></rect>
+      <text x="346" y="194" font-size="11.5" font-weight="600" fill="var(--home)" letter-spacing=".06em">ДОМАШНИЙ СЕГМЕНТ · 192.168.3.0/24</text>
+
+      <rect x="340" y="212" width="380" height="204" rx="9" fill="none" stroke="currentColor" stroke-width="1.4"></rect>
+      <text x="356" y="234" font-size="12.5" font-weight="600" fill="currentColor">Synology DS725+ · 192.168.3.53</text>
+
+      <rect x="356" y="246" width="250" height="46" rx="6" fill="none" stroke="var(--home)" stroke-width="1.6"></rect>
+      <text x="481" y="266" text-anchor="middle" font-size="12.5" font-weight="600" fill="var(--home)">Home Assistant</text>
+      <text x="481" y="282" text-anchor="middle" font-size="10.5" fill="var(--home)" opacity=".85">host-сеть · :8123</text>
+
+      <rect x="356" y="302" width="250" height="36" rx="6" fill="none" stroke="currentColor" stroke-width="1.2"></rect>
+      <text x="481" y="318" text-anchor="middle" font-size="11" fill="currentColor">dockerproxy · 127.0.0.1:2375</text>
+      <text x="481" y="332" text-anchor="middle" font-size="9.5" fill="currentColor" opacity=".7">метрики контейнеров, только чтение</text>
+
+      <rect x="356" y="348" width="250" height="52" rx="6" fill="none" stroke="currentColor" stroke-width="1.2"></rect>
+      <text x="481" y="368" text-anchor="middle" font-size="11" fill="currentColor">Jellyfin · Radarr · qBittorrent</text>
+      <text x="481" y="386" text-anchor="middle" font-size="11" fill="currentColor">Prowlarr · Seerr · FlareSolverr</text>
+
+      <path d="M606,374 C660,374 660,270 610,270" fill="none" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"></path>
+      <text x="668" y="322" font-size="10.5" fill="currentColor" opacity=".75">метрики</text>
+
+      <rect x="770" y="248" width="126" height="76" rx="8" fill="none" stroke="currentColor" stroke-width="1.4"></rect>
+      <text x="833" y="276" text-anchor="middle" font-size="12.5" font-weight="600" fill="currentColor">LG 32LK540B</text>
+      <text x="833" y="294" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".7">192.168.3.52</text>
+      <text x="833" y="311" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".7">HDMI 1</text>
+
+      <line x1="833" y1="326" x2="833" y2="344" stroke="currentColor" stroke-width="1.2"></line>
+      <text x="833" y="340" text-anchor="start" font-size="9.5" fill="currentColor" opacity=".7" dx="6">HDMI · CEC</text>
+
+      <rect x="770" y="346" width="126" height="54" rx="8" fill="none" stroke="currentColor" stroke-width="1.4"></rect>
+      <text x="833" y="368" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">RockTek GX1</text>
+      <text x="833" y="385" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".7">192.168.3.54</text>
+
+      <line x1="722" y1="373" x2="766" y2="373" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"></line>
+
+      <line x1="722" y1="286" x2="766" y2="286" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"></line>
+      <text x="744" y="277" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".75">webOS</text>
+
+      <!-- связи с облаком -->
+      <polyline points="154,250 154,120 330,120 330,84" fill="none" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"></polyline>
+      <text x="162" y="112" font-size="10.5" fill="currentColor" opacity=".75">голос</text>
+
+      <polyline points="420,84 420,150 481,150 481,242" fill="none" stroke="var(--home)" stroke-width="1.6" marker-end="url(#ar)"></polyline>
+      <text x="428" y="142" font-size="10.5" fill="var(--home)">команда через интернет</text>
+
+      <polyline points="620,246 660,246 660,150 730,150 730,86" fill="none" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"></polyline>
+      <text x="668" y="142" font-size="10.5" fill="currentColor" opacity=".75">уведомления</text>
+
+      <!-- изоляция -->
+      <line x1="307" y1="160" x2="307" y2="440" stroke="var(--crit)" stroke-width="1.4" stroke-dasharray="7 6"></line>
+      <circle cx="307" cy="300" r="14" fill="var(--surface)" stroke="var(--crit)" stroke-width="1.4"></circle>
+      <path d="M301,294 L313,306 M313,294 L301,306" stroke="var(--crit)" stroke-width="1.6"></path>
+      <text x="307" y="458" text-anchor="middle" font-size="10.5" fill="var(--crit)">сегменты изолированы</text>
+
+      <!-- роутер -->
+      <rect x="280" y="478" width="360" height="46" rx="8" fill="none" stroke="currentColor" stroke-width="1.4"></rect>
+      <text x="460" y="500" text-anchor="middle" font-size="12.5" font-weight="600" fill="currentColor">Keenetic Hopper SE</text>
+      <text x="460" y="516" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".7">192.168.3.1 · 10.0.50.1 · весь трафик в WireGuard</text>
+
+      <polyline points="154,432 154,462 320,462 320,476" fill="none" stroke="var(--iot)" stroke-width="1.2"></polyline>
+      <text x="170" y="457" font-size="10" fill="var(--iot)">Vlan 2</text>
+      <polyline points="600,432 600,476" fill="none" stroke="var(--home)" stroke-width="1.2"></polyline>
+      <text x="608" y="458" font-size="10" fill="var(--home)">Vlan 1</text>
+    </svg>
+    <figcaption>
+      Голосовая команда никогда не пересекает границу сегментов: колонка отдаёт её в облако,
+      облако возвращает её в Home Assistant по интернет-соединению NAS. Локально
+      10.0.50.0/24 и 192.168.3.0/24 по-прежнему не видят друг друга — правила
+      межсетевого экрана на Keenetic менять не придётся. Телевизор и приставка живут
+      в домашнем сегменте и управляются напрямую: LG по протоколу webOS, GX1 —
+      тем же протоколом, что и приложение Google TV на телефоне.
+    </figcaption>
+  </figure>
+
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr><th>Задача</th><th>Чем решается</th><th>Тип</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Метрики NAS: CPU, RAM, температура, тома, диски, SMART, сеть, аптайм</td><td>Интеграция Synology&nbsp;DSM</td><td>штатная</td></tr>
+        <tr><td>Метрики <b>каждого</b> контейнера: CPU, память, состояние, аптайм</td><td>Monitor Docker + docker-socket-proxy</td><td>сторонняя</td></tr>
+        <tr><td>«Живо ли приложение внутри контейнера»</td><td>HTTP-проверки <code>command_line</code></td><td>штатная</td></tr>
+        <tr><td>Данные о медиатеке и загрузках</td><td>Jellyfin, Radarr, qBittorrent</td><td>штатные</td></tr>
+        <tr><td>Уведомления в Пачку</td><td>Входящий вебхук бота + <code>rest_command</code></td><td>штатная</td></tr>
+        <tr><td>Управление телевизором</td><td>LG webOS Smart TV + Wake&nbsp;on&nbsp;LAN</td><td>штатная</td></tr>
+        <tr><td>Управление приставкой RockTek GX1 (192.168.3.54)</td><td>Android TV Remote</td><td>штатная</td></tr>
+        <tr><td>Голос через Алису</td><td>HACS → Yandex Smart Home (Yaha Cloud)</td><td>сторонняя</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note warn">
+    <b>Два места, где нужен сторонний код.</b>
+    <p>
+      <b>Метрики по каждому контейнеру.</b> Ни одна штатная интеграция не отдаёт
+      отдельные сенсоры CPU и памяти на Jellyfin, Radarr и остальных. Это делает
+      компонент <code>monitor_docker</code> — он ставится через HACS.
+    </p>
+    <p>
+      <b>Алиса.</b> Официальной интеграции Home Assistant с Умным домом Яндекса не
+      существует — ни у Nabu Casa, ни у Яндекса. Рабочий путь один: компонент
+      <code>yandex_smart_home</code>, тоже из HACS.
+    </p>
+    <p>
+      Поэтому HACS ставится один раз в разделе 3, а не в конце. Всё остальное —
+      метрики NAS, HTTP-проверки, уведомления, телевизор, приставка — работает на
+      штатных интеграциях.
+    </p>
+  </div>
+</section>
+
+<section id="s1">
+  <div class="sec-head">
+    <div class="kicker">Раздел 1</div>
+    <h2>Подготовка DSM</h2>
+    <p>Пятнадцать минут в интерфейсе NAS. Всё остальное потом делается копированием файлов.</p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="s1-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">1.1</span> Включить SSH на NAS</h3>
+        <p>
+          <b>Панель управления → Терминал и SNMP → Терминал</b>, поставить галку
+          «Включить службу SSH». Порт оставьте <code>22</code>.
+        </p>
+        <div class="note why"><b>Зачем.</b> Container Manager умеет собирать проект из готового
+          <code>compose.yaml</code>, но создавать вложенные папки и править права им неудобно.
+          Три команды в терминале сэкономят полчаса кликов.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s1-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">1.2</span> Создать структуру папок</h3>
+        <p>Подключитесь по SSH под своей учётной записью и выполните:</p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo mkdir -p /volume1/docker/homeassistant/config/packages
+sudo mkdir -p /volume1/docker/homeassistant/config/bin
+
+<span class="c"># 1026:100 — тот же PUID:PGID, что и у остальных ваших контейнеров.
+# Home Assistant внутри работает от root и всё равно сможет писать,
+# а вы сможете править файлы через File Station.</span>
+sudo chown -R 1026:100 /volume1/docker/homeassistant
+sudo chmod -R 755 /volume1/docker/homeassistant</code></pre></div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s1-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">1.3</span> Проверить, что порты свободны</h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo netstat -tulpn | grep -E ':(8123|2375)\s'</code></pre></div>
+        <p>Пустой вывод — всё хорошо. Ваш текущий стек занимает 9080, 6881, 9696, 7878,
+          8191, 8096, 7359 и 5055; DSM — 5000 и 5001. Пересечений нет.</p>
+      </div>
+    </li>
+
+    <li class="step" data-key="s1-4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">1.4</span> Завести служебного пользователя <code>hass</code></h3>
+        <p>
+          <b>Панель управления → Пользователь и группа → Создать</b>. Имя <code>hass</code>,
+          сложный пароль. Дальше по шагам мастера:
+        </p>
+        <ul>
+          <li>группа <b>administrators</b> — обязательно;</li>
+          <li>доступ к общим папкам — <b>запретить все</b>;</li>
+          <li>приложения — <b>запретить все</b>, оставив только <b>DSM</b>;</li>
+          <li>квота — не задавать.</li>
+        </ul>
+        <div class="note why"><b>Зачем именно администратор.</b> API DSM устроен так, что метрики
+          системы (<code>core.system</code>, <code>storage</code>, SMART) отдаются только
+          администраторам. Запрет на папки и приложения превращает такого администратора
+          в аккаунт, который умеет ровно одно: отвечать на запросы статистики.</div>
+        <div class="note crit"><b>Двухфакторная аутентификация.</b> Если в DSM включено
+          обязательное 2FA для administrators, для <code>hass</code> его нужно либо отключить
+          индивидуально, либо приготовить OTP-код: интеграция спросит его один раз при
+          подключении.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s1-5">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">1.5</span> Внести NAS в белый список автоблокировки</h3>
+        <p>
+          <b>Панель управления → Безопасность → Автоматическая блокировка → Список разрешённых</b>,
+          добавить <code>192.168.3.53</code> и <code>127.0.0.1</code>.
+        </p>
+        <div class="note why"><b>Зачем.</b> Home Assistant опрашивает DSM каждые несколько
+          минут. Если однажды пароль в интеграции разойдётся с реальным, DSM забанит
+          собственный адрес — и вместе с ним отвалятся Hyper Backup, DS file и всё
+          остальное, что ходит через localhost.</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s2">
+  <div class="sec-head">
+    <div class="kicker">Раздел 2</div>
+    <h2>Файлы и первый запуск</h2>
+    <p>Все конфигурации приложены к сообщению отдельными файлами — их нужно разложить по местам и собрать проект.</p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="s2-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.1</span> Разложить файлы по папкам</h3>
+        <p>Через File Station или <code>scp</code>. Итоговая структура:</p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>/volume1/docker/homeassistant/
+├── compose.yaml
+└── config/
+    ├── configuration.yaml
+    ├── secrets.yaml          <span class="c">← из secrets.yaml.example</span>
+    ├── automations.yaml
+    ├── scripts.yaml
+    ├── scenes.yaml
+    ├── bin/
+    │   └── http_check.py
+    └── packages/
+        ├── pachca.yaml
+        ├── monitoring.yaml
+        └── media_tv.yaml</code></pre></div>
+        <div class="note warn"><b>Важно.</b> File Station по умолчанию прячет файлы, начинающиеся
+          с точки, и умеет молча дописывать <code>.txt</code>. После загрузки проверьте
+          имена: <code>compose.yaml</code>, а не <code>compose.yaml.txt</code>.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s2-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.2</span> Заполнить <code>secrets.yaml</code></h3>
+        <p>
+          Переименуйте <code>secrets.yaml.example</code> в <code>secrets.yaml</code>.
+          Сейчас достаточно координат дома и MAC телевизора — он уже подставлен из вашего
+          конфига Keenetic (<code>AA:BB:CC:DD:EE:FF</code>). Вебхук Пачки добавим в разделе 5,
+          пока оставьте строку-заглушку.
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo chmod 600 /volume1/docker/homeassistant/config/secrets.yaml</code></pre></div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s2-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.3</span> Собрать проект в Container Manager</h3>
+        <p>
+          <b>Container Manager → Проект → Создать</b>:
+        </p>
+        <ul>
+          <li>название проекта: <code>homeassistant</code>;</li>
+          <li>путь: <code class="path">/volume1/docker/homeassistant</code>;</li>
+          <li>источник: «Создать docker-compose.yml» → появится вопрос об уже существующем
+            файле → выбрать <b>использовать существующий</b>;</li>
+          <li>веб-портал не настраивать → <b>Готово</b>.</li>
+        </ul>
+        <p>Эквивалент из терминала, если так привычнее:</p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/homeassistant
+sudo docker compose up -d</code></pre></div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s2-4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.4</span> Дождаться первого старта</h3>
+        <p>Первый запуск занимает 2–5 минут: контейнер разворачивает базу и ставит зависимости.</p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo docker ps --format 'table {{.Names}}\t{{.Status}}' | grep -E 'homeassistant|dockerproxy'
+sudo docker logs -f --tail 50 homeassistant</code></pre></div>
+        <p>Готовность — строка <code>Home Assistant initialized in …</code>. После неё
+          откройте <a href="http://192.168.3.53:8123">http://192.168.3.53:8123</a>.</p>
+        <div class="note crit"><b>Если интерфейс не открывается.</b> Проверьте, что контейнер
+          действительно в host-сети:
+          <code>sudo docker inspect homeassistant --format '{{.HostConfig.NetworkMode}}'</code> —
+          должно вернуть <code>host</code>. Если вернулось <code>default</code>, значит проект
+          собрался не из вашего <code>compose.yaml</code>.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s2-5">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.5</span> Проверить docker-socket-proxy</h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>curl -s http://127.0.0.1:2375/version | head -c 200; echo
+<span class="c"># Должен вернуться JSON с версией Docker.</span>
+
+<span class="c"># А снаружи NAS порт закрыт — проверьте с ноутбука (192.168.3.50):</span>
+curl -m 3 http://192.168.3.53:2375/version
+<span class="c"># Ожидаемый результат: Connection refused.</span></code></pre></div>
+        <p>Подробнее о том, зачем нужен прокси, — в шаге 4.2.</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s3">
+  <div class="sec-head">
+    <div class="kicker">Раздел 3</div>
+    <h2>Первый вход и базовая настройка</h2>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="s3-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">3.1</span> Создать владельца</h3>
+        <p>
+          Имя, логин, длинный пароль. Название дома — <b>hhHome</b>, чтобы совпадало
+          с именем вашей Wi-Fi сети и не путаться потом. Местоположение можно указать
+          мышкой на карте, координаты подставятся в профиль.
+        </p>
+        <div class="note warn"><b>На экране «Найденные устройства»</b> Home Assistant, скорее
+          всего, сразу предложит LG-телевизор и, возможно, Jellyfin. Пока ничего не
+          подключайте — сделаем это осознанно в разделах 4 и 6.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s3-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">3.2</span> Проверить конфигурацию</h3>
+        <p>
+          <b>Инструменты разработчика → YAML → Проверка конфигурации</b>.
+          Ожидаемый ответ — «Конфигурация действительна».
+        </p>
+        <div class="note crit"><b>Если конфигурация не прошла проверку</b>, HA всё равно
+          работает — просто не подхватил пакеты. Ошибка всегда указывает файл и строку;
+          чаще всего это отступ или потерянные кавычки после ручного редактирования.
+          Смотрите также <b>Настройки → Система → Журналы</b>.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s3-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">3.3</span> Убедиться, что пакеты загрузились</h3>
+        <p>
+          <b>Инструменты разработчика → Состояния</b>, фильтр <code>binary_sensor.svc_</code>.
+          Должно быть шесть проверок, все в состоянии <code>on</code>.
+        </p>
+        <div class="note why"><b>Что это.</b> Каждая проверка — это HTTP-запрос к сервису
+          на <code>127.0.0.1</code> раз в минуту. Контейнер может быть «запущен», а
+          приложение внутри — висеть; такое ловится только реальным запросом.
+          Скрипт <code>bin/http_check.py</code> считает успехом и коды 401/403: qBittorrent
+          отвечает формой логина, и это нормальный признак жизни.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s3-hacs">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">3.4</span> Установить HACS<span class="tag key">нужен дважды</span></h3>
+        <p>
+          HACS — каталог сторонних компонентов. Он понадобится в двух местах:
+          для <b>Monitor Docker</b> (метрики по каждому контейнеру, раздел 4) и для
+          <b>Yandex Smart Home</b> (Алиса, раздел 8). Ставим сразу, чтобы не
+          возвращаться.
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo docker exec -it homeassistant bash -c "wget -O - https://get.hacs.xyz | bash -"
+sudo docker restart homeassistant</code></pre></div>
+        <p>
+          После перезапуска: <b>Настройки → Устройства и службы → Добавить интеграцию
+          → HACS</b>. Мастер попросит открыть <code>github.com/login/device</code>
+          и ввести код — HACS ходит в GitHub за репозиториями от вашего имени.
+        </p>
+        <div class="note crit"><b>Если код не принимается или страница не открывается</b> —
+          весь трафик NAS идёт через WireGuard, и GitHub может отвечать иначе, чем
+          вы привыкли. Диагностика — раздел 9.1.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s3-4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">3.5</span> Поставить мобильное приложение<span class="tag opt">по желанию</span></h3>
+        <p>
+          Home Assistant в App Store / Google Play, вход по адресу
+          <code>http://192.168.3.53:8123</code>. Пока работает только из домашней сети;
+          внешний доступ — раздел 9.
+        </p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s4">
+  <div class="sec-head">
+    <div class="kicker">Раздел 4</div>
+    <h2>Метрики NAS и контейнеров</h2>
+    <p>
+      Четыре независимых источника. Они намеренно пересекаются: там, где это
+      что-то даёт, — но ни один не дублирует другой ради красивой цифры.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="s4-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">4.1</span> Подключить Synology DSM<span class="tag key">основа</span></h3>
+        <p><b>Настройки → Устройства и службы → Добавить интеграцию → Synology DSM</b>:</p>
+        <ul>
+          <li>хост: <code>192.168.3.53</code>, порт: <code>5001</code>;</li>
+          <li>SSL — <b>включить</b>, «Проверять сертификат» — <b>выключить</b>
+            (у DSM самоподписанный сертификат);</li>
+          <li>пользователь <code>hass</code> и его пароль; при запросе — код OTP.</li>
+        </ul>
+        <p>На следующем экране выберите тома и диски для мониторинга — берите все.</p>
+        <p>Появятся около сорока сущностей: загрузка CPU по составляющим, память,
+          температура NAS и каждого диска, статус SMART, оставшийся ресурс дисков,
+          занятое место на томах, скорость сети, аптайм, статус безопасности,
+          а также кнопки перезагрузки и выключения.</p>
+        <div class="note crit"><b>Обязательный шаг после подключения.</b> Имена сущностей
+          Synology строятся из имени NAS в DSM, а оно у вас может отличаться от
+          <code>ds725</code>. Откройте <b>Инструменты разработчика → Состояния</b>, отфильтруйте
+          по <code>temperature</code>, <code>volume</code>, <code>cpu</code> и подставьте
+          реальные <code>entity_id</code> в <code>packages/monitoring.yaml</code> —
+          там они помечены комментариями в автоматизациях 3.3–3.6, и в
+          <code>script.pachca_report</code>.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s4-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">4.2</span> Поднять docker-socket-proxy<span class="tag key">безопасность</span></h3>
+        <p>
+          Контейнер <code>dockerproxy</code> уже описан в <code>compose.yaml</code>
+          и проверен на шаге 2.5. Здесь — про то, зачем он вообще нужен, потому что
+          соблазн отдать сокет напрямую велик, а цена ошибки высока.
+        </p>
+        <p>
+          Если проверка на шаге 2.5 показала, что порт отвечает снаружи NAS —
+          вернитесь к секции <code>ports</code> в <code>compose.yaml</code>:
+          адрес должен быть прибит к <code>127.0.0.1</code>, и контейнер не должен
+          стоять в host-сети.
+        </p>
+        <div class="note crit"><b>Почему не отдать сокет напрямую в Home Assistant.</b>
+          Доступ к <code>/var/run/docker.sock</code> равносилен root на NAS: имея его,
+          можно запустить привилегированный контейнер и смонтировать любой том.
+          Флаг <code>:ro</code> здесь не защищает — сокет не файл, права на чтение
+          не мешают слать в него POST-запросы. Поэтому с сокетом говорит один
+          маленький прокси, а он пропускает только те методы, которые перечислены
+          в переменных окружения. По умолчанию стоит <code>POST=0</code> —
+          режим «только чтение».</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s4-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">4.3</span> Установить Monitor Docker<span class="tag key">метрики контейнеров</span></h3>
+        <p>
+          <b>HACS → Интеграции → «⋮» → Пользовательские репозитории</b>, добавить
+          <code>ualex73/monitor_docker</code> с категорией Integration. Затем найти
+          «Monitor Docker» в списке, скачать и перезапустить Home Assistant.
+        </p>
+        <p>
+          Настройка уже лежит в <code>packages/docker.yaml</code> — компонент
+          конфигурируется через YAML, а не через интерфейс. После перезапуска в
+          <b>Инструментах разработчика → Состояния</b> отфильтруйте по
+          <code>sensor.docker_</code>: должно быть около полусотни сущностей.
+        </p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Сенсор</th><th>Что показывает</th></tr></thead>
+            <tbody>
+              <tr><td><code>sensor.docker_jellyfin_cpu</code></td><td>загрузка CPU этим контейнером, % (100 % = одно ядро)</td></tr>
+              <tr><td><code>sensor.docker_jellyfin_memory</code></td><td>занятая память, МБ</td></tr>
+              <tr><td><code>sensor.docker_jellyfin_memory_percentage</code></td><td>она же в процентах</td></tr>
+              <tr><td><code>sensor.docker_jellyfin_state</code></td><td><code>running</code> / <code>exited</code> / <code>paused</code></td></tr>
+              <tr><td><code>sensor.docker_jellyfin_uptime</code></td><td>когда контейнер стартовал</td></tr>
+              <tr><td><code>sensor.docker_containers_running</code></td><td>сколько из восьми работает</td></tr>
+              <tr><td><code>sensor.docker_top_cpu</code></td><td>самый прожорливый прямо сейчас, с именем в атрибуте</td></tr>
+              <tr><td><code>sensor.docker_top_ram</code></td><td>самый прожорливый по памяти, с именем в атрибуте</td></tr>
+              <tr><td><code>sensor.docker_down</code><span class="tag key">раз в минуту</span></td><td>сколько контейнеров лежит; в атрибутах — имена, причина остановки и признак нехватки памяти</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note warn"><b>Сверьте суффиксы один раз.</b> Точные окончания
+          <code>_cpu</code>, <code>_memory</code>, <code>_memory_percentage</code>
+          зависят от версии компонента. Сводные <code>sensor.docker_top_cpu</code> и
+          <code>sensor.docker_top_ram</code> ищут сущности по маскам
+          <code>_cpu$</code> и <code>_memory$</code> — если в вашей версии окончания
+          другие, поправьте маски в <code>packages/docker.yaml</code>, и всё
+          остальное подхватится само.</div>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code><span class="c"># Проверить быстрый сенсор состояния прямо в контейнере HA:</span>
+sudo docker exec homeassistant python3 /config/bin/docker_state.py
+<span class="c"># Ожидается строка JSON: {"down": 0, "running": 8, "total": 8, ...}</span></code></pre></div>
+        <div class="note why"><b>Метрики снимаются раз в час.</b> В конфиге стоит
+          <code>scan_interval: 3600</code>. Статистика Docker — самая дорогая часть
+          опроса: демон открывает поток на каждый контейнер. Час вместо десяти секунд
+          убирает постоянную нагрузку с двухъядерного R1600 и уменьшает поток записей
+          в базу истории примерно в триста раз.
+          <p>Обратная сторона: у графиков CPU и памяти теперь 24 точки в сутки. Это
+          отвечает на вопрос «сколько контейнер ест обычно», но не на «что было
+          в 21:47». Нужна детализация — поставьте <code>scan_interval: 300</code>.</p></div>
+        <div class="note crit"><b>Падения при этом ловятся за минуту, а не за час.</b>
+          Состояние контейнеров проверяет отдельный лёгкий скрипт
+          <code>bin/docker_state.py</code>: один запрос
+          <code>GET /containers/json</code> к прокси, без всякой статистики.
+          Он создаёт сенсор <code>sensor.docker_down</code> с опросом раз в минуту,
+          и именно на нём висит уведомление о падении. Метрики и надзор намеренно
+          разведены по темпу — иначе пришлось бы выбирать между нагрузкой и
+          скоростью реакции.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s4-4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">4.4</span> Свериться с HTTP-проверками</h3>
+        <p>
+          Сравните <code>sensor.docker_containers_running</code> (должно быть 8)
+          с шестью <code>binary_sensor.svc_*</code>. Расхождение — как раз тот случай,
+          ради которого держим оба слоя: контейнер запущен, приложение внутри висит.
+        </p>
+        <p>Если какая-то из проверок в <code>off</code>, а сервис заведомо работает,
+          подберите путь вручную:</p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo docker exec homeassistant python3 /config/bin/http_check.py http://127.0.0.1:9696/ping 200
+<span class="c"># ON — путь верный, OFF — попробуйте корневой /</span></code></pre></div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s4-5">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">4.5</span> Подключить прикладные интеграции стека</h3>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Интеграция</th><th>Что вводить</th><th>Что даёт</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><b>Jellyfin</b><span class="tag key">нужна</span></td>
+                <td><code>http://192.168.3.53:8096</code>, логин и пароль пользователя Jellyfin</td>
+                <td>кто и что сейчас смотрит; <b>media_player для каждой сессии</b> — на этом
+                  держится сценарий «Продолжить просмотр» из раздела 7</td>
+              </tr>
+              <tr>
+                <td><b>Radarr</b></td>
+                <td>хост <code>192.168.3.53</code>, порт <code>7878</code>, API-ключ из
+                  Settings → General → Security</td>
+                <td>число фильмов, очередь, свободное место на диске</td>
+              </tr>
+              <tr>
+                <td><b>qBittorrent</b></td>
+                <td><code>http://192.168.3.53:9080</code>, логин и пароль веб-интерфейса</td>
+                <td>скорости, активные и завершённые торренты, статус подключения</td>
+              </tr>
+              <tr>
+                <td><b>Overseerr</b><span class="tag opt">попробовать</span></td>
+                <td><code>http://192.168.3.53:5055</code>, API-ключ Seerr</td>
+                <td>Seerr — форк Jellyseerr, API совместим; если не подключится, ничего
+                  страшного, доступность закрывает HTTP-проверка</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note why"><b>Prowlarr, FlareSolverr и dockerproxy</b> собственных
+          интеграций не имеют — за ними следят Monitor Docker и HTTP-проверки,
+          этого достаточно.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s4-6">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">4.6</span> Поправить имена сенсоров в пакетах</h3>
+        <p>
+          Откройте <code>packages/monitoring.yaml</code> и <code>packages/pachca.yaml</code>,
+          замените заглушки вида <code>sensor.ds725_temperature</code> на реальные
+          <code>entity_id</code> из шага 4.1. Затем
+          <b>Инструменты разработчика → YAML → Перезагрузить всю YAML-конфигурацию</b>.
+        </p>
+        <div class="note why"><b>Почему не автоматически.</b> Шаблон мог бы искать сенсоры по
+          маске, но тогда любая опечатка молча превращалась бы в «нет данных».
+          Явные имена ломаются громко и чинятся за минуту.</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s5">
+  <div class="sec-head">
+    <div class="kicker">Раздел 5</div>
+    <h2>Уведомления в Пачку</h2>
+    <p>
+      Входящий вебхук: Пачка выдаёт боту постоянный URL, любой <code>POST</code> с телом
+      <code>{"message": "…"}</code> публикуется от его имени. Токен зашит в сам адрес —
+      поэтому он живёт в <code>secrets.yaml</code> и больше нигде.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="s5-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">5.1</span> Создать чат для инфраструктуры</h3>
+        <p>
+          В Пачке заведите отдельный групповой чат, например <b>#инфраструктура</b>.
+        </p>
+        <div class="note crit"><b>Это не формальность.</b> Входящий вебхук публикует сообщение
+          во <b>все</b> групповые чаты, где состоит бот. Если добавить бота в рабочий чат,
+          туда же полетят ночные сообщения о температуре диска.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s5-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">5.2</span> Создать бота и получить URL</h3>
+        <ul>
+          <li><b>Автоматизации → Интеграции → Чат-боты и Вебхуки → Создать</b>;</li>
+          <li>имя, например «Home Assistant», аватар по вкусу;</li>
+          <li>вкладка <b>Входящий вебхук</b> → скопировать URL целиком;</li>
+          <li>добавить бота участником в чат из шага 5.1.</li>
+        </ul>
+      </div>
+    </li>
+
+    <li class="step" data-key="s5-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">5.3</span> Вписать URL и перезагрузить конфигурацию</h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code><span class="c"># /volume1/docker/homeassistant/config/secrets.yaml</span>
+pachca_webhook_url: "https://api.pachca.com/webhooks/ВАШ_ТОКЕН"</code></pre></div>
+        <p>Затем <b>Инструменты разработчика → YAML → Перезагрузить всю YAML-конфигурацию</b>.</p>
+      </div>
+    </li>
+
+    <li class="step" data-key="s5-4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">5.4</span> Отправить тестовое сообщение</h3>
+        <p>
+          <b>Инструменты разработчика → Действия</b>, выбрать
+          <code>script.pachca_notify</code>, режим YAML:
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>action: script.pachca_notify
+data:
+  title: Проверка связи
+  text: Если вы это читаете — вебхук работает.
+  level: ok</code></pre></div>
+        <p>В чате появится сообщение с иконкой, жирным заголовком и подписью со временем.</p>
+        <div class="note crit"><b>Ничего не пришло?</b> Смотрите <b>Настройки → Система → Журналы</b>,
+          строку <code>rest_command</code>. Код 404 — опечатка в URL; таймаут — исходящий
+          трафик NAS уходит в WireGuard и не доходит до Пачки, см. раздел 9.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s5-5">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">5.5</span> Что теперь будет приходить само</h3>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Событие</th><th>Условие</th><th>Уровень</th></tr></thead>
+            <tbody>
+              <tr><td>Сервис не отвечает</td><td>HTTP-проверка в <code>off</code> дольше 5 минут</td><td>🔴 crit</td></tr>
+              <tr><td>Сервис восстановился</td><td>вернулся в <code>on</code> на минуту</td><td>✅ ok</td></tr>
+              <tr><td><b>Упал контейнер</b></td><td>состояние не <code>running</code> дольше 2 минут — с именем, причиной и подсказкой про нехватку памяти</td><td>🔴 crit</td></tr>
+              <tr><td>Контейнеры снова работают</td><td>все поднялись и держатся 2 минуты</td><td>✅ ok</td></tr>
+              <tr><td>Не видно состояние контейнеров</td><td>скрипт не достучался до dockerproxy 5 минут</td><td>⚠️ warn</td></tr>
+              <tr><td>Контейнер держит процессор</td><td>выше 150 % в двух часовых замерах подряд</td><td>⚠️ warn</td></tr>
+              <tr><td>NAS перегревается</td><td>выше 60 °C десять минут</td><td>🔴 crit</td></tr>
+              <tr><td>CPU под потолком</td><td>выше 90 % двадцать минут</td><td>⚠️ warn</td></tr>
+              <tr><td>Кончается место</td><td>volume1 занят на 85 % и на 93 %</td><td>⚠️ / 🔴</td></tr>
+              <tr><td>Проблема с диском</td><td>SMART-статус ушёл из <code>normal</code></td><td>🔴 crit</td></tr>
+              <tr><td>Home Assistant запущен</td><td>каждый старт, через 2 минуты после</td><td>✅ ok</td></tr>
+              <tr><td><b>Сводка о работоспособности</b></td><td>каждый день в 09:00: вердикт одной строкой, железо, контейнеры, сервисы и простой за сутки</td><td>📊</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note why"><b>Про задержки.</b> Выдержки выбраны не случайно: без них
+          каждое обновление образа или перезагрузка NAS превращались бы в серию ложных
+          тревог. Восстановление подтверждается парой минут стабильности — чтобы
+          «моргнувший» сервис не породил два сообщения подряд.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s5-6">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">5.6</span> Посмотреть утреннюю сводку заранее</h3>
+        <p>
+          Не дожидаясь девяти утра, запустите <code>script.pachca_report</code>
+          из <b>Инструментов разработчика → Действия</b>. В чат придёт примерно такое:
+        </p>
+        <div class="code"><pre><code>📊 <b>DS725+ — сводка за сутки</b>
+
+✅ Всё в порядке
+
+<b>Железо</b>
+• Процессор 11 % · память 47 % · 41 °C
+• Том volume1 занят на 63 %
+• Диски: норма
+• Работает с 2026-08-24T03:11:00
+
+<b>Контейнеры</b> — 8 из 8
+• Все запущены
+• Простой за сутки: 0 мин
+• Больше всех процессора: Jellyfin (7.2 %)
+• Больше всех памяти: Radarr (312 MiB)
+
+<b>Сервисы</b> — 6 из 6 отвечают
+• Все отвечают
+• Простой за сутки: 0 мин</code></pre></div>
+        <p>
+          Первая строка — вердикт: <b>✅ всё в порядке</b>, <b>⚠️ работает, но есть
+          на что посмотреть</b> или <b>🔴 есть проблемы прямо сейчас</b>. Он считается
+          из состояния контейнеров, сервисов, дисков, заполненности тома и температуры.
+        </p>
+        <div class="note why"><b>Зачем строки «простой за сутки».</b> Мгновенные значения
+          не отвечают на главный вопрос утренней сводки: а как всё работало ночью,
+          пока вы спали. Сбой, который случился в три часа и починился сам к пяти,
+          иначе остался бы незамеченным. Эти две строки считает интеграция
+          <code>history_stats</code> по журналу состояний.</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s6">
+  <div class="sec-head">
+    <div class="kicker">Раздел 6</div>
+    <h2>Телевизор LG 32LK540BPLA</h2>
+    <p>
+      Модель 2018 года на webOS 4.0 — интеграция <b>LG webOS Smart TV</b> её поддерживает
+      полностью. Единственная тонкость — включение: выключенный телевизор по сети
+      не слышно, нужен magic-пакет.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="s6-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">6.1</span> Подготовить телевизор</h3>
+        <p>Пультом, в меню <b>Настройки → Все настройки</b>:</p>
+        <ul>
+          <li><b>Сеть → LG Connect Apps</b> → <b>Вкл</b> — это разрешает управление по локальной сети;</li>
+          <li><b>Сеть → Мобильное включение ТВ</b> (в некоторых прошивках «Включение по Wi-Fi»)
+            → <b>Вкл</b>;</li>
+          <li><b>Общие → Быстрый запуск+</b> → <b>Вкл</b> — без него телевизор в выключенном
+            состоянии полностью обесточивает сетевой модуль и magic-пакет некому принять.</li>
+        </ul>
+        <div class="note warn"><b>Проводное подключение надёжнее.</b> У серии LK Wake-on-LAN
+          по Wi-Fi срабатывает через раз. Если есть возможность воткнуть кабель в один из
+          портов Keenetic (все три в Vlan 1, домашний сегмент) — сделайте это, разница
+          заметная.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s6-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">6.2</span> Добавить интеграцию</h3>
+        <p>
+          Включите телевизор. Home Assistant, скорее всего, уже нашёл его сам через SSDP —
+          загляните в <b>Настройки → Устройства и службы</b>, раздел «Обнаружено».
+          Если нет: <b>Добавить интеграцию → LG webOS Smart TV</b>, хост
+          <code>192.168.3.52</code>.
+        </p>
+        <p>
+          На экране телевизора появится запрос на сопряжение — примите его пультом.
+          Ключ доступа сохранится, повторно спрашивать не будет.
+        </p>
+        <div class="note why"><b>Почему обнаружение вообще работает.</b> SSDP — это
+          широковещательные пакеты внутри одного сегмента. Home Assistant запущен в сети
+          хоста, поэтому он в том же самом broadcast-домене, что и телевизор.
+          В обычном bridge-контейнере обнаружения бы не было.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s6-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">6.3</span> Привести entity_id к <code>media_player.lg_tv</code></h3>
+        <p>
+          Откройте сущность телевизора → шестерёнка → проверьте поле
+          «Идентификатор сущности». Пакет <code>media_tv.yaml</code> ссылается именно на
+          <code>media_player.lg_tv</code>; если HA назвал его иначе — переименуйте здесь либо
+          поправьте ссылки в пакете.
+        </p>
+      </div>
+    </li>
+
+    <li class="step" data-key="s6-4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">6.4</span> Проверить включение</h3>
+        <p>
+          Выключите телевизор пультом, подождите полминуты и вызовите
+          <code>media_player.turn_on</code> для <code>media_player.lg_tv</code> из
+          «Инструментов разработчика».
+        </p>
+        <p>
+          Сработать должна автоматизация <b>«ТВ: включение LG по Wake-on-LAN»</b>: она
+          отправляет magic-пакет на широковещательный адрес <code>192.168.3.255</code>,
+          а через две секунды — повторно. Двойная отправка не перестраховка: первый
+          пакет телевизоры LK регулярно просыпают.
+        </p>
+        <div class="note crit"><b>Не включается.</b> Проверьте по порядку: «Быстрый запуск+»
+          включён; телевизор подключён кабелем; MAC в <code>secrets.yaml</code> совпадает с
+          <code>AA:BB:CC:DD:EE:FF</code> из Keenetic; контейнер в host-сети (иначе пакет
+          уходит в docker-мост и наружу не попадает).</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s6-5">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">6.5</span> Уточнить название HDMI-входа</h3>
+        <p>
+          Откройте сущность телевизора в <b>Инструментах разработчика → Состояния</b>
+          и посмотрите атрибут <code>source_list</code>. Найдите там разъём, в который
+          воткнута приставка: у LG встречаются написания «HDMI 1», «HDMI1» и «HDMI-1».
+        </p>
+        <p>
+          Если это не «HDMI 1», поправьте переменную <code>tv_input</code> в
+          <code>script.tv_on</code> — в <code>packages/media_tv.yaml</code> она задана
+          в одном месте.
+        </p>
+        <div class="note why"><b>Это запасной путь, а не основной.</b> При включённом
+          SIMPLINK телевизор переключается на вход приставки сам, и переменная не
+          понадобится. Она нужна для случаев, когда CEC не сработал — например,
+          телевизор проснулся по Wake-on-LAN раньше, чем приставка успела подать
+          команду.</div>
+        <p>Сами сценарии просмотра — в разделе 7, после подключения приставки.</p>
+      </div>
+    </li>
+
+    <li class="step" data-key="s6-6">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">6.6</span> Уведомления на экран<span class="tag opt">по желанию</span></h3>
+        <p>
+          Интеграция создаёт службу <code>notify.lg_tv</code> — всплывающее сообщение поверх
+          картинки. Удобно для «фильм скачался» или «NAS перегревается», когда вы у экрана.
+          Заготовка лежит в <code>media_tv.yaml</code>, закомментирована.
+        </p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s7">
+  <div class="sec-head">
+    <div class="kicker">Раздел 7</div>
+    <h2>Приставка и сценарии просмотра</h2>
+    <p>
+      RockTek GX1 на Realtek RTD1325 — сертифицированная Google TV, поэтому подходит
+      штатная интеграция <b>Android TV Remote</b>: тот же протокол, которым пользуется
+      приложение Google TV на телефоне. Ни ADB, ни режим разработчика не нужны.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="s7-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">7.1</span> Закрепить адрес 192.168.3.54</h3>
+        <p>
+          Приставка уже в домашнем сегменте. Зайдите в веб-интерфейс Keenetic,
+          <b>Мои сети и Wi-Fi → Список устройств</b>, найдите её и нажмите
+          «Зарегистрировать», закрепив <code>192.168.3.54</code>.
+        </p>
+        <div class="note why"><b>Зачем.</b> Интеграция Android TV Remote хранит адрес,
+          а не имя. Смена адреса после перезагрузки роутера разорвёт сопряжение,
+          и все сценарии перестанут работать до повторной привязки.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s7-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">7.2</span> Сопрячь с Home Assistant</h3>
+        <p>
+          <b>Добавить интеграцию → Android TV Remote</b>, адрес <code>192.168.3.54</code>.
+          На экране телевизора появится шестизначный код — введите его в Home Assistant.
+        </p>
+        <p>Появятся две сущности: <code>media_player</code> (питание, громкость,
+          что сейчас играет, запуск приложений) и <code>remote</code> (нажатия кнопок
+          пульта и запуск приложений по ссылке или имени пакета).</p>
+      </div>
+    </li>
+
+    <li class="step" data-key="s7-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">7.3</span> Привести идентификаторы к ожидаемым<span class="tag key">важно</span></h3>
+        <p>
+          Пакет <code>media_tv.yaml</code> ссылается ровно на три идентификатора.
+          Проверьте их в карточках устройств и при необходимости переименуйте:
+        </p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Должно быть</th><th>Устройство</th></tr></thead>
+            <tbody>
+              <tr><td><code>media_player.lg_tv</code></td><td>телевизор, 192.168.3.52</td></tr>
+              <tr><td><code>media_player.rocktek_gx1</code></td><td>приставка, 192.168.3.54</td></tr>
+              <tr><td><code>remote.rocktek_gx1</code></td><td>она же, пульт</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s7-4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">7.4</span> Узнать реальное имя пакета Jellyfin</h3>
+        <p>
+          Сценарий запускает приложение по имени пакета
+          <code>org.jellyfin.androidtv</code>. Убедитесь, что у вас установлен именно
+          официальный клиент: откройте Jellyfin на приставке пультом, а затем в
+          <b>Инструментах разработчика → Состояния</b> посмотрите атрибут
+          <code>app_id</code> у <code>media_player.rocktek_gx1</code>.
+        </p>
+        <p>
+          Если там другое значение — подставьте его в <code>script.tv_jellyfin</code>
+          в поле <code>activity</code>.
+        </p>
+        <div class="note why"><b>YouTube запускается иначе — по ссылке</b>
+          <code>https://www.youtube.com</code>. Для приложений, у которых есть
+          веб-адрес, это надёжнее имени пакета: Google TV сам сопоставляет ссылку
+          с установленным приложением, и она не ломается при обновлении.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s7-5">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">7.5</span> Настроить «Продолжить просмотр»</h3>
+        <p>
+          Сценарий спрашивает у Jellyfin, на чём вы остановились, и отправляет это
+          в сессию приставки. Нужны две записи в <code>secrets.yaml</code>.
+        </p>
+        <p><b>Первое — ключ API.</b> В Jellyfin: <b>Панель → Дополнительно →
+          Ключи API → создать</b>, назовите «Home Assistant».</p>
+        <p><b>Второе — ваш ID пользователя:</b></p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>curl -s -H 'Authorization: MediaBrowser Token="ВАШ_КЛЮЧ"' \
+  http://192.168.3.53:8096/Users | python3 -m json.tool | grep -E '"(Name|Id)"'</code></pre></div>
+        <p>Впишите обе строки:</p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>jellyfin_auth_header: 'MediaBrowser Token="ВАШ_КЛЮЧ"'
+jellyfin_user_id: "a1b2c3d4e5f6..."</code></pre></div>
+        <p>Проверьте, что эндпоинт отвечает — на Jellyfin 10.10 и новее это
+          <code>/UserItems/Resume</code>:</p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>curl -s -H 'Authorization: MediaBrowser Token="ВАШ_КЛЮЧ"' \
+  'http://192.168.3.53:8096/UserItems/Resume?userId=ВАШ_ID&amp;limit=1&amp;mediaTypes=Video' \
+  | python3 -m json.tool | head -20</code></pre></div>
+        <div class="note warn"><b>Если пришла ошибка 404</b>, у вас Jellyfin старше 10.10.
+          Тогда в <code>packages/media_tv.yaml</code> замените <code>resource</code> на
+          <code>http://127.0.0.1:8096/Users/ВАШ_ID/Items/Resume</code> и уберите
+          параметр <code>userId</code> из секции <code>params</code>.</div>
+        <p>После перезагрузки YAML сенсор <code>sensor.jellyfin_resume</code> должен
+          показывать название серии или фильма — например,
+          «Северный ветер · S02E04».</p>
+      </div>
+    </li>
+
+    <li class="step" data-key="s7-6">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">7.6</span> Проверить сценарии по очереди</h3>
+        <p>
+          <b>Инструменты разработчика → Действия</b>, запускать по одному
+          с выключенным телевизором:
+        </p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Сценарий</th><th>Что должно произойти</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><code>script.tv_on</code><br><span style="color:var(--muted)">ТВ: включить</span></td>
+                <td>приставка просыпается → по SIMPLINK включается телевизор и сам
+                  переходит на её вход. Если CEC не сработал — уходит magic-пакет,
+                  а через четыре секунды вход переключается командой</td>
+              </tr>
+              <tr>
+                <td><code>script.tv_off</code><br><span style="color:var(--muted)">ТВ: выключить</span></td>
+                <td>сначала засыпает приставка, через две секунды выключается
+                  телевизор</td>
+              </tr>
+              <tr>
+                <td><code>script.tv_jellyfin</code><br><span style="color:var(--muted)">Смотреть Jellyfin</span></td>
+                <td>включение связки, затем запуск приложения Jellyfin</td>
+              </tr>
+              <tr>
+                <td><code>script.tv_youtube</code><br><span style="color:var(--muted)">Смотреть YouTube</span></td>
+                <td>включение связки, затем YouTube по ссылке</td>
+              </tr>
+              <tr>
+                <td><code>script.tv_jellyfin_resume</code><br><span style="color:var(--muted)">Продолжить просмотр</span></td>
+                <td>всё вышеперечисленное, затем ожидание сессии клиента и
+                  воспроизведение недосмотренного с сохранённой позиции</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note why"><b>Порядок выключения не случаен.</b> Если сначала погасить
+          телевизор, работающая приставка тут же разбудит его обратно по HDMI-CEC.
+          Поэтому сценарий усыпляет GX1 первой.</div>
+        <div class="note warn"><b>«Продолжить просмотр» не доиграло?</b> Сценарий ждёт
+          полторы минуты появления сессии Jellyfin — она возникает только после того,
+          как приложение на приставке вошло в учётную запись. Если сессия не появилась,
+          в Home Assistant придёт уведомление с объяснением, а Jellyfin останется
+          открытым: на его главном экране первая строка — «Продолжить просмотр».</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s7-7">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">7.7</span> Проверить ночное автоотключение</h3>
+        <p>Работают два механизма, они дополняют друг друга.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Автоматизация</th><th>Когда</th><th>Что делает</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><b>ТВ: ночью выключить простаивающий</b></td>
+                <td>каждые 15 минут с 00:30 до 06:00</td>
+                <td>если телевизор включён, но ничего не играет уже 20 минут —
+                  выключает связку молча</td>
+              </tr>
+              <tr>
+                <td><b>ТВ: проверка «вы ещё смотрите?»</b></td>
+                <td>в 01:30 и в 03:00</td>
+                <td>если идёт воспроизведение: сообщение на экран → три минуты →
+                  пауза → пять минут на то, чтобы нажать play. Нажали — автоматика
+                  отступает. Не нажали — выключает всё</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note why"><b>Почему пауза, а не сразу выключение.</b> Отличить
+          «смотрю» от «сплю» по состоянию плеера невозможно — в обоих случаях там
+          <code>playing</code>. Пауза превращает догадку в вопрос: бодрствующий человек
+          нажмёт play в течение пяти минут, спящий — нет. Это единственный надёжный
+          тест, который не требует датчиков присутствия.</div>
+        <p>
+          Осознанно смотрите долгий фильм — включите
+          <code>input_boolean.tv_no_auto_off</code> («ТВ: не выключать ночью»).
+          Флаг сбрасывается сам в 06:00. Его удобно вынести на дашборд и отдать Алисе.
+        </p>
+        <p><b>Как проверить, не дожидаясь ночи:</b> временно поменяйте в
+          <code>packages/media_tv.yaml</code> время срабатывания на ближайшие минуты,
+          перезагрузите YAML, дождитесь — и верните обратно.</p>
+      </div>
+    </li>
+
+    <li class="step" data-key="s7-8">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">7.8</span> Включить SIMPLINK, если ещё не включён</h3>
+        <p>
+          <b>Настройки → Общие → SIMPLINK (HDMI-CEC)</b> → <b>Вкл</b>. Именно на нём
+          держится основной путь включения: приставка будит телевизор и переключает
+          вход сама. Wake-on-LAN в сценарии — запасной вариант, и на серии LK по Wi-Fi
+          он срабатывает через раз.
+        </p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s8">
+  <div class="sec-head">
+    <div class="kicker">Раздел 8</div>
+    <h2>Алиса</h2>
+    <p>
+      Колонка стоит в изолированном сегменте — и это ничему не мешает. Голосовая команда
+      уходит в облако Яндекса, оттуда навык Yaha Cloud стучится в Home Assistant по
+      исходящему соединению самого NAS. Ни одного правила межсетевого экрана.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="s8-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">8.1</span> Убедиться, что HACS на месте</h3>
+        <p>
+          HACS вы поставили на шаге 3.4 — он же принёс Monitor Docker в разделе 4.
+          Проверьте, что интеграция жива: <b>Настройки → Устройства и службы → HACS</b>,
+          ошибок быть не должно.
+        </p>
+      </div>
+    </li>
+
+    <li class="step" data-key="s8-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">8.2</span> Поставить Yandex Smart Home</h3>
+        <p>
+          <b>HACS → Интеграции → Поиск «Yandex Smart Home»</b> → Скачать → перезапустить
+          Home Assistant.
+        </p>
+        <p>Если в каталоге не нашлось — добавьте репозиторий вручную:
+          меню «⋮» → <b>Пользовательские репозитории</b> →
+          <code>dext0r/yandex_smart_home</code>, категория Integration.</p>
+        <div class="note why"><b>Требование компонента</b> — Home Assistant 2024.9 или новее.
+          У вас свежая сборка, ограничение неактуально.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s8-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">8.3</span> Настроить облачное подключение</h3>
+        <p>
+          <b>Добавить интеграцию → Yandex Smart Home</b> → тип подключения
+          <b>«Облачное»</b>.
+        </p>
+        <p>
+          Компонент выдаст пару <b>ID</b> и <b>пароль</b> — это учётные данные для
+          привязки навыка. Сохраните их, они понадобятся на следующем шаге.
+        </p>
+        <div class="note why"><b>Почему облачное, а не прямое.</b> Прямое подключение требует,
+          чтобы Яндекс мог достучаться до вашего Home Assistant по HTTPS из интернета —
+          то есть публичный адрес, сертификат и открытый наружу порт. Облачный вариант
+          переворачивает картину: Home Assistant сам держит исходящее соединение с
+          Yaha Cloud. Наружу не открывается ничего.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s8-4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">8.4</span> Выбрать, что отдать Алисе</h3>
+        <p>
+          В настройках интеграции — <b>Список объектов</b>. Разумный стартовый набор:
+        </p>
+        <ul>
+          <li><code>media_player.lg_tv</code> — Алиса увидит его как телевизор:
+            включение, выключение, громкость, каналы, источники;</li>
+          <li><code>media_player.rocktek_gx1</code> — приставка: пауза, громкость,
+            что играет;</li>
+          <li><code>script.tv_on</code>, <code>script.tv_off</code>,
+            <code>script.tv_jellyfin</code>, <code>script.tv_youtube</code>,
+            <code>script.tv_jellyfin_resume</code> — станут сценариями;</li>
+          <li><code>input_boolean.tv_no_auto_off</code> — «Алиса, включи ночной просмотр»,
+            и автоматика не выключит телевизор посреди фильма;</li>
+          <li>температуру NAS и загрузку CPU — если хочется спрашивать голосом;</li>
+          <li><code>binary_sensor.stack_problem</code> — одна лампочка вместо шести проверок.</li>
+        </ul>
+        <div class="note warn"><b>Не отдавайте всё подряд.</b> Каждая сущность становится
+          устройством в приложении «Дом с Алисой». Полсотни сенсоров превратят список
+          в кашу, а распознавание команд — в лотерею.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s8-5">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">8.5</span> Привязать навык в «Доме с Алисой»</h3>
+        <ul>
+          <li>приложение <b>Дом с Алисой</b> → <b>Устройства → Добавить → Другое устройство</b>;</li>
+          <li>найти навык <b>Yaha Cloud</b> (в некоторых версиях — «Yaha Cloud (YSH)»);</li>
+          <li>нажать «Привязать к Яндексу» и ввести ID и пароль из шага 8.3;</li>
+          <li>после привязки — <b>Обновить список устройств</b>.</li>
+        </ul>
+        <p>Устройства из Home Assistant появятся в приложении. Разложите их по комнатам
+          и дайте человеческие имена.</p>
+        <div class="note why"><b>Имя решает всё.</b> Алиса произносит и распознаёт ровно то имя,
+          которое стоит в приложении Яндекса, а не в Home Assistant. «Телевизор» —
+          хорошее имя. «media_player.lg_tv» — нет.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s8-6">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">8.6</span> Проверить голосом</h3>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Фраза</th><th>Что произойдёт</th></tr></thead>
+            <tbody>
+              <tr><td>«Алиса, включи телевизор»</td><td>Home Assistant пошлёт magic-пакет, телевизор проснётся</td></tr>
+              <tr><td>«Алиса, выключи телевизор»</td><td>штатное выключение по webOS</td></tr>
+              <tr><td>«Алиса, сделай телевизор тише»</td><td>громкость по webOS</td></tr>
+              <tr><td>«Алиса, включи HDMI 1 на телевизоре»</td><td>переключение источника</td></tr>
+              <tr><td>«Алиса, запусти сценарий смотреть Jellyfin»</td><td>включит связку и откроет Jellyfin</td></tr>
+              <tr><td>«Алиса, запусти сценарий продолжить просмотр»</td><td>доиграет недосмотренное с сохранённой позиции</td></tr>
+              <tr><td>«Алиса, включи ночной просмотр»</td><td>снимет ночное автоотключение до утра</td></tr>
+              <tr><td>«Алиса, какая температура сервера»</td><td>если отдали сенсор температуры</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note warn"><b>Задержка 1–3 секунды — это нормально.</b> Команда проходит
+          путь «колонка → Яндекс → Yaha Cloud → ваш NAS» и обратно. Мгновенной реакции,
+          как у локального управления, здесь не будет — это цена сохранённой изоляции
+          сегментов.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s8-7">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">8.7</span> Спросить у Алисы температуру<span class="tag key">без доп. компонентов</span></h3>
+        <p>
+          Пакет <code>packages/alice.yaml</code> создаёт три псевдонима с
+          предсказуемыми именами: <code>sensor.server_temperature</code>,
+          <code>sensor.server_cpu_load</code>, <code>sensor.server_ram_load</code>.
+          Подставьте в них свои сенсоры Synology — там три строки в самом начале файла.
+        </p>
+        <p>
+          Отдайте Яндексу <code>sensor.server_temperature</code> и назовите устройство
+          в приложении «Дом с Алисой» просто <b>сервер</b>. Работает сразу:
+        </p>
+        <div class="code"><pre><code>— Алиса, какая температура у сервера?
+— Сорок один градус.</code></pre></div>
+        <div class="note why"><b>Почему только температура.</b> У Умного дома Яндекса
+          закрытый список типов датчиков: температура, влажность, давление, заряд,
+          освещённость, концентрации газов и ещё десяток. «Загруженности процессора»
+          там нет и не появится — поэтому загрузка идёт другим путём, следующим шагом.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s8-8">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">8.8</span> Научить Алису произносить отчёт<span class="tag opt">третий компонент</span></h3>
+        <p>
+          Чтобы услышать произвольную фразу с цифрами, колонка должна её сказать.
+          Это умеет компонент <b>YandexStation</b> — в <b>облачном</b> режиме, то есть
+          без локального доступа к колонке. Изоляция сегментов остаётся нетронутой.
+        </p>
+        <ul>
+          <li><b>HACS → Интеграции</b>, найти «Yandex Station», скачать, перезапустить HA;</li>
+          <li><b>Добавить интеграцию → Yandex Station</b>, вход по QR-коду — пароль
+            компоненту не передаётся;</li>
+          <li>появится <code>media_player</code> для Мини 3.</li>
+        </ul>
+        <p>
+          Скрипт <code>script.alice_server_report</code> сам найдёт колонку среди
+          сущностей YandexStation — вписывать её идентификатор никуда не нужно.
+          Проверьте его из <b>Инструментов разработчика → Действия</b>: колонка должна
+          произнести что-то вроде «Процессор 11, память 47 процентов, 41 градусов.
+          Всё работает».
+        </p>
+        <p>
+          Затем отдайте этот скрипт Яндексу — он станет сценарием:
+        </p>
+        <div class="code"><pre><code>— Алиса, включи отчёт о сервере.
+— Процессор одиннадцать, память сорок семь процентов,
+  сорок один градусов. Всё работает.</code></pre></div>
+        <div class="note warn"><b>Сто символов — это потолок облачного режима.</b>
+          YandexStation обрезает всё, что длиннее. Фраза в
+          <code>sensor.server_voice_status</code> собрана коротко и на всякий случай
+          обрезается сама. Если захотите добавить в неё деталей — считайте символы,
+          иначе Алиса замолчит на полуслове.</div>
+        <div class="note why"><b>Не хотите третий компонент?</b> В самом низу
+          <code>packages/alice.yaml</code> лежит закомментированный запасной вариант:
+          отдать загрузку процессора как свойство «уровень заряда» устройству с именем
+          «загрузка сервера». Тогда работает «Алиса, какой заряд у загрузки сервера» —
+          цифру вы получите, но звучит это, прямо скажем, нелепо.</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s9">
+  <div class="sec-head">
+    <div class="kicker">Раздел 9</div>
+    <h2>Keenetic: что проверить</h2>
+    <p>
+      Изоляцию сегментов не трогаем — она для новой схемы не помеха. А вот одну вещь
+      из вашей конфигурации стоит проверить заранее, потому что она способна тихо
+      сломать сразу три пункта чек-листа.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="s9-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">9.1</span> Понять, где сейчас ходит трафик NAS</h3>
+        <p>
+          В вашей конфигурации политика <code>Policy0</code> («Def») разрешает только
+          <code>Wireguard0</code> и явно запрещает <code>ISP</code>, и назначена она обоим
+          сегментам и поимённо всем устройствам, включая <code>hhNAS</code>. То есть
+          <b>весь исходящий трафик NAS уходит в туннель «VPN»</b>.
+        </p>
+        <p>
+          Это касается трёх вещей из этого чек-листа: Пачки (раздел 5), GitHub для HACS
+          (раздел 8) и облака Yaha (раздел 8). Проверьте по SSH на NAS:
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>curl -s https://api.ipify.org; echo
+curl -sS -o /dev/null -w 'pachca: %{http_code}\n' https://api.pachca.com/api/shared/v1/
+curl -sS -o /dev/null -w 'yaha:   %{http_code}\n' https://yaha-cloud.ru/
+curl -sS -o /dev/null -w 'github: %{http_code}\n' https://github.com/</code></pre></div>
+        <p>Любой код ответа лучше таймаута. Если всё отвечает — переходите к разделу 10,
+          ничего менять не нужно.</p>
+      </div>
+    </li>
+
+    <li class="step" data-key="s9-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">9.2</span> Если что-то не отвечает<span class="tag opt">по ситуации</span></h3>
+        <p>Три варианта, от точечного к радикальному:</p>
+        <ul>
+          <li><b>Маршрут до узла.</b> <i>Интернет → Маршрутизация → Добавить маршрут</i>:
+            «Маршрут до узла», IP сервиса, интерфейс «Провайдер». Минус — у облаков
+            адреса меняются.</li>
+          <li><b>Отдельная политика для NAS.</b> <i>Интернет → Приоритеты подключений</i> →
+            создать политику только с ISP → назначить её <code>hhNAS</code>. Учтите:
+            Prowlarr и qBittorrent тоже выйдут из-под VPN.</li>
+          <li><b>Оставить как есть</b> и слать уведомления другим каналом — например,
+            в мобильное приложение Home Assistant.</li>
+        </ul>
+      </div>
+    </li>
+
+    <li class="step" data-key="s9-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">9.3</span> Добавить резервный DNS<span class="tag key">рекомендую</span></h3>
+        <p>
+          Сейчас единственный сервер имён — <code>10.0.0.53</code>, и он объявлен
+          только на интерфейсе <code>Wireguard0</code>. Пока туннель жив, всё хорошо;
+          когда он упадёт, разрешение имён встанет во всей сети, включая Home Assistant.
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code><span class="c"># CLI роутера: ssh -p 2022 admin@192.168.3.1</span>
+ip name-server 77.88.8.8 "" on ISP
+ip name-server 1.1.1.1 "" on ISP
+system configuration save</code></pre></div>
+        <p>То же самое мышкой: <i>Интернет → Проводной → Настройка DNS → Добавить сервер</i>.</p>
+      </div>
+    </li>
+
+    <li class="step" data-key="s9-4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">9.4</span> Опубликовать Home Assistant через KeenDNS<span class="tag opt">по желанию</span></h3>
+        <p>
+          У вас уже настроен KeenDNS для DSM (<code>ip http proxy nas</code>). Добавим второе
+          приложение: <i>Управление → Доменное имя → Приложения → Добавить</i>.
+        </p>
+        <ul>
+          <li>адрес сервера <code>192.168.3.53</code>, порт <code>8123</code>, протокол HTTP;</li>
+          <li>авторизацию роутера — <b>выключить</b>: у Home Assistant своя, а мобильное
+            приложение не умеет проходить басик-авторизацию Keenetic.</li>
+        </ul>
+        <div class="note why"><b>Секция <code>http:</code> уже готова к этому.</b> В
+          <code>configuration.yaml</code> прописаны <code>use_x_forwarded_for: true</code> и
+          <code>trusted_proxies: 192.168.3.1</code>. Без них Home Assistant видел бы все
+          запросы приходящими с адреса роутера и после пяти неудачных попыток входа
+          заблокировал бы роутер целиком — вместе со всем внешним доступом.</div>
+        <p>После настройки впишите адрес в <code>secrets.yaml</code> (<code>ha_external_url</code>)
+          и раскомментируйте строку <code>external_url</code> в <code>configuration.yaml</code>.</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s10">
+  <div class="sec-head">
+    <div class="kicker">Раздел 10</div>
+    <h2>Дашборд</h2>
+    <p>
+      Один экран, отвечающий на вопрос «всё ли в порядке» за секунду —
+      и разворачивающийся в детали, если что-то не так.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="s10-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">10.1</span> Создать панель и вставить YAML</h3>
+        <p>
+          <b>Настройки → Панели мониторинга → Добавить панель</b> → «Новая панель
+          с нуля». Открыть её, карандаш → «⋮» → <b>Редактировать в YAML</b> и
+          заменить всё содержимое файлом <code>dashboard-infrastructure.yaml</code>
+          из архива.
+        </p>
+      </div>
+    </li>
+
+    <li class="step" data-key="s10-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">10.2</span> Что где лежит</h3>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Блок</th><th>Что показывает</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><b>Состояние</b></td>
+                <td>четыре плитки во всю ширину: сервисы, упавшие контейнеры,
+                  температура, процессор. Если все четыре спокойны — дальше можно
+                  не смотреть</td>
+              </tr>
+              <tr>
+                <td><b>DS725+</b></td>
+                <td>стрелочные шкалы процессора и памяти с порогами 70 и 90 %,
+                  том, оба диска, аптайм и две строки простоя за сутки</td>
+              </tr>
+              <tr>
+                <td><b>Контейнеры</b></td>
+                <td>карточка «кто лежит» появляется только когда есть кому лежать;
+                  состояние каждого из восьми отдельной строкой; два графика</td>
+              </tr>
+              <tr>
+                <td><b>Отвечают ли приложения</b></td>
+                <td>шесть HTTP-проверок и кнопки «отправить сводку в Пачку»
+                  и «произнести отчёт на колонке»</td>
+              </tr>
+              <tr>
+                <td><b>Гостиная</b></td>
+                <td>оба плеера, пять сценариев просмотра, «продолжить» из Jellyfin
+                  и переключатель ночного автоотключения</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note why"><b>Почему процессор и память на разных графиках.</b>
+          У них разные единицы — проценты и мегабайты. На одной оси линия в 300 MiB
+          выглядела бы в тридцать раз «важнее» линии в 10 %, хотя сравнивать их
+          бессмысленно. Две карточки честнее одной с двумя шкалами.</div>
+        <div class="note why"><b>Почему «кто лежит» — условная карточка.</b> Пустой
+          блок «проблем нет» на дашборде каждый день приучает глаз его пропускать.
+          Карточка, которой обычно нет, замечается сразу, как только появляется.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s10-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">10.3</span> Поправить два места под себя</h3>
+        <ul>
+          <li>сенсоры Synology в блоке «Хранилище и здоровье» — четыре строки,
+            все помечены комментарием <code>⚠️</code>;</li>
+          <li>суффиксы сенсоров Monitor Docker, если они у вас отличаются
+            от <code>_cpu</code>, <code>_memory</code>, <code>_state</code>.</li>
+        </ul>
+        <div class="note warn"><b>Карточка с несуществующей сущностью</b> покажет
+          «Объект не найден» и ничего не сломает — правьте спокойно, по одной.</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s11">
+  <div class="sec-head">
+    <div class="kicker">Раздел 11</div>
+    <h2>Бэкапы и обслуживание</h2>
+    <p>Скучный раздел, из-за которого потом не приходится собирать всё заново.</p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="s11-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">11.1</span> Включить встроенные резервные копии</h3>
+        <p>
+          <b>Настройки → Система → Резервные копии</b>: расписание — ежедневно ночью,
+          хранить последние 7. Копии складываются в
+          <code class="path">/volume1/docker/homeassistant/config/backups</code>.
+        </p>
+      </div>
+    </li>
+
+    <li class="step" data-key="s11-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">11.2</span> Добавить папку в Hyper Backup</h3>
+        <p>
+          Включите <code class="path">/volume1/docker/homeassistant</code> в существующее
+          задание Hyper Backup.
+        </p>
+        <div class="note why"><b>Зачем и то, и другое.</b> Встроенный бэкап Home Assistant
+          восстанавливает конфигурацию и историю одним нажатием, но лежит на том же диске.
+          Hyper Backup уносит копию наружу. Один без другого — половина защиты.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s11-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">11.3</span> Порядок обновления</h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/homeassistant
+sudo docker compose pull
+sudo docker compose up -d
+sudo docker image prune -f</code></pre></div>
+        <div class="note crit"><b>Всегда сначала бэкап.</b> Home Assistant обновляется раз в
+          месяц и регулярно приносит breaking changes. Тег <code>stable</code> в
+          <code>compose.yaml</code> означает «последний стабильный», а не «зафиксированный»:
+          <code>docker compose pull</code> действительно поднимет версию. Если хотите
+          контролировать момент — замените <code>:stable</code> на конкретную версию,
+          например <code>:2026.8</code>.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s11-4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">11.4</span> Следить за размером базы</h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>ls -lh /volume1/docker/homeassistant/config/home-assistant_v2.db</code></pre></div>
+        <p>
+          В <code>configuration.yaml</code> заданы <code>purge_keep_days: 21</code> и
+          <code>commit_interval: 15</code> — история за три недели, запись пачками раз в
+          15 секунд вместо постоянного потока мелких транзакций. Для NAS это заметная
+          разница по износу дисков. Если база перевалит за пару гигабайт, добавьте
+          в <code>recorder.exclude</code> самые говорливые сенсоры — обычно это скорости сети.
+        </p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s12">
+  <div class="sec-head">
+    <div class="kicker">Раздел 12</div>
+    <h2>Если что-то пошло не так</h2>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Симптом</th><th>Вероятная причина</th><th>Что делать</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Интерфейс на :8123 не открывается</td>
+          <td>контейнер не в host-сети или упал на старте</td>
+          <td><code>docker logs --tail 100 homeassistant</code>; проверить <code>NetworkMode</code></td>
+        </tr>
+        <tr>
+          <td>Нет метрик NAS: температуры, тома, дисков</td>
+          <td>отвалилась интеграция Synology DSM — это теперь единственный их источник</td>
+          <td>Настройки → Устройства → Synology DSM; проверить пароль <code>hass</code> и автоблокировку DSM</td>
+        </tr>
+        <tr>
+          <td>Все <code>binary_sensor.svc_*</code> в <code>off</code></td>
+          <td>bridge-сеть вместо host: <code>127.0.0.1</code> внутри контейнера — это он сам</td>
+          <td>пересобрать проект из приложенного <code>compose.yaml</code></td>
+        </tr>
+        <tr>
+          <td>Synology DSM не подключается</td>
+          <td>пользователь не администратор, включено 2FA, или сработала автоблокировка</td>
+          <td>проверить группу <code>administrators</code>, снять галку проверки сертификата, добавить NAS в белый список</td>
+        </tr>
+        <tr>
+          <td>Сенсоры <code>sensor.docker_*</code> недоступны</td>
+          <td>не поднялся <code>dockerproxy</code> или Monitor Docker не видит его</td>
+          <td><code>curl -s http://127.0.0.1:2375/version</code> с NAS; журнал HA, строка <code>monitor_docker</code></td>
+        </tr>
+        <tr>
+          <td>Есть сенсоры состояния, но нет CPU и памяти</td>
+          <td>в прокси не разрешён <code>CONTAINERS=1</code></td>
+          <td>сверить переменные окружения <code>dockerproxy</code> в <code>compose.yaml</code></td>
+        </tr>
+        <tr>
+          <td>Сводные <code>docker_top_cpu</code> и <code>docker_top_ram</code> всегда 0</td>
+          <td>в вашей версии компонента другие суффиксы entity_id</td>
+          <td>поправить маски <code>_cpu$</code> и <code>_memory$</code> в <code>packages/docker.yaml</code></td>
+        </tr>
+        <tr>
+          <td>Приставка включается, телевизор нет</td>
+          <td>выключен SIMPLINK или телевизор в глубоком сне</td>
+          <td>раздел 7.8; проверить «Быстрый запуск+» на телевизоре</td>
+        </tr>
+        <tr>
+          <td>«Продолжить просмотр» открывает Jellyfin, но ничего не играет</td>
+          <td>сессия клиента не появилась, либо пуст <code>sensor.jellyfin_resume</code></td>
+          <td>раздел 7.5: проверить ключ, ID пользователя и ответ <code>/UserItems/Resume</code></td>
+        </tr>
+        <tr>
+          <td>Алиса не произносит отчёт</td>
+          <td>не установлен YandexStation или не выполнен вход в аккаунт Яндекса</td>
+          <td>раздел 8.8; в Home Assistant появится уведомление с текстом, который колонка должна была сказать</td>
+        </tr>
+        <tr>
+          <td>Колонка обрывает фразу на полуслове</td>
+          <td>облачный режим режет всё длиннее 100 символов</td>
+          <td>укоротить шаблон <code>sensor.server_voice_status</code> в <code>packages/alice.yaml</code></td>
+        </tr>
+        <tr>
+          <td>В сводке «простой за сутки» пустой или unknown</td>
+          <td><code>history_stats</code> ещё не накопил историю после перезапуска</td>
+          <td>подождать сутки; значения считаются по журналу состояний recorder</td>
+        </tr>
+        <tr>
+          <td>Телевизор выключается посреди фильма ночью</td>
+          <td>сработала проверка «вы ещё смотрите?»</td>
+          <td>включить <code>input_boolean.tv_no_auto_off</code> или сдвинуть время в <code>media_tv.yaml</code></td>
+        </tr>
+        <tr>
+          <td>Пачка молчит, в журнале таймаут</td>
+          <td>исходящий трафик NAS не доходит через WireGuard</td>
+          <td>раздел 9.1 → 9.2</td>
+        </tr>
+        <tr>
+          <td>Пачка отвечает 404</td>
+          <td>опечатка в URL вебхука или бот удалён</td>
+          <td>перевыпустить вебхук в настройках бота</td>
+        </tr>
+        <tr>
+          <td>Сообщения приходят не в тот чат</td>
+          <td>бот состоит в нескольких групповых чатах</td>
+          <td>убрать бота из лишних чатов — вебхук шлёт во все сразу</td>
+        </tr>
+        <tr>
+          <td>Телевизор выключается, но не включается</td>
+          <td>выключен «Быстрый запуск+», Wi-Fi вместо кабеля, или неверный MAC</td>
+          <td>раздел 6.1 и 6.4</td>
+        </tr>
+        <tr>
+          <td>Телевизор не находится в HA</td>
+          <td>выключен LG Connect Apps, либо телевизор был выключен при поиске</td>
+          <td>включить телевизор и добавить вручную по <code>192.168.3.52</code></td>
+        </tr>
+        <tr>
+          <td>Алиса «не может связаться с устройством»</td>
+          <td>Home Assistant недоступен для Yaha Cloud или интеграция отвалилась</td>
+          <td>проверить журнал <code>yandex_smart_home</code>, обновить список устройств в приложении</td>
+        </tr>
+        <tr>
+          <td>Алиса не понимает команду</td>
+          <td>имя устройства в приложении Яндекса неудачное</td>
+          <td>переименовать на короткое и однозначное, задать комнату</td>
+        </tr>
+        <tr>
+          <td>После обновления HA пропали сущности</td>
+          <td>breaking change в очередном релизе</td>
+          <td>журнал → страница релиза → откатиться на предыдущий тег образа</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note why" style="margin-top:22px">
+    <b>Куда расти дальше.</b>
+    <p>
+      <b>Кнопки управления контейнерами.</b> Сейчас прокси работает только на чтение.
+      Чтобы получить в интерфейсе переключатели «остановить» и кнопки «перезапустить»,
+      поставьте <code>POST=1</code> у <code>dockerproxy</code> в <code>compose.yaml</code>
+      и <code>switchenabled: true</code>, <code>buttonenabled: true</code> в
+      <code>packages/docker.yaml</code>. Взвесьте: всё, что сможет достучаться до
+      <code>127.0.0.1:2375</code>, получит право останавливать ваши сервисы.
+    </p>
+    <p>
+      Второе очевидное направление — Zigbee-стик в USB DS725+ и датчики температуры,
+      открытия и протечки. Тогда Home Assistant перестанет быть только панелью
+      мониторинга NAS.
+    </p>
+  </div>
+</section>
+
+<section id="sA">
+  <div class="sec-head">
+    <div class="kicker">Приложение A</div>
+    <h2>Карта портов и адресов</h2>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Адрес</th><th>Что это</th><th>Сегмент</th><th>Порты</th></tr></thead>
+      <tbody>
+        <tr><td class="num-col"><code>192.168.3.1</code></td><td>Keenetic Hopper SE, шлюз</td><td>Home</td><td>8080 / 8083 · SSH 2022 · telnet 2023</td></tr>
+        <tr><td class="num-col"><code>192.168.3.50</code></td><td>hhPC</td><td>Home</td><td>—</td></tr>
+        <tr><td class="num-col"><code>192.168.3.51</code></td><td>hhPhone</td><td>Home</td><td>—</td></tr>
+        <tr><td class="num-col"><code>192.168.3.52</code></td><td>LG 32LK540BPLA</td><td>Home</td><td>3000 / 3001 (webOS)</td></tr>
+        <tr><td class="num-col"><code>192.168.3.53</code></td><td>Synology DS725+</td><td>Home</td><td>см. ниже</td></tr>
+        <tr><td class="num-col"><code>192.168.3.54</code></td><td>RockTek GX1 (Google TV)</td><td>Home</td><td>6466 / 6467</td></tr>
+        <tr><td class="num-col"><code>10.0.50.50</code></td><td>Алиса Мини 3</td><td>IoT</td><td>1961 (недоступен, и не нужен)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Порт на 192.168.3.53</th><th>Сервис</th><th>Откуда взялся</th></tr></thead>
+      <tbody>
+        <tr><td class="num-col"><code>5000 / 5001</code></td><td>DSM</td><td>система</td></tr>
+        <tr><td class="num-col"><code>5055</code></td><td>Seerr</td><td>существующий стек</td></tr>
+        <tr><td class="num-col"><code>6881</code></td><td>qBittorrent, торренты</td><td>существующий стек</td></tr>
+        <tr><td class="num-col"><code>7359</code></td><td>Jellyfin, автообнаружение</td><td>существующий стек</td></tr>
+        <tr><td class="num-col"><code>7878</code></td><td>Radarr</td><td>существующий стек</td></tr>
+        <tr><td class="num-col"><code>8096</code></td><td>Jellyfin</td><td>существующий стек</td></tr>
+        <tr><td class="num-col"><code>8123</code></td><td><b>Home Assistant</b></td><td>новый</td></tr>
+        <tr><td class="num-col"><code>8191</code></td><td>FlareSolverr</td><td>существующий стек</td></tr>
+        <tr><td class="num-col"><code>9080</code></td><td>qBittorrent, веб-интерфейс</td><td>существующий стек</td></tr>
+        <tr><td class="num-col"><code>9696</code></td><td>Prowlarr</td><td>существующий стек</td></tr>
+        <tr><td class="num-col"><code>127.0.0.1:2375</code></td><td><b>docker-socket-proxy</b> — только петля</td><td>новый</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="sB">
+  <div class="sec-head">
+    <div class="kicker">Приложение B</div>
+    <h2>Файлы проекта</h2>
+    <p>Все они приложены к сообщению отдельными файлами. Здесь — что за что отвечает.</p>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Файл</th><th>Куда положить</th><th>Что внутри</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>compose.yaml</code></td>
+          <td><code class="path">/volume1/docker/homeassistant/</code></td>
+          <td>два контейнера: Home Assistant в host-сети и docker-socket-proxy на петлевом адресе</td>
+        </tr>
+        <tr>
+          <td><code>configuration.yaml</code></td>
+          <td><code class="path">config/</code></td>
+          <td>базовые настройки, доверенные прокси для KeenDNS, щадящий диски recorder, Wake-on-LAN</td>
+        </tr>
+        <tr>
+          <td><code>secrets.yaml.example</code></td>
+          <td><code class="path">config/</code> → переименовать</td>
+          <td>вебхук Пачки, MAC телевизора, ключ и ID пользователя Jellyfin, координаты, внешний адрес</td>
+        </tr>
+        <tr>
+          <td><code>packages/pachca.yaml</code></td>
+          <td><code class="path">config/packages/</code></td>
+          <td>служба уведомлений, скрипт форматирования, утренняя сводка о работоспособности</td>
+        </tr>
+        <tr>
+          <td><code>packages/monitoring.yaml</code></td>
+          <td><code class="path">config/packages/</code></td>
+          <td>шесть HTTP-проверок, сводные сенсоры, статистика простоя за сутки, шесть автоматизаций-сторожей</td>
+        </tr>
+        <tr>
+          <td><code>packages/docker.yaml</code></td>
+          <td><code class="path">config/packages/</code></td>
+          <td>Monitor Docker: по 5 сенсоров на контейнер раз в час, быстрая проверка
+            состояния раз в минуту, сводные «кто ест процессор и память»,
+            четыре автоматизации</td>
+        </tr>
+        <tr>
+          <td><code>packages/alice.yaml</code></td>
+          <td><code class="path">config/packages/</code></td>
+          <td>псевдонимы метрик с предсказуемыми именами, фраза для колонки
+            и скрипт голосового отчёта</td>
+        </tr>
+        <tr>
+          <td><code>packages/media_tv.yaml</code></td>
+          <td><code class="path">config/packages/</code></td>
+          <td>пять сценариев просмотра, Wake-on-LAN для LG, опрос «продолжить
+            просмотр» у Jellyfin, два ночных автоотключения</td>
+        </tr>
+        <tr>
+          <td><code>bin/http_check.py</code></td>
+          <td><code class="path">config/bin/</code></td>
+          <td>проверка доступности сервиса; всегда печатает ON или OFF и не падает</td>
+        </tr>
+        <tr>
+          <td><code>bin/docker_state.py</code></td>
+          <td><code class="path">config/bin/</code></td>
+          <td>один дешёвый запрос к dockerproxy раз в минуту; отдаёт JSON с именами
+            упавших контейнеров и признаком нехватки памяти</td>
+        </tr>
+        <tr>
+          <td><code>dashboard-infrastructure.yaml</code></td>
+          <td>вставляется в панель через интерфейс</td>
+          <td>готовый дашборд из раздела 10</td>
+        </tr>
+        <tr>
+          <td><code>automations.yaml</code>, <code>scripts.yaml</code>, <code>scenes.yaml</code></td>
+          <td><code class="path">config/</code></td>
+          <td>пустые заготовки для того, что вы создадите через интерфейс</td>
+        </tr>
+        <tr>
+          <td><code>keenetic-notes.md</code></td>
+          <td>справочно</td>
+          <td>разбор вашей текущей конфигурации роутера и команды CLI из раздела 9</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</main>
+</div>
+
+<footer>
+  <div class="wrap">
+    Чек-лист собран под конкретную конфигурацию: Synology DS725+ на 192.168.3.53,
+    Keenetic Hopper SE (KN-3812) с сегментами 192.168.3.0/24 и 10.0.50.0/24,
+    LG 32LK540BPLA на 192.168.3.52, Алиса Мини 3 на 10.0.50.50.
+    Отметки сохраняются в этом браузере.
+  </div>
+</footer>
+
+<script>
+(function () {
+  var KEY = 'ha-ds725-checklist-v1';
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; }
+    catch (e) { return {}; }
+  }
+  function save(state) {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  }
+
+  var state = load();
+  var steps = Array.prototype.slice.call(document.querySelectorAll('li.step'));
+  var ring = document.querySelector('.ring .fg');
+  var CIRC = 2 * Math.PI * 19;
+  var doneEl = document.getElementById('p-done');
+  var totalEl = document.getElementById('p-total');
+
+  /* ---- оглавление строится из секций ---- */
+  var toc = document.getElementById('toc');
+  var sections = Array.prototype.slice.call(document.querySelectorAll('main section'));
+  sections.forEach(function (sec) {
+    var h2 = sec.querySelector('h2');
+    if (!h2) return;
+    var kicker = sec.querySelector('.kicker');
+    var label = (kicker ? kicker.textContent.replace(/Раздел\s*/i, '').replace(/Приложение\s*/i, '') : '').trim();
+    var li = document.createElement('li');
+    var a = document.createElement('a');
+    a.href = '#' + sec.id;
+    a.dataset.sec = sec.id;
+    a.innerHTML = '<span class="n">' + label + '</span><span>' +
+      h2.textContent.replace(/\s*(когда приедет|план)\s*$/i, '').trim() + '</span>';
+    li.appendChild(a);
+    toc.appendChild(li);
+  });
+
+  /* ---- отметка раздела как пройденного ---- */
+  function refreshToc() {
+    sections.forEach(function (sec) {
+      var boxes = sec.querySelectorAll('li.step input[type=checkbox]');
+      var link = toc.querySelector('a[data-sec="' + sec.id + '"]');
+      if (!link) return;
+      var all = boxes.length > 0;
+      Array.prototype.forEach.call(boxes, function (b) { if (!b.checked) all = false; });
+      link.classList.toggle('done', all);
+    });
+  }
+
+  function refreshProgress() {
+    var done = steps.filter(function (s) { return s.classList.contains('checked'); }).length;
+    doneEl.textContent = done;
+    totalEl.textContent = steps.length;
+    ring.setAttribute('stroke-dasharray', CIRC.toFixed(1));
+    ring.setAttribute('stroke-dashoffset', (CIRC * (1 - (steps.length ? done / steps.length : 0))).toFixed(1));
+    refreshToc();
+  }
+
+  steps.forEach(function (step) {
+    var key = step.dataset.key;
+    var input = step.querySelector('input[type=checkbox]');
+    if (!input) return;
+    input.id = 'chk-' + key;
+    if (state[key]) { input.checked = true; step.classList.add('checked'); }
+    input.addEventListener('change', function () {
+      step.classList.toggle('checked', input.checked);
+      state[key] = input.checked;
+      if (!input.checked) delete state[key];
+      save(state);
+      refreshProgress();
+    });
+  });
+
+  document.getElementById('reset').addEventListener('click', function () {
+    steps.forEach(function (step) {
+      var input = step.querySelector('input[type=checkbox]');
+      if (input) { input.checked = false; }
+      step.classList.remove('checked');
+    });
+    state = {};
+    save(state);
+    refreshProgress();
+  });
+
+  refreshProgress();
+
+  /* ---- кнопки «копировать» ---- */
+  Array.prototype.forEach.call(document.querySelectorAll('.code .copy'), function (btn) {
+    btn.addEventListener('click', function () {
+      var pre = btn.parentNode.querySelector('pre');
+      if (!pre) return;
+      var text = pre.innerText;
+      var done = function () {
+        var old = btn.textContent;
+        btn.textContent = 'скопировано';
+        setTimeout(function () { btn.textContent = old; }, 1400);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () {});
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) {}
+        document.body.removeChild(ta);
+      }
+    });
+  });
+
+  /* ---- подсветка текущего раздела ---- */
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        var link = toc.querySelector('a[data-sec="' + entry.target.id + '"]');
+        if (!link) return;
+        if (entry.isIntersecting) {
+          Array.prototype.forEach.call(toc.querySelectorAll('a'), function (a) { a.classList.remove('active'); });
+          link.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-10% 0px -75% 0px' });
+    sections.forEach(function (s) { obs.observe(s); });
+  }
+})();
+</script>
+
+</body>
+</html>

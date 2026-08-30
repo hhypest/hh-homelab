@@ -1,0 +1,101 @@
+# =============================================================================
+#  /volume1/docker/homeassistant/config/configuration.yaml
+#  Home Assistant для DS725+ (192.168.3.53), сеть 192.168.3.0/24
+# =============================================================================
+#  Структура:
+#    configuration.yaml   — этот файл, только базовые настройки
+#    secrets.yaml         — токены и координаты (НЕ попадает в бэкапы в открытом виде)
+#    packages/*.yaml      — логические блоки: Пачка, мониторинг, ТВ
+#    automations.yaml     — автоматизации, созданные через UI
+#    scripts.yaml         — скрипты, созданные через UI
+# =============================================================================
+
+# Базовый набор: onboarding, история, логбук, zeroconf/ssdp/dhcp-обнаружение,
+# мобильное приложение, бэкапы, энергомониторинг и т. д.
+default_config:
+
+homeassistant:
+  name: hhHome
+  latitude: !secret home_latitude
+  longitude: !secret home_longitude
+  elevation: !secret home_elevation
+  unit_system: metric
+  temperature_unit: C
+  time_zone: Europe/Moscow
+  currency: RUB
+  country: RU
+  internal_url: "http://192.168.3.53:8123"
+  # Раскомментируйте после настройки KeenDNS (шаг 9 чек-листа):
+  # external_url: !secret ha_external_url
+
+  # Подключаем каталог packages — вся прикладная логика лежит там
+  packages: !include_dir_named packages
+
+# -----------------------------------------------------------------------------
+# HTTP
+# -----------------------------------------------------------------------------
+http:
+  server_port: 8123
+  # Нужно, если HA будет опубликован наружу через реверс-прокси KeenDNS
+  # на роутере Keenetic (192.168.3.1). Без этого HA будет видеть все запросы
+  # с адреса роутера и заблокирует его после нескольких неудачных входов.
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 192.168.3.1
+    - 127.0.0.1
+    - ::1
+  ip_ban_enabled: true
+  login_attempts_threshold: 5
+
+# -----------------------------------------------------------------------------
+# Recorder — база истории (SQLite на /volume1)
+# -----------------------------------------------------------------------------
+# На NAS важно не устраивать постоянную запись мелкими транзакциями:
+# commit_interval: 15 собирает изменения пачками и заметно щадит диски.
+recorder:
+  purge_keep_days: 21
+  commit_interval: 15
+  auto_purge: true
+  auto_repack: true
+  exclude:
+    domains:
+      - update
+      - automation
+      - persistent_notification
+    entity_globs:
+      - sensor.*_uptime
+      - sensor.sun_*
+      - sensor.*_last_boot
+      # Monitor Docker добавляет примерно полсотни сенсоров. График CPU и
+      # памяти по контейнеру — полезен, история строки «Up 4 days» и имени
+      # образа — нет, а на шпиндельных дисках каждая лишняя запись заметна.
+      - sensor.docker_*_uptime
+      - sensor.docker_*_image
+      - sensor.docker_*_status
+    entities:
+      - sensor.date
+      - sensor.time
+
+# -----------------------------------------------------------------------------
+# Логи
+# -----------------------------------------------------------------------------
+logger:
+  default: warning
+  logs:
+    homeassistant.components.webostv: info
+    homeassistant.components.androidtv_remote: info
+    homeassistant.components.synology_dsm: info
+    custom_components.monitor_docker: warning
+    custom_components.yandex_smart_home: info
+
+# -----------------------------------------------------------------------------
+# Wake-on-LAN — нужен, чтобы включать LG-телевизор magic-пакетом
+# -----------------------------------------------------------------------------
+wake_on_lan:
+
+# -----------------------------------------------------------------------------
+# Стандартные include'ы для сущностей, создаваемых через интерфейс
+# -----------------------------------------------------------------------------
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml

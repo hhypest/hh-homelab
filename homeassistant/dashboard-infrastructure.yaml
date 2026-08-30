@@ -1,0 +1,313 @@
+# =============================================================================
+#  Дашборд «Инфраструктура» для Home Assistant
+# =============================================================================
+#  Как поставить
+#  -------------
+#  Настройки → Панели мониторинга → Добавить панель → «Новая панель с нуля».
+#  Открыть её, карандаш → «⋮» → Редактировать в YAML → вставить этот файл
+#  целиком, заменив всё содержимое.
+#
+#  Что поправить под себя
+#  ----------------------
+#  1. Сенсоры Synology (sensor.ds725_*) — подставьте реальные имена из
+#     шага 4.1 чек-листа. Их здесь всего четыре, и все в разделе «Железо»;
+#     остальное построено на псевдонимах sensor.server_* из packages/alice.yaml,
+#     которые от имени NAS не зависят. Все метрики самого NAS приходят
+#     из интеграции Synology DSM — отдельного агента на хосте больше нет.
+#  2. Суффиксы сенсоров Monitor Docker (_cpu, _memory) — сверьте один раз.
+#
+#  Принцип раскладки
+#  -----------------
+#  Сверху — четыре плитки, отвечающие на вопрос «всё ли в порядке» за секунду.
+#  Ниже — разделы с деталями, к которым спускаешься только если сверху что-то
+#  не так. Графики CPU и памяти разведены: у них разные шкалы (проценты и
+#  мегабайты), и на одной оси они врали бы о соотношении.
+# =============================================================================
+
+views:
+
+  # ===========================================================================
+  #  Обзор
+  # ===========================================================================
+  - title: Инфраструктура
+    path: infra
+    icon: mdi:server
+    type: sections
+    max_columns: 3
+    sections:
+
+      # -----------------------------------------------------------------
+      #  Строка состояния — четыре числа, ради которых открывают дашборд
+      # -----------------------------------------------------------------
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Состояние
+            heading_style: title
+            icon: mdi:heart-pulse
+
+          - type: tile
+            entity: binary_sensor.stack_problem
+            name: Сервисы
+            icon: mdi:check-network-outline
+            state_content: state
+            vertical: false
+
+          - type: tile
+            entity: sensor.docker_down
+            name: Упавшие контейнеры
+            icon: mdi:docker
+            state_content: state
+
+          - type: tile
+            entity: sensor.server_temperature
+            name: Температура NAS
+            icon: mdi:thermometer
+
+          - type: tile
+            entity: sensor.server_cpu_load
+            name: Процессор
+            icon: mdi:chip
+
+      # -----------------------------------------------------------------
+      #  Железо
+      # -----------------------------------------------------------------
+      - type: grid
+        cards:
+          - type: heading
+            heading: DS725+
+            icon: mdi:nas
+
+          - type: gauge
+            entity: sensor.server_cpu_load
+            name: Процессор
+            min: 0
+            max: 100
+            needle: true
+            severity:
+              green: 0
+              yellow: 70
+              red: 90
+
+          - type: gauge
+            entity: sensor.server_ram_load
+            name: Память
+            min: 0
+            max: 100
+            needle: true
+            severity:
+              green: 0
+              yellow: 75
+              red: 90
+
+          - type: entities
+            title: Хранилище и здоровье
+            state_color: true
+            entities:
+              # ⚠️ Подставьте свои имена сенсоров Synology
+              - entity: sensor.ds725_volume_1_volume_used
+                name: Том volume1
+              - entity: sensor.ds725_drive_1_status
+                name: Диск 1
+              - entity: sensor.ds725_drive_2_status
+                name: Диск 2
+              - entity: sensor.ds725_last_boot
+                name: Работает с
+              - type: divider
+              - entity: sensor.stack_downtime_24h
+                name: Простой сервисов за сутки
+              - entity: sensor.docker_downtime_24h
+                name: Простой контейнеров за сутки
+
+          - type: history-graph
+            title: Температура и загрузка, сутки
+            hours_to_show: 24
+            entities:
+              - entity: sensor.server_temperature
+                name: Температура
+              - entity: sensor.server_cpu_load
+                name: Процессор
+
+      # -----------------------------------------------------------------
+      #  Контейнеры
+      # -----------------------------------------------------------------
+      - type: grid
+        cards:
+          - type: heading
+            heading: Контейнеры
+            icon: mdi:docker
+
+          # Кто лежит — показывается только когда есть кому лежать.
+          - type: conditional
+            conditions:
+              - condition: numeric_state
+                entity: sensor.docker_down
+                above: 0
+            card:
+              type: markdown
+              content: >-
+                ### 🔻 Не работают
+
+                {% for line in state_attr('sensor.docker_down', 'down_detail') %}
+                - **{{ line }}**
+                {% endfor %}
+
+                {% if state_attr('sensor.docker_down', 'oom') %}
+                > Код 137 — процесс убит из-за нехватки памяти.
+                {% endif %}
+
+          - type: entities
+            title: Сводка
+            entities:
+              - entity: sensor.docker_containers_running
+                name: Запущено
+              - entity: sensor.docker_containers_cpu_percentage
+                name: Процессор, все контейнеры
+              - entity: sensor.docker_containers_memory
+                name: Память, все контейнеры
+              - type: attribute
+                entity: sensor.docker_top_cpu
+                attribute: container
+                name: Больше всех процессора
+              - type: attribute
+                entity: sensor.docker_top_ram
+                attribute: container
+                name: Больше всех памяти
+
+          # Состояние каждого контейнера отдельной строкой.
+          - type: entities
+            title: Состояние
+            state_color: true
+            entities:
+              - entity: sensor.docker_jellyfin_state
+                name: Jellyfin
+              - entity: sensor.docker_radarr_state
+                name: Radarr
+              - entity: sensor.docker_prowlarr_state
+                name: Prowlarr
+              - entity: sensor.docker_qbittorrent_state
+                name: qBittorrent
+              - entity: sensor.docker_flaresolverr_state
+                name: FlareSolverr
+              - entity: sensor.docker_seerr_state
+                name: Seerr
+              - entity: sensor.docker_home_assistant_state
+                name: Home Assistant
+              - entity: sensor.docker_proxy_state
+                name: Docker Proxy
+
+          # Проценты и мегабайты — на разных карточках намеренно: на одной
+          # оси у них несопоставимые шкалы, и график врал бы о соотношении.
+          - type: history-graph
+            title: Процессор по контейнерам, сутки
+            hours_to_show: 24
+            entities:
+              - entity: sensor.docker_jellyfin_cpu
+                name: Jellyfin
+              - entity: sensor.docker_qbittorrent_cpu
+                name: qBittorrent
+              - entity: sensor.docker_home_assistant_cpu
+                name: Home Assistant
+              - entity: sensor.docker_radarr_cpu
+                name: Radarr
+
+          - type: history-graph
+            title: Память по контейнерам, сутки
+            hours_to_show: 24
+            entities:
+              - entity: sensor.docker_jellyfin_memory
+                name: Jellyfin
+              - entity: sensor.docker_radarr_memory
+                name: Radarr
+              - entity: sensor.docker_prowlarr_memory
+                name: Prowlarr
+              - entity: sensor.docker_flaresolverr_memory
+                name: FlareSolverr
+              - entity: sensor.docker_seerr_memory
+                name: Seerr
+              - entity: sensor.docker_home_assistant_memory
+                name: Home Assistant
+
+      # -----------------------------------------------------------------
+      #  Сервисы
+      # -----------------------------------------------------------------
+      - type: grid
+        cards:
+          - type: heading
+            heading: Отвечают ли приложения
+            icon: mdi:check-network
+
+          - type: entities
+            state_color: true
+            entities:
+              - entity: binary_sensor.svc_jellyfin
+                name: Jellyfin
+              - entity: binary_sensor.svc_radarr
+                name: Radarr
+              - entity: binary_sensor.svc_prowlarr
+                name: Prowlarr
+              - entity: binary_sensor.svc_qbittorrent
+                name: qBittorrent
+              - entity: binary_sensor.svc_seerr
+                name: Seerr
+              - entity: binary_sensor.svc_flaresolverr
+                name: FlareSolverr
+
+          - type: markdown
+            content: >-
+              Эти проверки — HTTP-запрос к приложению раз в минуту. Контейнер
+              может быть запущен, а приложение внутри висеть: строка выше
+              покажет «работает», строка здесь — «не отвечает». Расхождение
+              между двумя списками и есть самая полезная информация на дашборде.
+
+          - type: entities
+            entities:
+              - entity: script.pachca_report
+                name: Отправить сводку в Пачку сейчас
+              - entity: script.alice_server_report
+                name: Произнести отчёт на колонке
+
+      # -----------------------------------------------------------------
+      #  Гостиная
+      # -----------------------------------------------------------------
+      - type: grid
+        column_span: 2
+        cards:
+          - type: heading
+            heading: Гостиная
+            icon: mdi:television-play
+
+          - type: media-control
+            entity: media_player.rocktek_gx1
+
+          - type: media-control
+            entity: media_player.lg_tv
+
+          - type: entities
+            title: Сценарии
+            entities:
+              - entity: sensor.jellyfin_resume
+                name: Продолжить
+                icon: mdi:play-pause
+              - type: divider
+              - entity: script.tv_jellyfin_resume
+                name: Продолжить просмотр
+              - entity: script.tv_jellyfin
+                name: Смотреть Jellyfin
+              - entity: script.tv_youtube
+                name: Смотреть YouTube
+              - type: divider
+              - entity: script.tv_on
+                name: Включить
+              - entity: script.tv_off
+                name: Выключить
+
+          - type: entities
+            title: Ночь
+            state_color: true
+            entities:
+              - entity: input_boolean.tv_no_auto_off
+                name: Не выключать сегодня ночью
+              - entity: binary_sensor.tv_idle
+                name: Включён, но ничего не играет

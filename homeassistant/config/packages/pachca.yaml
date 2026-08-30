@@ -1,0 +1,233 @@
+# =============================================================================
+#  packages/pachca.yaml — уведомления в Пачку через входящий вебхук бота
+# =============================================================================
+#  Как это работает
+#  ----------------
+#  Пачка отдаёт боту постоянный URL «Входящего вебхука». Любой POST с телом
+#     {"message": "текст"}
+#  публикуется от имени бота во ВСЕ групповые чаты, где этот бот состоит.
+#  Токен зашит в сам URL — поэтому URL лежит в secrets.yaml и никуда больше.
+#  Пачка понимает markdown: **жирный**, *курсив*, `код`, ```блок```.
+#  Лимит одного сообщения — 40 000 байт (~20 000 символов кириллицы).
+#
+#  Что здесь создаётся
+#  -------------------
+#  notify.pachca            — простая служба «отправь строку»
+#  rest_command.pachca_send — низкоуровневая отправка произвольного текста
+#  script.pachca_notify     — рабочая лошадка: заголовок + текст + важность
+#  script.pachca_report     — сводка о работоспособности, шлётся в 09:00
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1. Простая notify-служба. Годится там, где нужен один голый текст:
+#    action: notify.pachca / data: {message: "..."}
+# -----------------------------------------------------------------------------
+notify:
+  - name: pachca
+    platform: rest
+    resource: !secret pachca_webhook_url
+    method: POST_JSON
+    message_param_name: message
+
+# -----------------------------------------------------------------------------
+# 2. rest_command — то же самое, но с явным UTF-8 и полным контролем над телом.
+#    Используется скриптами ниже.
+# -----------------------------------------------------------------------------
+rest_command:
+  pachca_send:
+    url: !secret pachca_webhook_url
+    method: POST
+    content_type: "application/json; charset=utf-8"
+    payload: '{"message": {{ text | to_json }} }'
+    verify_ssl: true
+    timeout: 20
+
+script:
+
+  # ---------------------------------------------------------------------------
+  # 3. Основной способ отправки. Единый формат для всех уведомлений:
+  #
+  #    action: script.pachca_notify
+  #    data:
+  #      title: "Свободное место"
+  #      text:  "На volume1 осталось 7 %"
+  #      level: crit          # info | warn | crit | ok
+  # ---------------------------------------------------------------------------
+  pachca_notify:
+    alias: "Пачка: отправить уведомление"
+    icon: mdi:message-badge-outline
+    # queued — если несколько автоматизаций сработают одновременно,
+    # сообщения уйдут по очереди, а не потеряются.
+    mode: queued
+    max: 25
+    fields:
+      title:
+        name: Заголовок
+        required: true
+        selector:
+          text:
+      text:
+        name: Текст
+        required: false
+        selector:
+          text:
+            multiline: true
+      level:
+        name: Важность
+        required: false
+        default: info
+        selector:
+          select:
+            options: [ok, info, warn, crit]
+    sequence:
+      - variables:
+          icon: >-
+            {{ {'ok': '✅', 'info': 'ℹ️', 'warn': '⚠️', 'crit': '🔴'}
+               .get(level | default('info'), 'ℹ️') }}
+          body: >-
+            {{ icon }} **{{ title }}**
+
+            {{ text | default('', true) }}
+
+            `{{ now().strftime('%d.%m.%Y %H:%M') }}` · Home Assistant на DS725+
+      - action: rest_command.pachca_send
+        data:
+          text: "{{ body }}"
+        # continue_on_error: сбой Пачки не должен ронять автоматизацию целиком
+        continue_on_error: true
+
+  # ---------------------------------------------------------------------------
+  # 4. Утренняя сводка о работоспособности
+  # ---------------------------------------------------------------------------
+  #  Отвечает на один вопрос: «всё ли в порядке с хозяйством, пока я спал».
+  #  Поэтому здесь и мгновенные значения, и накопленная за сутки статистика —
+  #  ночной сбой, который сам починился к утру, иначе остался бы незамеченным.
+  #
+  #  Имена сенсоров Synology зависят от имени NAS в DSM: сверьте один раз
+  #  в Инструментах разработчика и поправьте четыре строки ниже.
+  # ---------------------------------------------------------------------------
+  pachca_report:
+    alias: "Пачка: сводка о работоспособности"
+    icon: mdi:file-chart-outline
+    mode: single
+    sequence:
+      - variables:
+          # --- собираем факты ---
+          svc_down: >-
+            {{ states.binary_sensor
+               | selectattr('entity_id', 'search', '^binary_sensor\.svc_')
+               | selectattr('state', 'eq', 'off')
+               | map(attribute='name') | map('replace', 'svc ', '') | list }}
+          svc_total: >-
+            {{ states.binary_sensor
+               | selectattr('entity_id', 'search', '^binary_sensor\.svc_')
+               | list | count }}
+          cont_down: "{{ states('sensor.docker_down') | int(0) }}"
+          cont_detail: "{{ state_attr('sensor.docker_down', 'down_detail') | default([], true) }}"
+          vol_used: "{{ states('sensor.ds725_volume_1_volume_used') | float(0) }}"
+          nas_temp: "{{ states('sensor.ds725_temperature') | float(0) }}"
+          # Простой за сутки history_stats отдаёт в часах — переводим в минуты
+          svc_down_min: "{{ (states('sensor.stack_downtime_24h') | float(0) * 60) | round(0) }}"
+          cont_down_min: "{{ (states('sensor.docker_downtime_24h') | float(0) * 60) | round(0) }}"
+          disks: >-
+            {{ [states('sensor.ds725_drive_1_status'),
+                states('sensor.ds725_drive_2_status')]
+               | reject('in', ['normal', 'unknown', 'unavailable']) | list }}
+
+      - variables:
+          # --- один общий вердикт в первой строке ---
+          verdict: >-
+            {% if cont_down | int > 0 or svc_down | count > 0 or disks | count > 0 %}
+              🔴 Есть проблемы прямо сейчас
+            {% elif svc_down_min | int > 5 or cont_down_min | int > 5
+                    or vol_used > 85 or nas_temp > 55 %}
+              ⚠️ Работает, но есть на что посмотреть
+            {% else %}
+              ✅ Всё в порядке
+            {% endif %}
+          body: >-
+            📊 **DS725+ — сводка за сутки**
+
+            {{ verdict | trim }}
+
+            **Железо**
+
+            • Процессор {{ states('sensor.ds725_cpu_utilization_total') }} % ·
+              память {{ states('sensor.ds725_memory_usage_real') }} % ·
+              {{ states('sensor.ds725_temperature') }} °C
+            • Том volume1 занят на {{ states('sensor.ds725_volume_1_volume_used') }} %
+            • Диски: {% if disks | count == 0 %}норма{% else %}⛔ {{ disks | join(', ') }}{% endif %}
+
+            • Работает с {{ states('sensor.ds725_last_boot') }}
+
+            **Контейнеры** — {{ state_attr('sensor.docker_down', 'running') }}
+            из {{ state_attr('sensor.docker_down', 'total') }}
+
+            {% if cont_down | int > 0 %}
+            {% for line in cont_detail %}
+            • 🔻 {{ line }}
+            {% endfor %}
+            {% else %}
+            • Все запущены
+            {% endif %}
+            • Простой за сутки: {{ cont_down_min }} мин
+            • Больше всех процессора: {{ state_attr('sensor.docker_top_cpu', 'container') }}
+              ({{ states('sensor.docker_top_cpu') }} %)
+            • Больше всех памяти: {{ state_attr('sensor.docker_top_ram', 'container') }}
+              ({{ states('sensor.docker_top_ram') }} MiB)
+
+            **Сервисы** — {{ svc_total | int - svc_down | count }} из {{ svc_total }} отвечают
+
+            {% if svc_down | count > 0 %}
+            • 🔴 Молчат: {{ svc_down | join(', ') }}
+            {% else %}
+            • Все отвечают
+            {% endif %}
+            • Простой за сутки: {{ svc_down_min }} мин
+
+      - action: rest_command.pachca_send
+        data:
+          text: "{{ body }}"
+        continue_on_error: true
+
+automation:
+
+  # ---------------------------------------------------------------------------
+  # 5. Проверка связи: HA сообщает о своём запуске. Это же первый тест вебхука.
+  # ---------------------------------------------------------------------------
+  - id: pachca_ha_started
+    alias: "Пачка: Home Assistant запущен"
+    description: >-
+      Сообщает в Пачку о старте HA. Полезно, чтобы заметить незапланированный
+      перезапуск контейнера или NAS.
+    mode: single
+    triggers:
+      - trigger: homeassistant
+        event: start
+    actions:
+      # Ждём, пока поднимутся интеграции и заполнятся сенсоры
+      - delay: "00:02:00"
+      - action: script.pachca_notify
+        data:
+          title: "Home Assistant запущен"
+          text: >-
+            Сущностей загружено: {{ states | count }}.
+            Контейнеров под наблюдением:
+            {{ states('sensor.docker_containers_total') }}.
+          level: ok
+
+  # ---------------------------------------------------------------------------
+  # 6. Ежедневная сводка в 09:00
+  # ---------------------------------------------------------------------------
+  - id: pachca_daily_report
+    alias: "Пачка: ежедневная сводка 09:00"
+    description: >-
+      Одно сообщение в день о том, как хозяйство пережило прошедшие сутки.
+      В 09:00, потому что к этому времени уже понятно, что происходило ночью,
+      и есть время починить до вечера.
+    mode: single
+    triggers:
+      - trigger: time
+        at: "09:00:00"
+    actions:
+      - action: script.pachca_report

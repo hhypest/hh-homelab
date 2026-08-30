@@ -1,0 +1,40 @@
+name: Проверка конфигурации
+
+# Гоняется на каждый push и pull request. Задача — не пропустить в main
+# сломанный YAML, неработающий Jinja-шаблон или случайно закоммиченный секрет.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: YAML, шаблоны и секреты
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Забрать репозиторий
+        uses: actions/checkout@v4
+
+      - name: Поставить Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Поставить зависимости
+        run: pip install --quiet pyyaml jinja2 yamllint
+
+      - name: yamllint
+        run: yamllint -c .yamllint media homeassistant .github
+
+      - name: Разбор YAML, компиляция шаблонов, поиск секретов
+        run: python3 scripts/validate_config.py
+
+      - name: Проверить docker compose
+        run: |
+          docker compose -f media/compose.yaml config --quiet
+          docker compose -f homeassistant/compose.yaml config --quiet

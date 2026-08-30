@@ -1,0 +1,26 @@
+# Правила намеренно мягкие: это конфигурация Home Assistant и Docker Compose,
+# а не библиотека. Задача линтера — ловить настоящие ошибки отступов и
+# дубликаты ключей, а не спорить о длине строк с комментариями на русском.
+extends: default
+
+rules:
+  line-length:
+    max: 120
+    level: warning
+    allow-non-breakable-words: true
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: disable
+  truthy:
+    # В GitHub Actions ключ «on:» — это не булево значение
+    check-keys: false
+  document-start: disable
+  empty-lines:
+    max: 2
+  indentation:
+    spaces: 2
+    indent-sequences: consistent
+  braces:
+    max-spaces-inside: 1
+  brackets:
+    max-spaces-inside: 1

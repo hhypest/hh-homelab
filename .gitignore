@@ -1,0 +1,55 @@
+# =============================================================================
+#  Что никогда не попадает в git
+# =============================================================================
+
+# --- Секреты -----------------------------------------------------------------
+# В репозитории лежит только secrets.yaml.example с заглушками.
+homeassistant/config/secrets.yaml
+**/secrets.yaml
+*.token
+*.key
+*.pem
+.env
+.env.*
+!.env.example
+
+# --- Состояние Home Assistant ------------------------------------------------
+# Всё это генерируется при работе и меняется постоянно: в git от него
+# только шум и раздутая история.
+homeassistant/config/.storage/
+homeassistant/config/.cloud/
+homeassistant/config/.uuid
+homeassistant/config/.HA_VERSION
+homeassistant/config/home-assistant.log*
+homeassistant/config/home-assistant_v2.db*
+homeassistant/config/backups/
+homeassistant/config/tts/
+homeassistant/config/deps/
+homeassistant/config/image/
+homeassistant/config/blueprints/
+homeassistant/config/.cache/
+
+# --- Сторонние компоненты ----------------------------------------------------
+# HACS ставит их сам, у каждого свой репозиторий и своя лицензия.
+# Версии зафиксированы в README, а не копией исходников.
+homeassistant/config/custom_components/
+homeassistant/config/www/community/
+homeassistant/config/hacs.zip
+
+# --- Данные медиа-стека ------------------------------------------------------
+# В репозитории только compose.yaml; конфиги приложений содержат
+# API-ключи, базы и кэши.
+media/config/
+media/data/
+
+# --- Мусор ОС и редакторов ---------------------------------------------------
+.DS_Store
+Thumbs.db
+@eaDir/
+._*
+*.swp
+*~
+.idea/
+.vscode/
+__pycache__/
+*.pyc

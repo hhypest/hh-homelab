@@ -1,0 +1,290 @@
+# =============================================================================
+#  packages/monitoring.yaml — метрики DS725+, контейнеров и сервисов
+# =============================================================================
+#  Источники данных:
+#
+#   1. Synology DSM       — CPU, RAM, температура, тома, диски, SMART, сеть,
+#                           аптайм, статус безопасности. Настраивается в UI.
+#   2. Monitor Docker     — метрики по каждому контейнеру, см. packages/docker.yaml
+#   3. Command line       — HTTP-пинг каждого сервиса стека: живой ли он
+#                           на самом деле, а не «контейнер запущен».
+#   4. Jellyfin / Radarr / qBittorrent — прикладные интеграции (шаг 4.4).
+#
+#  Почему мало одного Monitor Docker: он видит контейнер запущенным даже
+#  тогда, когда приложение внутри намертво висит. HTTP-проверка ловит ровно
+#  это — и потому здесь два слоя, а не один.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1. HTTP-проверки сервисов
+# -----------------------------------------------------------------------------
+# HA работает в host-сети NAS, поэтому все сервисы доступны на 127.0.0.1.
+# Префикс "svc " в имени даёт предсказуемые entity_id: binary_sensor.svc_*
+# — по нему автоматизации и сводки находят все проверки разом.
+command_line:
+
+  - binary_sensor:
+      name: "svc qBittorrent"
+      unique_id: svc_qbittorrent_http
+      command: "python3 /config/bin/http_check.py http://127.0.0.1:9080/ 200,401,403"
+      device_class: connectivity
+      scan_interval: 60
+      command_timeout: 15
+
+  - binary_sensor:
+      name: "svc Prowlarr"
+      unique_id: svc_prowlarr_http
+      command: "python3 /config/bin/http_check.py http://127.0.0.1:9696/ping 200"
+      device_class: connectivity
+      scan_interval: 60
+      command_timeout: 15
+
+  - binary_sensor:
+      name: "svc Radarr"
+      unique_id: svc_radarr_http
+      command: "python3 /config/bin/http_check.py http://127.0.0.1:7878/ping 200"
+      device_class: connectivity
+      scan_interval: 60
+      command_timeout: 15
+
+  - binary_sensor:
+      name: "svc FlareSolverr"
+      unique_id: svc_flaresolverr_http
+      command: "python3 /config/bin/http_check.py http://127.0.0.1:8191/ 200"
+      device_class: connectivity
+      scan_interval: 120
+      command_timeout: 15
+
+  - binary_sensor:
+      name: "svc Jellyfin"
+      unique_id: svc_jellyfin_http
+      command: "python3 /config/bin/http_check.py http://127.0.0.1:8096/health 200"
+      device_class: connectivity
+      scan_interval: 60
+      command_timeout: 15
+
+  - binary_sensor:
+      name: "svc Seerr"
+      unique_id: svc_seerr_http
+      command: "python3 /config/bin/http_check.py http://127.0.0.1:5055/api/v1/status 200"
+      device_class: connectivity
+      scan_interval: 60
+      command_timeout: 15
+
+# -----------------------------------------------------------------------------
+# 2. Производные сенсоры
+# -----------------------------------------------------------------------------
+template:
+
+  - sensor:
+      - name: "Сервисы недоступны"
+        unique_id: stack_services_down_count
+        icon: mdi:alert-circle-outline
+        state: >-
+          {{ states.binary_sensor
+             | selectattr('entity_id', 'search', '^binary_sensor\.svc_')
+             | selectattr('state', 'eq', 'off') | list | count }}
+        attributes:
+          # Список имён — им пользуется сообщение в Пачку
+          services: >-
+            {{ states.binary_sensor
+               | selectattr('entity_id', 'search', '^binary_sensor\.svc_')
+               | selectattr('state', 'eq', 'off')
+               | map(attribute='name') | map('replace', 'svc ', '') | list }}
+          total: >-
+            {{ states.binary_sensor
+               | selectattr('entity_id', 'search', '^binary_sensor\.svc_')
+               | list | count }}
+
+  - binary_sensor:
+      # Имя латиницей намеренно: entity_id получается предсказуемым —
+      # binary_sensor.stack_problem. На него ссылаются history_stats ниже
+      # и сводка в Пачку. Человеческое название можно задать в интерфейсе.
+      - name: "Stack problem"
+        unique_id: stack_healthy
+        device_class: problem
+        # device_class: problem → "on" означает ПРОБЛЕМУ
+        state: >-
+          {{ states.binary_sensor
+             | selectattr('entity_id', 'search', '^binary_sensor\.svc_')
+             | selectattr('state', 'eq', 'off') | list | count > 0 }}
+        delay_on: "00:03:00"
+        delay_off: "00:01:00"
+
+# -----------------------------------------------------------------------------
+# 2а. Накопительная статистика за сутки — для утренней сводки
+# -----------------------------------------------------------------------------
+# history_stats считает, сколько времени сущность провела в заданном состоянии.
+# Это единственный способ ответить на вопрос «а как всё работало ночью, пока
+# я спал» — мгновенные значения на него не отвечают.
+sensor:
+  - platform: history_stats
+    name: "Stack downtime 24h"
+    unique_id: stack_downtime_24h
+    entity_id: binary_sensor.stack_problem
+    state: "on"
+    type: time
+    start: "{{ now() - timedelta(hours=24) }}"
+    end: "{{ now() }}"
+
+  - platform: history_stats
+    name: "Docker downtime 24h"
+    unique_id: docker_downtime_24h
+    entity_id: binary_sensor.docker_problem
+    state: "on"
+    type: time
+    start: "{{ now() - timedelta(hours=24) }}"
+    end: "{{ now() }}"
+
+# -----------------------------------------------------------------------------
+# 3. Автоматизации-сторожа
+# -----------------------------------------------------------------------------
+automation:
+
+  # --- 3.1 Любой сервис перестал отвечать ------------------------------------
+  - id: mon_service_down
+    alias: "Мониторинг: сервис не отвечает"
+    description: >-
+      Срабатывает, когда любая из HTTP-проверок binary_sensor.svc_* держится
+      в состоянии «off» дольше 5 минут. Пять минут — чтобы не шуметь на
+      перезапуске контейнера или обновлении образа.
+    mode: parallel
+    max: 10
+    triggers:
+      - trigger: state
+        entity_id:
+          - binary_sensor.svc_qbittorrent
+          - binary_sensor.svc_prowlarr
+          - binary_sensor.svc_radarr
+          - binary_sensor.svc_flaresolverr
+          - binary_sensor.svc_jellyfin
+          - binary_sensor.svc_seerr
+        to: "off"
+        for: "00:05:00"
+    actions:
+      - action: script.pachca_notify
+        data:
+          title: "Сервис не отвечает"
+          text: >-
+            **{{ trigger.to_state.name | replace('svc ', '') }}** не отвечает
+            уже 5 минут.
+
+            Проверьте контейнер: Container Manager → Проект → Логи,
+            либо `sudo docker logs --tail 100 {{ trigger.to_state.name
+            | replace('svc ', '') | lower }}`.
+          level: crit
+
+  # --- 3.2 Сервис вернулся ----------------------------------------------------
+  - id: mon_service_up
+    alias: "Мониторинг: сервис восстановился"
+    mode: parallel
+    max: 10
+    triggers:
+      - trigger: state
+        entity_id:
+          - binary_sensor.svc_qbittorrent
+          - binary_sensor.svc_prowlarr
+          - binary_sensor.svc_radarr
+          - binary_sensor.svc_flaresolverr
+          - binary_sensor.svc_jellyfin
+          - binary_sensor.svc_seerr
+        from: "off"
+        to: "on"
+        for: "00:01:00"
+    actions:
+      - action: script.pachca_notify
+        data:
+          title: "Сервис восстановился"
+          text: "**{{ trigger.to_state.name | replace('svc ', '') }}** снова отвечает."
+          level: ok
+
+  # --- 3.3 Перегрев NAS -------------------------------------------------------
+  # ВНИМАНИЕ: имена сенсоров Synology DSM зависят от имени NAS в DSM.
+  # После шага 4.1 откройте Инструменты разработчика → Состояния,
+  # отфильтруйте по "temperature" и подставьте реальные entity_id.
+  - id: mon_nas_temperature
+    alias: "Мониторинг: температура NAS"
+    mode: single
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.ds725_temperature
+        above: 60
+        for: "00:10:00"
+    actions:
+      - action: script.pachca_notify
+        data:
+          title: "NAS перегревается"
+          text: >-
+            Температура {{ states('sensor.ds725_temperature') }} °C уже 10 минут.
+            Проверьте вентилятор и вентиляцию корпуса.
+          level: crit
+
+  # --- 3.4 Долгая высокая загрузка CPU ----------------------------------------
+  - id: mon_nas_cpu
+    alias: "Мониторинг: высокая загрузка CPU"
+    mode: single
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.ds725_cpu_utilization_total
+        above: 90
+        for: "00:20:00"
+    actions:
+      - action: script.pachca_notify
+        data:
+          title: "CPU NAS загружен более 20 минут"
+          text: >-
+            Загрузка {{ states('sensor.ds725_cpu_utilization_total') }} %.
+            Обычные виновники: транскодирование в Jellyfin, проверка хэшей
+            в qBittorrent, индексация Synology Photos.
+          level: warn
+
+  # --- 3.5 Место на томе ------------------------------------------------------
+  - id: mon_volume_space
+    alias: "Мониторинг: место на volume1"
+    mode: single
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.ds725_volume_1_volume_used
+        above: 85
+        id: warn
+      - trigger: numeric_state
+        entity_id: sensor.ds725_volume_1_volume_used
+        above: 93
+        id: crit
+    actions:
+      - action: script.pachca_notify
+        data:
+          title: "Заканчивается место на volume1"
+          text: >-
+            Занято {{ states('sensor.ds725_volume_1_volume_used') }} %.
+            Проверьте /volume1/data и очередь загрузок qBittorrent.
+          level: "{{ trigger.id }}"
+
+  # --- 3.6 Проблемы с дисками -------------------------------------------------
+  - id: mon_disk_health
+    alias: "Мониторинг: здоровье дисков"
+    description: >-
+      Ловим любое отклонение SMART-статуса от «normal».
+      Список entity_id заполните после шага 4.1 — их видно в карточке
+      устройства Synology DSM.
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id:
+          - sensor.ds725_drive_1_status
+          - sensor.ds725_drive_2_status
+        # not_to гарантирует, что не сработаем на unknown при перезапуске
+        not_to:
+          - "normal"
+          - "unknown"
+          - "unavailable"
+        for: "00:05:00"
+    actions:
+      - action: script.pachca_notify
+        data:
+          title: "Диск сообщает о проблеме"
+          text: >-
+            {{ trigger.to_state.name }} → **{{ trigger.to_state.state }}**.
+            Откройте DSM → Менеджер хранения → HDD/SSD и проверьте SMART.
+            Если статус «critical» — планируйте замену диска.
+          level: crit

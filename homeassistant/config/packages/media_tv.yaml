@@ -1,0 +1,427 @@
+# =============================================================================
+#  packages/media_tv.yaml — LG 32LK540BPLA + приставка RockTek GX1
+# =============================================================================
+#  Устройства
+#  ----------
+#    media_player.lg_tv          — телевизор, 192.168.3.52 (webOS)
+#    media_player.rocktek_gx1    — приставка, 192.168.3.54 (Android TV Remote)
+#    remote.rocktek_gx1          — она же, для запуска приложений и кнопок
+#
+#  Если Home Assistant назвал сущности иначе, переименуйте их в карточках
+#  устройств — весь файл ссылается именно на эти три идентификатора.
+#
+#  Как включается связка
+#  ---------------------
+#  Основной путь — HDMI-CEC: будим приставку, она по SIMPLINK будит телевизор
+#  и сама переключает его на свой вход. Wake-on-LAN и ручное переключение
+#  источника оставлены запасными шагами на случай, если CEC не сработал.
+#
+#  Вход телевизора
+#  ---------------
+#  Запасное переключение источника рассчитано на «HDMI 1». Если приставка
+#  воткнута в другой разъём, поправьте переменную tv_input в script.tv_on —
+#  она там одна. Точное написание входа смотрите в атрибуте source_list
+#  сущности media_player.lg_tv: у LG встречаются «HDMI 1», «HDMI1» и «HDMI-1».
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1. Флаг «сегодня не выключать»
+# -----------------------------------------------------------------------------
+# Ночное автоотключение — вещь полезная ровно до того вечера, когда вы
+# осознанно смотрите длинный фильм. Флаг снимает автоматику до утра и
+# сбрасывается сам в 06:00. Его же удобно отдать Алисе.
+input_boolean:
+  tv_no_auto_off:
+    name: "ТВ: не выключать ночью"
+    icon: mdi:sleep-off
+
+# -----------------------------------------------------------------------------
+# 2. «Продолжить просмотр»: спрашиваем у Jellyfin, на чём вы остановились
+# -----------------------------------------------------------------------------
+# Эндпоинт /UserItems/Resume отдаёт список недосмотренного для пользователя.
+# Нужны две вещи в secrets.yaml:
+#   jellyfin_user_id     — GET /Users вернёт список с полем Id
+#   jellyfin_auth_header — строка вида: MediaBrowser Token="ВАШ_API_КЛЮЧ"
+# API-ключ создаётся в Jellyfin: Панель → Дополнительно → Ключи API.
+#
+# На Jellyfin старше 10.10 этого пути нет — там работает устаревший
+#   http://127.0.0.1:8096/Users/{userId}/Items/Resume
+# Проверить, какой отвечает, можно командой из раздела 7 чек-листа.
+rest:
+  - resource: "http://127.0.0.1:8096/UserItems/Resume"
+    scan_interval: 300
+    timeout: 15
+    params:
+      userId: !secret jellyfin_user_id
+      limit: 1
+      mediaTypes: Video
+      enableImages: false
+    headers:
+      Authorization: !secret jellyfin_auth_header
+      Accept: application/json
+    sensor:
+      - name: "Jellyfin Resume"
+        unique_id: jellyfin_resume_item
+        icon: mdi:play-pause
+        value_template: >-
+          {% set items = value_json.Items | default([]) %}
+          {% if items | count == 0 %}
+            нечего продолжать
+          {% else %}
+            {% set i = items[0] %}
+            {% if i.Type == 'Episode' %}
+              {{ i.SeriesName }} ·
+              S{{ '%02d' % (i.ParentIndexNumber | int(0)) }}E{{ '%02d' % (i.IndexNumber | int(0)) }}
+            {% else %}
+              {{ i.Name }}
+            {% endif %}
+          {% endif %}
+        json_attributes_path: "$.Items[0]"
+        json_attributes:
+          - Id
+          - Name
+          - Type
+          - SeriesName
+          - IndexNumber
+          - ParentIndexNumber
+
+# -----------------------------------------------------------------------------
+# 3. Сенсор «ТВ включён, но ничего не играет»
+# -----------------------------------------------------------------------------
+# Отдельная сущность вместо условия внутри автоматизации: delay_on делает
+# ровно то, что нужно — состояние становится «включено» только после того,
+# как простой продержался двадцать минут подряд.
+template:
+  - binary_sensor:
+      - name: "TV idle"
+        unique_id: tv_idle_20min
+        icon: mdi:television-pause
+        state: >-
+          {{ states('media_player.lg_tv') not in ['off', 'unavailable', 'unknown', 'standby']
+             and states('media_player.lg_tv') != 'playing'
+             and states('media_player.rocktek_gx1') != 'playing' }}
+        delay_on: "00:20:00"
+        delay_off: "00:00:30"
+
+# =============================================================================
+#  СЦЕНАРИИ
+# =============================================================================
+script:
+
+  # ---------------------------------------------------------------------------
+  # 3.1 Включить связку: приставка + телевизор + нужный вход
+  # ---------------------------------------------------------------------------
+  tv_on:
+    alias: "ТВ: включить"
+    icon: mdi:television-play
+    mode: single
+    variables:
+      # Единственное место, где задан вход телевизора
+      tv_input: "HDMI 1"
+    sequence:
+      # Шаг 1. Будим приставку. При включённом SIMPLINK этого обычно хватает:
+      # телевизор просыпается и переключается на её вход сам.
+      - action: media_player.turn_on
+        target:
+          entity_id: media_player.rocktek_gx1
+        continue_on_error: true
+
+      # Шаг 2. Даём CEC двадцать секунд на то, чтобы разбудить телевизор.
+      - wait_template: "{{ states('media_player.lg_tv') not in ['off', 'unavailable', 'unknown'] }}"
+        timeout: "00:00:20"
+        continue_on_timeout: true
+
+      # Шаг 3. Не разбудил — включаем сами. turn_on запускает автоматизацию
+      # «ТВ: включение LG по Wake-on-LAN» ниже.
+      - if:
+          - condition: template
+            value_template: "{{ states('media_player.lg_tv') in ['off', 'unavailable', 'unknown'] }}"
+        then:
+          - action: media_player.turn_on
+            target:
+              entity_id: media_player.lg_tv
+          - wait_template: "{{ states('media_player.lg_tv') not in ['off', 'unavailable', 'unknown'] }}"
+            timeout: "00:00:45"
+            continue_on_timeout: true
+
+      # Шаг 4. Телевизору нужно несколько секунд, прежде чем он начнёт
+      # принимать команды по сети.
+      - delay: "00:00:04"
+
+      # Шаг 5. Если CEC не переключил вход — переключаем вручную.
+      - if:
+          - condition: template
+            value_template: >-
+              {{ (state_attr('media_player.lg_tv', 'source') | default('', true))
+                 | lower | replace(' ', '') | replace('-', '') != 'hdmi1' }}
+        then:
+          - action: media_player.select_source
+            target:
+              entity_id: media_player.lg_tv
+            data:
+              source: "{{ tv_input }}"
+            continue_on_error: true
+
+  # ---------------------------------------------------------------------------
+  # 3.2 Выключить всё
+  # ---------------------------------------------------------------------------
+  tv_off:
+    alias: "ТВ: выключить"
+    icon: mdi:television-off
+    mode: single
+    sequence:
+      # Сначала приставка: если выключить телевизор первым, приставка может
+      # тут же разбудить его обратно по CEC.
+      - action: media_player.turn_off
+        target:
+          entity_id: media_player.rocktek_gx1
+        continue_on_error: true
+      - delay: "00:00:02"
+      - action: media_player.turn_off
+        target:
+          entity_id: media_player.lg_tv
+        continue_on_error: true
+
+  # ---------------------------------------------------------------------------
+  # 3.3 Jellyfin
+  # ---------------------------------------------------------------------------
+  tv_jellyfin:
+    alias: "Смотреть Jellyfin"
+    icon: mdi:movie-open-play
+    mode: single
+    sequence:
+      # Вызов script.<имя> ждёт, пока сценарий отработает целиком,
+      # в отличие от script.turn_on — поэтому приложение запустится
+      # уже на разогретом телевизоре.
+      - action: script.tv_on
+      - action: remote.turn_on
+        target:
+          entity_id: remote.rocktek_gx1
+        data:
+          # Пакет официального клиента Jellyfin для Android TV.
+          # Проверить фактический: откройте приложение вручную и посмотрите
+          # атрибут app_id у media_player.rocktek_gx1.
+          activity: "org.jellyfin.androidtv"
+
+  # ---------------------------------------------------------------------------
+  # 3.4 YouTube
+  # ---------------------------------------------------------------------------
+  tv_youtube:
+    alias: "Смотреть YouTube"
+    icon: mdi:youtube
+    mode: single
+    sequence:
+      - action: script.tv_on
+      - action: remote.turn_on
+        target:
+          entity_id: remote.rocktek_gx1
+        data:
+          # Ссылка надёжнее имени пакета: Google TV сам сопоставляет её
+          # с установленным приложением.
+          activity: "https://www.youtube.com"
+
+  # ---------------------------------------------------------------------------
+  # 3.5 Продолжить просмотр
+  # ---------------------------------------------------------------------------
+  # Схема: включаем связку → запускаем Jellyfin → ждём, пока клиент
+  # зарегистрирует сессию на сервере (её видит интеграция Jellyfin и создаёт
+  # для неё media_player) → отправляем в эту сессию недосмотренный элемент.
+  # Jellyfin сам продолжит с сохранённой позиции.
+  tv_jellyfin_resume:
+    alias: "Продолжить просмотр"
+    icon: mdi:play-speed
+    mode: single
+    sequence:
+      - action: script.tv_jellyfin
+
+      # Ждём появления активной сессии Jellyfin. Полторы минуты — с запасом
+      # на холодный старт приложения.
+      - wait_template: >-
+          {% set ns = namespace(ok=false) %}
+          {% for e in integration_entities('jellyfin') if e.startswith('media_player.') %}
+            {% if states(e) not in ['unavailable', 'unknown', 'off'] %}
+              {% set ns.ok = true %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.ok }}
+        timeout: "00:01:30"
+        continue_on_timeout: true
+
+      - variables:
+          jf_target: >-
+            {% set ns = namespace(found='') %}
+            {% for e in integration_entities('jellyfin') if e.startswith('media_player.') %}
+              {% if ns.found == '' and states(e) not in ['unavailable', 'unknown', 'off'] %}
+                {% set ns.found = e %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.found }}
+          resume_id: "{{ state_attr('sensor.jellyfin_resume', 'Id') | default('', true) }}"
+          resume_type: "{{ (state_attr('sensor.jellyfin_resume', 'Type') | default('movie', true)) | lower }}"
+
+      - choose:
+          # Всё сошлось — отправляем контент в сессию
+          - conditions:
+              - condition: template
+                value_template: "{{ jf_target != '' and resume_id != '' }}"
+            sequence:
+              - action: media_player.play_media
+                target:
+                  entity_id: "{{ jf_target }}"
+                data:
+                  media_content_id: "{{ resume_id }}"
+                  media_content_type: "{{ resume_type }}"
+
+          # Сессия есть, а продолжать нечего — оставляем открытый Jellyfin
+          - conditions:
+              - condition: template
+                value_template: "{{ jf_target != '' and resume_id == '' }}"
+            sequence:
+              - action: persistent_notification.create
+                data:
+                  title: "Продолжить просмотр"
+                  message: "В Jellyfin нет недосмотренного — открыл приложение."
+
+        # Сессия не появилась: приложение открыто, дальше руками с пульта.
+        # На главном экране Jellyfin первая строка — «Продолжить просмотр».
+        default:
+          - action: persistent_notification.create
+            data:
+              title: "Продолжить просмотр"
+              message: >-
+                Jellyfin запущен, но сессия клиента не появилась за полторы
+                минуты. Проверьте, что приставка вошла в свою учётную запись
+                Jellyfin.
+
+# =============================================================================
+#  АВТОМАТИЗАЦИИ
+# =============================================================================
+automation:
+
+  # ---------------------------------------------------------------------------
+  # 4.1 Включение телевизора по Wake-on-LAN
+  # ---------------------------------------------------------------------------
+  # Выключенный webOS не слушает сеть — нужен magic-пакет. Триггер срабатывает
+  # на любой вызов media_player.turn_on для этого телевизора: из сценария,
+  # из карточки в интерфейсе или голосом через Алису.
+  - id: tv_lg_wol
+    alias: "ТВ: включение LG по Wake-on-LAN"
+    mode: single
+    triggers:
+      - trigger: webostv.turn_on
+        entity_id: media_player.lg_tv
+    actions:
+      - action: wake_on_lan.send_magic_packet
+        data:
+          mac: !secret tv_lg_mac
+          broadcast_address: "192.168.3.255"
+          broadcast_port: 9
+      # Второй пакет через две секунды: телевизоры серии LK регулярно
+      # просыпают первый.
+      - delay: "00:00:02"
+      - action: wake_on_lan.send_magic_packet
+        data:
+          mac: !secret tv_lg_mac
+          broadcast_address: "192.168.3.255"
+          broadcast_port: 9
+
+  # ---------------------------------------------------------------------------
+  # 4.2 Ночь: включено, но ничего не играет
+  # ---------------------------------------------------------------------------
+  # Классическое «вышел из комнаты и забыл». Проверяем каждые пятнадцать минут
+  # с 00:30 до 06:00; binary_sensor.tv_idle загорается только после двадцати
+  # минут простоя, так что пауза на перемотке ничего не выключит.
+  - id: tv_night_idle_off
+    alias: "ТВ: ночью выключить простаивающий"
+    mode: single
+    triggers:
+      - trigger: time_pattern
+        minutes: "/15"
+    conditions:
+      - condition: time
+        after: "00:30:00"
+        before: "06:00:00"
+      - condition: state
+        entity_id: input_boolean.tv_no_auto_off
+        state: "off"
+      - condition: state
+        entity_id: binary_sensor.tv_idle
+        state: "on"
+    actions:
+      - action: script.tv_off
+
+  # ---------------------------------------------------------------------------
+  # 4.3 Ночь: заснул под просмотр
+  # ---------------------------------------------------------------------------
+  # Здесь всё сложнее: идёт воспроизведение, и отличить «смотрю» от «сплю»
+  # можно только спросив. Спрашиваем паузой: если человек не спит, он нажмёт
+  # play, состояние вернётся в playing — и мы отступим.
+  - id: tv_night_sleep_check
+    alias: "ТВ: проверка «вы ещё смотрите?»"
+    mode: single
+    triggers:
+      - trigger: time
+        at: "01:30:00"
+      - trigger: time
+        at: "03:00:00"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.tv_no_auto_off
+        state: "off"
+      - condition: or
+        conditions:
+          - condition: state
+            entity_id: media_player.rocktek_gx1
+            state: "playing"
+          - condition: state
+            entity_id: media_player.lg_tv
+            state: "playing"
+    actions:
+      # Предупреждаем на экране. Служба уведомлений webOS называется по имени
+      # устройства — если у вас она иначе, шаг просто будет пропущен.
+      - action: notify.lg_tv
+        data:
+          message: "Ещё смотрите? Через три минуты поставлю на паузу."
+        continue_on_error: true
+
+      - delay: "00:03:00"
+
+      - action: media_player.media_pause
+        target:
+          entity_id: media_player.rocktek_gx1
+        continue_on_error: true
+
+      # Пять минут на то, чтобы нажать play. Нажали — выходим.
+      - wait_for_trigger:
+          - trigger: state
+            entity_id: media_player.rocktek_gx1
+            to: "playing"
+        timeout: "00:05:00"
+        continue_on_timeout: true
+
+      - if:
+          - condition: template
+            value_template: "{{ wait.trigger is not none }}"
+        then:
+          # Проснулся и продолжил смотреть — до 03:00 больше не тревожим.
+          - stop: "Просмотр продолжен"
+
+      - action: script.tv_off
+
+  # ---------------------------------------------------------------------------
+  # 4.4 Сброс флага «не выключать» каждое утро
+  # ---------------------------------------------------------------------------
+  - id: tv_reset_no_auto_off
+    alias: "ТВ: сбросить флаг «не выключать»"
+    mode: single
+    triggers:
+      - trigger: time
+        at: "06:00:00"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.tv_no_auto_off
+        state: "on"
+    actions:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.tv_no_auto_off

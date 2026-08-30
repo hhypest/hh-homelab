@@ -1,0 +1,278 @@
+# =============================================================================
+#  packages/docker.yaml — метрики по каждому контейнеру и надзор за ними
+# =============================================================================
+#  Требует компонента Monitor Docker (HACS: ualex73/monitor_docker) и
+#  контейнера dockerproxy из compose.yaml.
+#
+#  Два разных темпа — и это принципиально
+#  --------------------------------------
+#  МЕТРИКИ (CPU, память) снимаются раз в час. Docker отдаёт статистику
+#  потоком на каждый контейнер, это самая дорогая часть; на двухъядерном
+#  R1600 частый опрос восьми контейнеров — заметная постоянная нагрузка,
+#  а в базе истории он оставляет сотни тысяч строк в сутки.
+#
+#  СОСТОЯНИЕ (жив контейнер или нет) проверяется раз в минуту отдельным
+#  скриптом bin/docker_state.py: он делает один дешёвый запрос
+#  GET /containers/json, без всякой статистики. Узнавать о падении сервиса
+#  через час было бы бессмысленно, а раз в минуту — почти бесплатно.
+#
+#  Что из этого следует
+#  --------------------
+#  Графики CPU и памяти теперь имеют 24 точки в сутки — это про «сколько
+#  контейнер ест в среднем», а не «что было в 21:47». Если однажды
+#  понадобится детализация, ставьте scan_interval: 300.
+#
+#  Безопасность
+#  ------------
+#  /var/run/docker.sock — полный root на NAS, и флаг :ro не защищает: сокет
+#  не файл, права на чтение не мешают слать в него POST. Поэтому с сокетом
+#  говорит только dockerproxy, а он пропускает лишь разрешённые методы.
+# =============================================================================
+
+monitor_docker:
+  - name: Docker
+    url: "http://127.0.0.1:2375"
+
+    # Раз в час. Падения ловит command_line-сенсор ниже, ему хватает минуты.
+    scan_interval: 3600
+
+    sensorname: "Docker {name} {sensor}"
+    switchname: "Docker {name}"
+    switchenabled: false
+    buttonenabled: false
+
+    containers:
+      - qbittorrent
+      - prowlarr
+      - radarr
+      - flaresolverr
+      - jellyfin
+      - seerr
+      - homeassistant
+      - dockerproxy
+
+    rename:
+      qbittorrent: qBittorrent
+      prowlarr: Prowlarr
+      radarr: Radarr
+      flaresolverr: FlareSolverr
+      jellyfin: Jellyfin
+      seerr: Seerr
+      homeassistant: Home Assistant
+      # «Proxy», а не «Docker Proxy»: имя подставляется в шаблон
+      # "Docker {name} {sensor}", иначе вышло бы sensor.docker_docker_proxy_state
+      dockerproxy: Proxy
+
+    monitored_conditions:
+      - version
+      - containers_running
+      - containers_total
+      - containers_cpu_percentage
+      - containers_memory
+      - state
+      - uptime
+      - cpu_percentage
+      - memory
+      - memory_percentage
+
+    precision_cpu: 1
+    precision_memory_percentage: 1
+
+# -----------------------------------------------------------------------------
+# Быстрая проверка состояния — раз в минуту
+# -----------------------------------------------------------------------------
+command_line:
+  - sensor:
+      name: "Docker down"
+      unique_id: docker_down_fast
+      command: "python3 /config/bin/docker_state.py"
+      scan_interval: 60
+      command_timeout: 25
+      unit_of_measurement: "шт"
+      # Скрипт печатает JSON и никогда не завершается ошибкой, поэтому
+      # сенсор не уходит в unavailable даже когда прокси лежит.
+      value_template: "{{ value_json.down }}"
+      json_attributes:
+        - running
+        - total
+        - down_names
+        - down_detail
+        - oom
+        - error
+
+# -----------------------------------------------------------------------------
+# Сводные сенсоры
+# -----------------------------------------------------------------------------
+template:
+
+  - binary_sensor:
+      # Нужен для history_stats в packages/pachca.yaml: тот считает время
+      # по состояниям, а не по числам.
+      - name: "Docker problem"
+        unique_id: docker_problem
+        device_class: problem
+        icon: mdi:docker
+        state: >-
+          {{ states('sensor.docker_down') | int(0) > 0
+             or (state_attr('sensor.docker_down', 'error') | default('', true)) != '' }}
+        delay_on: "00:02:00"
+        delay_off: "00:01:00"
+
+  - sensor:
+      - name: "Docker top CPU"
+        unique_id: docker_top_cpu
+        icon: mdi:chip
+        unit_of_measurement: "%"
+        # Обновляется вместе с метриками — то есть раз в час.
+        state: >-
+          {% set vals = states.sensor
+             | selectattr('entity_id', 'search', '^sensor\.docker_.*_cpu$')
+             | rejectattr('state', 'in', ['unknown', 'unavailable'])
+             | map(attribute='state') | map('float', 0) | list %}
+          {{ vals | max | round(1) if vals | count > 0 else 0 }}
+        attributes:
+          container: >-
+            {% set ns = namespace(best='—', val=-1) %}
+            {% for s in states.sensor
+               if s.entity_id is search('^sensor\.docker_.*_cpu$')
+               and s.state not in ['unknown', 'unavailable'] %}
+              {% if s.state | float(0) > ns.val %}
+                {% set ns.val = s.state | float(0) %}
+                {% set ns.best = s.name | replace('Docker ', '') | replace(' CPU', '') %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.best }}
+
+      - name: "Docker top RAM"
+        unique_id: docker_top_ram
+        icon: mdi:memory
+        unit_of_measurement: "MiB"
+        state: >-
+          {% set vals = states.sensor
+             | selectattr('entity_id', 'search', '^sensor\.docker_.*_memory$')
+             | rejectattr('state', 'in', ['unknown', 'unavailable'])
+             | map(attribute='state') | map('float', 0) | list %}
+          {{ vals | max | round(0) if vals | count > 0 else 0 }}
+        attributes:
+          container: >-
+            {% set ns = namespace(best='—', val=-1) %}
+            {% for s in states.sensor
+               if s.entity_id is search('^sensor\.docker_.*_memory$')
+               and s.state not in ['unknown', 'unavailable'] %}
+              {% if s.state | float(0) > ns.val %}
+                {% set ns.val = s.state | float(0) %}
+                {% set ns.best = s.name | replace('Docker ', '') | replace(' Memory', '') %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.best }}
+
+# -----------------------------------------------------------------------------
+# Автоматизации
+# -----------------------------------------------------------------------------
+automation:
+
+  # --- Контейнер упал --------------------------------------------------------
+  - id: docker_container_down
+    alias: "Docker: контейнер остановился"
+    description: >-
+      Состояние проверяется раз в минуту, выдержка две минуты — значит о
+      падении вы узнаёте в пределах трёх минут. Двух минут достаточно, чтобы
+      не реагировать на обновление образа и перезапуск проекта.
+    mode: single
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.docker_down
+        above: 0
+        for: "00:02:00"
+    actions:
+      - action: script.pachca_notify
+        data:
+          title: >-
+            {{ 'Упал контейнер' if states('sensor.docker_down') | int(0) == 1
+               else 'Упали контейнеры' }}
+          text: >-
+            {% for line in state_attr('sensor.docker_down', 'down_detail') | default([], true) %}
+            🔻 **{{ line }}**
+            {% endfor %}
+
+            Работает {{ state_attr('sensor.docker_down', 'running') }}
+            из {{ state_attr('sensor.docker_down', 'total') }}.
+            {% if state_attr('sensor.docker_down', 'oom') %}
+
+            ⚠️ Код выхода 137 — процесс убит из-за нехватки памяти.
+            Посмотрите, что ещё занимало RAM в этот момент.
+            {% endif %}
+
+            Поднять: `cd /volume1/docker/<проект> && sudo docker compose up -d`
+          level: crit
+
+  # --- Всё поднялось ---------------------------------------------------------
+  - id: docker_container_recovered
+    alias: "Docker: все контейнеры снова работают"
+    mode: single
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.docker_down
+        below: 1
+        for: "00:02:00"
+    conditions:
+      # Не поздравляем сами себя, когда просто пропала связь с прокси
+      - condition: template
+        value_template: "{{ (state_attr('sensor.docker_down', 'error') | default('', true)) == '' }}"
+    actions:
+      - action: script.pachca_notify
+        data:
+          title: "Все контейнеры работают"
+          text: >-
+            Запущено {{ state_attr('sensor.docker_down', 'running') }}
+            из {{ state_attr('sensor.docker_down', 'total') }}.
+          level: ok
+
+  # --- Пропала связь с самим прокси ------------------------------------------
+  - id: docker_proxy_unreachable
+    alias: "Docker: нет связи с dockerproxy"
+    description: >-
+      Отдельный случай: скрипт отвечает, но не может достучаться до прокси.
+      Без этого сообщения «ноль упавших контейнеров» выглядело бы как
+      «всё хорошо», хотя на деле мы просто ослепли.
+    mode: single
+    triggers:
+      - trigger: template
+        value_template: >-
+          {{ (state_attr('sensor.docker_down', 'error') | default('', true)) != '' }}
+        for: "00:05:00"
+    actions:
+      - action: script.pachca_notify
+        data:
+          title: "Не вижу состояние контейнеров"
+          text: >-
+            Скрипт проверки не может обратиться к dockerproxy:
+            `{{ state_attr('sensor.docker_down', 'error') }}`.
+
+            Проверьте на NAS: `curl -s http://127.0.0.1:2375/version`
+          level: warn
+
+  # --- Контейнер надолго занял процессор -------------------------------------
+  - id: docker_container_cpu_hog
+    alias: "Docker: контейнер держит CPU"
+    description: >-
+      Метрики теперь снимаются раз в час, поэтому выдержка 1 час 5 минут:
+      сработает только если высокая загрузка держится в двух подряд
+      измерениях, а не в одном случайном срезе во время транскодирования.
+    mode: single
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.docker_top_cpu
+        above: 150
+        for: "01:05:00"
+    actions:
+      - action: script.pachca_notify
+        data:
+          title: "Контейнер долго держит процессор"
+          text: >-
+            **{{ state_attr('sensor.docker_top_cpu', 'container') }}** —
+            {{ states('sensor.docker_top_cpu') }} % в двух замерах подряд.
+
+            Суммарно контейнеры занимают
+            {{ states('sensor.docker_containers_cpu_percentage') }} %.
+          level: warn

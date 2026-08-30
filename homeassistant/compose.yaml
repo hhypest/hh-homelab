@@ -1,0 +1,112 @@
+# =============================================================================
+#  Home Assistant для Synology DS725+ (192.168.3.53)
+#  Проект Container Manager: /volume1/docker/hh-homelab/homeassistant
+#
+#  Каталог config примонтирован относительным путём (./config). Compose
+#  разрешает такие пути от каталога самого compose.yaml, поэтому рабочая
+#  конфигурация Home Assistant и есть рабочее дерево git: правки видны
+#  в `git status` сразу, без копирования файлов туда-обратно.
+#
+#  ВАЖНО: это ОТДЕЛЬНЫЙ compose-проект, не смешивайте его с медиа-стеком.
+#  Home Assistant запускается в network_mode: host — это обязательное условие
+#  для автообнаружения LG TV (SSDP), Android TV (mDNS) и работы Wake-on-LAN.
+#  Контейнер в host-режиме не может состоять в bridge-сети `media`, поэтому
+#  до остальных сервисов он ходит по 127.0.0.1:<порт> — они и так опубликованы
+#  на хосте.
+#
+#  Занимаемые порты хоста: 8123 (HA) и 127.0.0.1:2375 (docker-socket-proxy —
+#  только петля, наружу не смотрит).
+#  Проверено на отсутствие конфликтов с текущим стеком
+#  (9080, 6881, 9696, 7878, 8191, 8096, 7359, 5055) и с DSM (5000/5001).
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Home Assistant Core
+  # ---------------------------------------------------------------------------
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: homeassistant
+    restart: unless-stopped
+
+    # host-сеть: HA видит широковещательный домен 192.168.3.0/24 напрямую.
+    # Без неё не работают: SSDP-обнаружение LG TV, mDNS/zeroconf Android TV,
+    # Wake-on-LAN (magic packet должен уйти в бродкаст 192.168.3.255).
+    network_mode: host
+
+    environment:
+      - TZ=Europe/Moscow
+      # Отключаем автоматический сбор статистики использования
+      - PYTHONUNBUFFERED=1
+
+    volumes:
+      - ./config:/config
+      - /etc/localtime:/etc/localtime:ro
+      # Docker-сокет НЕ пробрасываем внутрь HA: сокет — это полный root на
+      # хосте, и флаг :ro тут не спасает. Поконтейнерные метрики компонент
+      # Monitor Docker берёт через dockerproxy ниже, по 127.0.0.1:2375.
+      # Метрики самого NAS даёт интеграция Synology DSM — отдельный агент
+      # на хосте для этого не нужен.
+
+    # Ограничиваем аппетит: на DS725+ памяти хватает, но пусть будет потолок
+    mem_limit: 2g
+
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8123/manifest.json', timeout=5)"
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # docker-socket-proxy — единственный, кто разговаривает с сокетом Docker
+  # ---------------------------------------------------------------------------
+  # Компоненту Monitor Docker нужен Docker API. Отдавать ему сам сокет нельзя:
+  # доступ к /var/run/docker.sock равносилен root на NAS. Прокси пропускает
+  # ровно те методы, которые перечислены переменными окружения, и отклоняет
+  # остальные с кодом 403.
+  #
+  # Это ЕДИНСТВЕННЫЙ сервис проекта в обычной bridge-сети — специально, чтобы
+  # порт можно было прибить к петлевому адресу. В host-режиме он слушал бы
+  # 0.0.0.0:2375, то есть Docker API был бы открыт всей домашней сети.
+  dockerproxy:
+    image: ghcr.io/tecnativa/docker-socket-proxy:latest
+    container_name: dockerproxy
+    restart: unless-stopped
+
+    environment:
+      - CONTAINERS=1        # список контейнеров и их stats — это и есть метрики
+      - INFO=1              # версия и сводка по демону
+      - IMAGES=1            # имена образов в сенсорах
+      - VERSION=1
+      # POST=0 — прокси работает только на чтение. Чтобы получить в Home
+      # Assistant кнопки «перезапустить контейнер», поставьте POST=1 и
+      # включите switchenabled/buttonenabled в packages/docker.yaml.
+      - POST=0
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    ports:
+      # Строго петлевой адрес: снаружи NAS порт недоступен.
+      # Home Assistant в host-сети достаёт его как http://127.0.0.1:2375
+      - "127.0.0.1:2375:2375"
+
+    mem_limit: 64m
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "2m"
+        max-file: "2"
