@@ -1,0 +1,32 @@
+{{!--
+  Jellyfin · плагин Webhook · шаблон Generic Destination
+  ---------------------------------------------------------------
+  Куда вставлять: Панель → Плагины → Webhook → Add Generic Destination →
+  поле Template (внизу формы, под списком типов уведомлений).
+
+  Плагин собирает этот JSON сам и шлёт его POST-запросом на URL входящего
+  вебхука Пачки. Разбирает его pachca/jellyfin.liquid — если правите поля
+  здесь, поправьте и там.
+
+  Двойные фигурные скобки в Handlebars экранируют HTML, поэтому кавычка
+  в названии фильма приедет как &quot; и JSON не сломается. Выглядит
+  неидеально, зато сообщение доходит всегда.
+--}}
+{
+  "service": "jellyfin",
+  "event": "{{NotificationType}}",
+  "item": "{{Name}}",
+  "itemType": "{{ItemType}}",
+  "year": "{{Year}}",
+  "series": "{{SeriesName}}",
+  "season": "{{SeasonNumber}}",
+  "episode": "{{EpisodeNumber}}",
+  "user": "{{NotificationUsername}}",
+  "client": "{{ClientName}}",
+  "device": "{{DeviceName}}",
+  "address": "{{RemoteEndPoint}}",
+  "playMethod": "{{PlayMethod}}",
+  "playedToCompletion": "{{PlayedToCompletion}}",
+  "position": "{{PlaybackPosition}}",
+  "server": "{{ServerName}}"
+}

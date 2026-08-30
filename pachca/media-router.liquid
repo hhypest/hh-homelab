@@ -1,0 +1,134 @@
+{%- comment -%}
+  Пачка · один бот на весь медиа-стек
+  ==================================================================
+  Альтернатива четырём отдельным ботам: один входящий вебхук, один
+  шаблон, все четыре сервиса шлют сюда.
+
+  Чем платим: шаблон сокращённый. Здесь разобраны только события,
+  ради которых уведомления и заводят, — остальные сводятся к одной
+  строке «сервис: событие». Полные версии лежат в radarr.liquid,
+  prowlarr.liquid, jellyfin.liquid и seerr.liquid.
+
+  Как определяется отправитель
+  ----------------------------
+  Jellyfin и Seerr формируют payload сами, и в payloads/*.json им
+  прописано поле service — им и верим в первую очередь.
+  Radarr и Prowlarr шлют фиксированный JSON, где есть instanceName;
+  если и его нет, отличаем по наличию объекта movie.
+{%- endcomment -%}
+
+{%- assign svc = service | default: '' -%}
+{%- if svc == '' -%}
+  {%- assign name = instanceName | default: '' | downcase -%}
+  {%- if name contains 'prowlarr' -%}{%- assign svc = 'prowlarr' -%}
+  {%- elsif name contains 'radarr' -%}{%- assign svc = 'radarr' -%}
+  {%- elsif movie -%}{%- assign svc = 'radarr' -%}
+  {%- endif -%}
+{%- endif -%}
+
+{%- assign gb = '' -%}
+{%- if release.size and release.size > 0 -%}
+  {%- assign gb = release.size | divided_by: 1073741824.0 | round: 2 -%}
+{%- endif -%}
+{%- if movieFile.size and movieFile.size > 0 -%}
+  {%- assign gb = movieFile.size | divided_by: 1073741824.0 | round: 2 -%}
+{%- endif -%}
+
+{%- case svc -%}
+
+{%- when 'radarr' -%}
+{%- comment -%} ---------------- Radarr ---------------- {%- endcomment -%}
+{%- assign title = movie.title | default: remoteMovie.title | default: 'фильм' -%}
+{%- assign year = movie.year | default: remoteMovie.year -%}
+{%- if year -%}{%- assign named = title | append: ' (' | append: year | append: ')' -%}
+{%- else -%}{%- assign named = title -%}{%- endif -%}
+{%- if eventType == 'Download' and isUpgrade -%}
+⬆️ **Radarr · обновлено качество: {{ named }}**
+{{ movieFile.quality | default: '—' }}{% if gb != '' %} · {{ gb }} ГБ{% endif %}
+{%- elsif eventType == 'Download' -%}
+✅ **Radarr · в библиотеке: {{ named }}**
+{{ movieFile.quality | default: '—' }}{% if gb != '' %} · {{ gb }} ГБ{% endif %}
+{%- elsif eventType == 'Grab' -%}
+⬇️ **Radarr · забираю: {{ named }}**
+{{ release.quality | default: '—' }}{% if gb != '' %} · {{ gb }} ГБ{% endif %} · {{ release.indexer | default: '—' }}
+{%- elsif eventType == 'ManualInteractionRequired' -%}
+🖐 **Radarr · нужно вмешаться: {{ named }}**
+Импорт не прошёл сам — загляните в Activity → Queue.
+{%- elsif eventType == 'Health' -%}
+{% if health.level == 'error' %}🔴{% else %}⚠️{% endif %} **Radarr · {{ health.message | default: 'проблема' }}**
+{%- elsif eventType == 'HealthRestored' -%}
+✅ **Radarr · проблема устранена**
+{%- elsif eventType == 'Test' -%}
+🧪 **Radarr · проверка связи**
+{%- else -%}
+🎬 **Radarr · {{ eventType | default: 'событие' }}**: {{ named }}
+{%- endif -%}
+
+{%- when 'prowlarr' -%}
+{%- comment -%} ---------------- Prowlarr ---------------- {%- endcomment -%}
+{%- if eventType == 'Health' -%}
+{% if health.level == 'error' %}🔴{% else %}⚠️{% endif %} **Prowlarr · {{ health.message | default: 'проблема с индексаторами' }}**
+{% if health.wikiUrl %}[Что это значит]({{ health.wikiUrl }}){% endif %}
+{%- elsif eventType == 'HealthRestored' -%}
+✅ **Prowlarr · индексаторы в порядке**
+{%- elsif eventType == 'Grab' -%}
+🔎 **Prowlarr · отдал релиз**
+{{ release.releaseTitle | default: 'без названия' | truncate: 110 }}
+{%- elsif eventType == 'Test' -%}
+🧪 **Prowlarr · проверка связи**
+{%- else -%}
+🔎 **Prowlarr · {{ eventType | default: 'событие' }}**
+{%- endif -%}
+
+{%- when 'jellyfin' -%}
+{%- comment -%} ---------------- Jellyfin ---------------- {%- endcomment -%}
+{%- assign what = item | default: 'что-то' -%}
+{%- if series and series != '' -%}
+  {%- assign what = series | append: ' · S' | append: season | append: 'E' | append: episode -%}
+{%- endif -%}
+{%- if event == 'PlaybackStart' -%}
+▶️ **Jellyfin · {{ user | default: 'кто-то' }} смотрит: {{ what }}**
+{{ device | default: '—' }}{% if playMethod == 'Transcode' %} · ⚠️ транскодирование{% endif %}
+{%- elsif event == 'ItemAdded' -%}
+🍿 **Jellyfin · появилось: {{ what }}**
+{%- elsif event == 'AuthenticationFailure' -%}
+🔴 **Jellyfin · неудачный вход**
+`{{ user | default: '—' }}` с адреса `{{ address | default: '—' }}`
+{%- elsif event == 'UserLockedOut' -%}
+🔒 **Jellyfin · учётная запись заблокирована: {{ user | default: '—' }}**
+{%- else -%}
+🎞 **Jellyfin · {{ event | default: 'событие' }}**: {{ what }}
+{%- endif -%}
+
+{%- when 'seerr' -%}
+{%- comment -%} ---------------- Seerr ---------------- {%- endcomment -%}
+{%- assign what = subject | default: 'медиа' -%}
+{%- if type == 'MEDIA_AVAILABLE' -%}
+🎉 **Seerr · можно смотреть: {{ what }}**
+Запрос {{ requestedBy | default: 'кого-то' }} выполнен.
+{%- elsif type == 'MEDIA_FAILED' -%}
+🔴 **Seerr · запрос не выполнен: {{ what }}**
+{{ message | default: 'Загрузка не дошла до конца.' }}
+{%- elsif type == 'MEDIA_PENDING' -%}
+🙋 **Seerr · ждёт одобрения: {{ what }}**
+Просит {{ requestedBy | default: 'кто-то' }}.
+{%- elsif type == 'MEDIA_AUTO_APPROVED' or type == 'MEDIA_APPROVED' -%}
+👌 **Seerr · запрос принят: {{ what }}**
+{{ requestedBy | default: 'кто-то' }}
+{%- elsif type == 'TEST_NOTIFICATION' -%}
+🧪 **Seerr · проверка связи**
+{%- else -%}
+📺 **Seerr · {{ event | default: type | default: 'событие' }}**: {{ what }}
+{%- endif -%}
+
+{%- else -%}
+{%- comment -%} ---------------- не опознали ---------------- {%- endcomment -%}
+❓ **Неопознанный отправитель**
+Не удалось понять, какой сервис прислал уведомление. Проверьте, что в
+payload есть поле `service` (Jellyfin, Seerr) или `instanceName`
+(Radarr, Prowlarr).
+```
+{{ eventType | default: '' }}{{ type | default: '' }}{{ event | default: '' }}
+```
+
+{%- endcase -%}

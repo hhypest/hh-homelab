@@ -94,12 +94,21 @@ hh-homelab/
 │           ├── pachca.yaml          уведомления и утренняя сводка
 │           ├── media_tv.yaml        телевизор, приставка, сценарии, ночь
 │           └── alice.yaml           голосовой отчёт о состоянии сервера
+├── pachca/
+│   ├── radarr.liquid                шаблоны уведомлений в Пачку
+│   ├── prowlarr.liquid
+│   ├── jellyfin.liquid
+│   ├── seerr.liquid
+│   ├── media-router.liquid          всё в одного бота, если не хочется четырёх
+│   ├── payloads/                    что шлют Jellyfin и Seerr — задаётся у них
+│   └── samples/                     примеры payload для локальной проверки
 ├── docs/
 │   ├── index.html                   чек-лист: Home Assistant
 │   ├── media-stack.html             чек-лист: медиа-стек
 │   └── keenetic.md                  что важно знать про роутер
 └── scripts/
-    └── validate_config.py           проверка YAML и шаблонов без запуска HA
+    ├── validate_config.py           проверка YAML и шаблонов без запуска HA
+    └── render_pachca.py             рендер шаблонов Пачки на примерах
 ```
 
 ---
@@ -185,6 +194,12 @@ cd homeassistant && sudo docker compose up -d
 ставит паузу и даёт пять минут нажать play: бодрствующий человек нажмёт,
 спящий — нет.
 
+**Шаблон уведомления в Пачке задаётся на боте, а не на вебхуке.** Поэтому
+у каждого сервиса свой бот: один шаблон физически не может обслуживать
+и Radarr с его фиксированным JSON, и Home Assistant с его
+`{"message": "…"}`. Кому не нужны четыре аватара в чате — в
+[`pachca/`](pachca/) лежит и вариант с одним ботом-маршрутизатором.
+
 **Файл в библиотеке и раздающийся торрент — одни и те же данные.** Radarr
 импортирует хардлинком, а не копией: место занято один раз, импорт мгновенный,
 раздача не прерывается. Ради этого `/volume1/data` монтируется в qBittorrent
@@ -214,15 +229,19 @@ cd homeassistant && sudo docker compose up -d
 ## Проверка перед коммитом
 
 ```bash
-pip install pyyaml jinja2 yamllint
+pip install pyyaml jinja2 yamllint python-liquid
 yamllint -c .yamllint media homeassistant .github
 python3 scripts/validate_config.py
+python3 scripts/render_pachca.py --check
 ```
 
-Разбирает YAML с тегами Home Assistant, компилирует каждый Jinja-шаблон и
-ищет утечки. Ловит незакрытые `{% if %}` и опечатки в фильтрах — самую частую
-причину того, что пакет молча не загружается. Полноценную проверку делает сам
-Home Assistant: **Инструменты разработчика → YAML → Проверка конфигурации**.
+Первый скрипт разбирает YAML с тегами Home Assistant, компилирует каждый
+Jinja-шаблон и ищет утечки. Второй рендерит Liquid-шаблоны Пачки на
+сохранённых примерах payload — иначе опечатка в шаблоне обнаруживается
+только когда не пришло нужное уведомление.
+
+Полноценную проверку конфигурации делает сам Home Assistant:
+**Инструменты разработчика → YAML → Проверка конфигурации**.
 
 ---
 

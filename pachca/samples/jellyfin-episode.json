@@ -1,0 +1,8 @@
+{
+  "service": "jellyfin", "event": "PlaybackStart",
+  "item": "Пилот", "itemType": "Episode", "year": "2024",
+  "series": "Тёмные воды", "season": "2", "episode": "4",
+  "user": "guest", "client": "Jellyfin Web", "device": "Chrome",
+  "address": "192.168.3.50", "playMethod": "DirectPlay",
+  "playedToCompletion": "", "position": "", "server": "NAS"
+}

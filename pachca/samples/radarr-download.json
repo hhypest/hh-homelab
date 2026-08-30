@@ -1,0 +1,12 @@
+{
+  "eventType": "Download",
+  "instanceName": "Radarr",
+  "applicationUrl": "http://192.168.3.53:7878",
+  "isUpgrade": false,
+  "movie": {"id": 12, "title": "Северный ветер", "year": 2024, "tmdbId": 987654, "imdbId": "tt9876543"},
+  "movieFile": {
+    "id": 34, "relativePath": "Северный ветер (2024).mkv",
+    "quality": "Bluray-1080p", "releaseGroup": "HDCLUB", "size": 9019431936
+  },
+  "downloadClient": "qBittorrent"
+}

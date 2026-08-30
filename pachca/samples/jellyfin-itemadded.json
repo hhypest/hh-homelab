@@ -1,0 +1,8 @@
+{
+  "service": "jellyfin", "event": "ItemAdded",
+  "item": "Северный ветер", "itemType": "Movie", "year": "2024",
+  "series": "", "season": "", "episode": "",
+  "user": "", "client": "", "device": "", "address": "",
+  "playMethod": "", "playedToCompletion": "", "position": "",
+  "server": "NAS"
+}

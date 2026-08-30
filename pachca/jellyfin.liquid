@@ -1,0 +1,66 @@
+{%- comment -%}
+  Пачка · шаблон входящего вебхука для Jellyfin
+  ------------------------------------------------------------------
+  У Jellyfin payload формируется НА ЕГО СТОРОНЕ: плагин Webhook сам
+  собирает JSON по шаблону Handlebars. Поэтому здесь разбирается ровно
+  та структура, которую задаёт payloads/jellyfin.handlebars — если
+  меняете один файл, поменяйте и второй.
+
+  Технически можно было бы заставить Jellyfin сразу слать
+  {"message": "готовый текст"} и обойтись без этого шаблона. Так сделано
+  не было намеренно: пока текст собирается в одном месте — в Пачке —
+  все четыре сервиса выглядят одинаково, и правится это одинаково.
+{%- endcomment -%}
+
+{%- assign who = user | default: 'кто-то' -%}
+{%- assign what = item | default: 'что-то' -%}
+{%- if series and series != '' -%}
+  {%- assign what = series | append: ' · S' | append: season | append: 'E' | append: episode -%}
+{%- elsif year and year != '' -%}
+  {%- assign what = item | append: ' (' | append: year | append: ')' -%}
+{%- endif -%}
+
+{%- case event -%}
+
+{%- when 'ItemAdded' -%}
+🍿 **Появилось в Jellyfin: {{ what }}**
+{{ itemType | default: 'медиа' }}
+
+{%- when 'PlaybackStart' -%}
+▶️ **{{ who }} смотрит: {{ what }}**
+{{ device | default: 'неизвестное устройство' }}{% if client and client != '' %} · {{ client }}{% endif %}
+{%- if playMethod == 'Transcode' %}
+⚠️ Идёт **транскодирование** — процессор NAS занят целиком. Проверьте кодек и субтитры.
+{%- else %}
+Прямое воспроизведение: {{ playMethod | default: '—' }}
+{%- endif -%}
+
+{%- when 'PlaybackStop' -%}
+⏹ **{{ who }} закончил: {{ what }}**
+{% if playedToCompletion == 'True' or playedToCompletion == true %}Досмотрел до конца.{% else %}Остановился на {{ position | default: '—' }}.{% endif %}
+
+{%- when 'AuthenticationFailure' -%}
+🔴 **Неудачный вход в Jellyfin**
+Пользователь: `{{ who }}` · адрес: `{{ address | default: '—' }}`
+Если это не вы — смените пароль и проверьте, не опубликован ли Jellyfin наружу.
+
+{%- when 'AuthenticationSuccess' -%}
+🔑 **Вход в Jellyfin: {{ who }}**
+{{ device | default: '—' }} · `{{ address | default: '—' }}`
+
+{%- when 'UserLockedOut' -%}
+🔒 **Учётная запись заблокирована: {{ who }}**
+Слишком много неудачных попыток входа.
+
+{%- when 'PluginInstalled' -%}
+🧩 **В Jellyfin установлен плагин: {{ item | default: '—' }}**
+
+{%- when 'Generic' -%}
+🎞 **Jellyfin**
+{{ what }}
+
+{%- else -%}
+🎞 **Jellyfin: {{ event | default: 'событие' }}**
+{{ what }}
+
+{%- endcase -%}

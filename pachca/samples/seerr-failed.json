@@ -1,0 +1,7 @@
+{
+  "service": "seerr", "type": "MEDIA_FAILED",
+  "event": "Movie Request Failed", "subject": "Северный ветер (2024)",
+  "message": "Не удалось добавить фильм в Radarr", "mediaType": "movie",
+  "status": "PROCESSING", "tmdbId": "987654",
+  "requestedBy": "hhypest", "issueBy": "", "comment": ""
+}

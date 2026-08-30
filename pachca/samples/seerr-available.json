@@ -1,0 +1,6 @@
+{
+  "service": "seerr", "type": "MEDIA_AVAILABLE",
+  "event": "Movie Now Available", "subject": "Северный ветер (2024)",
+  "message": "", "mediaType": "movie", "status": "AVAILABLE",
+  "tmdbId": "987654", "requestedBy": "hhypest", "issueBy": "", "comment": ""
+}

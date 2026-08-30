@@ -1,0 +1,69 @@
+{%- comment -%}
+  Пачка · шаблон входящего вебхука для Seerr
+  ------------------------------------------------------------------
+  Как и у Jellyfin, payload задаётся на стороне Seerr — см.
+  payloads/seerr.json. Здесь разбирается именно та структура.
+
+  Практический смысл этих уведомлений: увидеть, что кто-то из домашних
+  что-то попросил, и что оно доехало. Событие MEDIA_FAILED важнее всех
+  остальных вместе взятых — оно означает, что запрос завис и без вас
+  не поедет.
+{%- endcomment -%}
+
+{%- assign who = requestedBy | default: 'кто-то' -%}
+{%- assign what = subject | default: 'медиа' -%}
+{%- assign kind = 'фильм' -%}
+{%- if mediaType == 'tv' -%}{%- assign kind = 'сериал' -%}{%- endif -%}
+
+{%- case type -%}
+
+{%- when 'MEDIA_PENDING' -%}
+🙋 **Запрос ждёт одобрения**
+{{ who }} просит {{ kind }}: **{{ what }}**
+
+{%- when 'MEDIA_AUTO_APPROVED' -%}
+👌 **Запрос принят автоматически**
+{{ who }} · {{ kind }}: **{{ what }}**
+Radarr уже ищет релиз.
+
+{%- when 'MEDIA_APPROVED' -%}
+👍 **Запрос одобрен**
+{{ who }} · {{ kind }}: **{{ what }}**
+
+{%- when 'MEDIA_AVAILABLE' -%}
+🎉 **Можно смотреть: {{ what }}**
+Запрос {{ who }} выполнен, {{ kind }} уже в библиотеке Jellyfin.
+
+{%- when 'MEDIA_DECLINED' -%}
+🚫 **Запрос отклонён**
+{{ who }} · {{ kind }}: **{{ what }}**
+
+{%- when 'MEDIA_FAILED' -%}
+🔴 **Запрос не выполнен: {{ what }}**
+{{ message | default: 'Radarr не смог довести загрузку до конца.' }}
+Смотрите Activity → Queue в Radarr: чаще всего это отсутствие раздач
+или недостаток места на томе.
+
+{%- when 'ISSUE_CREATED' -%}
+🐞 **Жалоба на медиа: {{ what }}**
+{{ issueBy | default: 'кто-то' }}: {{ message | default: 'без описания' }}
+
+{%- when 'ISSUE_COMMENT' -%}
+💬 **Комментарий к жалобе: {{ what }}**
+{{ comment | default: '' | truncate: 300 }}
+
+{%- when 'ISSUE_RESOLVED' -%}
+✅ **Жалоба закрыта: {{ what }}**
+
+{%- when 'ISSUE_REOPENED' -%}
+↩️ **Жалоба открыта заново: {{ what }}**
+
+{%- when 'TEST_NOTIFICATION' -%}
+🧪 **Проверка связи из Seerr**
+Шаблон Пачки подключён.
+
+{%- else -%}
+📺 **Seerr: {{ event | default: type | default: 'событие' }}**
+{{ what }}
+
+{%- endcase -%}

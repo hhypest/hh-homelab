@@ -1,0 +1,10 @@
+{
+  "eventType": "Health",
+  "instanceName": "Radarr",
+  "health": {
+    "level": "error",
+    "message": "Все индексаторы недоступны из-за сбоев",
+    "type": "IndexerStatusCheck",
+    "wikiUrl": "https://wiki.servarr.com/radarr/system#indexers-are-unavailable-due-to-failures"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "service": "seerr",
+  "type": "{{notification_type}}",
+  "event": "{{event}}",
+  "subject": "{{subject}}",
+  "message": "{{message}}",
+  "mediaType": "{{media_type}}",
+  "status": "{{media_status}}",
+  "tmdbId": "{{media_tmdbid}}",
+  "requestedBy": "{{requestedBy_username}}",
+  "issueBy": "{{reportedBy_username}}",
+  "comment": "{{comment_message}}"
+}

@@ -1,0 +1,8 @@
+{
+  "service": "jellyfin", "event": "PlaybackStart",
+  "item": "Северный ветер", "itemType": "Movie", "year": "2024",
+  "series": "", "season": "", "episode": "",
+  "user": "hhypest", "client": "Jellyfin Android TV", "device": "RockTek GX1",
+  "address": "192.168.3.54", "playMethod": "Transcode",
+  "playedToCompletion": "", "position": "", "server": "NAS"
+}

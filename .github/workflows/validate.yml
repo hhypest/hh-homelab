@@ -26,13 +26,16 @@ jobs:
           python-version: "3.12"
 
       - name: Поставить зависимости
-        run: pip install --quiet pyyaml jinja2 yamllint
+        run: pip install --quiet pyyaml jinja2 yamllint python-liquid
 
       - name: yamllint
         run: yamllint -c .yamllint media homeassistant .github
 
       - name: Разбор YAML, компиляция шаблонов, поиск секретов
         run: python3 scripts/validate_config.py
+
+      - name: Liquid-шаблоны Пачки на примерах payload
+        run: python3 scripts/render_pachca.py --check
 
       - name: Проверить docker compose
         run: |

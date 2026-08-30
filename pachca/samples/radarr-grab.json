@@ -1,0 +1,11 @@
+{
+  "eventType": "Grab",
+  "instanceName": "Radarr",
+  "applicationUrl": "http://192.168.3.53:7878",
+  "movie": {"id": 12, "title": "Северный ветер", "year": 2024, "tmdbId": 987654},
+  "release": {
+    "quality": "Bluray-1080p", "releaseGroup": "HDCLUB", "indexer": "Rutracker",
+    "size": 9019431936,
+    "releaseTitle": "Severnyy.veter.2024.BDRip-HEVC.1080p.mkv"
+  }
+}
