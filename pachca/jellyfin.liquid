@@ -5,13 +5,13 @@
   собирает JSON по шаблону Handlebars. Поэтому здесь разбирается ровно
   та структура, которую задаёт payloads/jellyfin.handlebars — если
   меняете один файл, поменяйте и второй.
-
+ 
   Технически можно было бы заставить Jellyfin сразу слать
   {"message": "готовый текст"} и обойтись без этого шаблона. Так сделано
   не было намеренно: пока текст собирается в одном месте — в Пачке —
   все четыре сервиса выглядят одинаково, и правится это одинаково.
 {%- endcomment -%}
-
+ 
 {%- assign who = user | default: 'кто-то' -%}
 {%- assign what = item | default: 'что-то' -%}
 {%- if series and series != '' -%}
@@ -19,48 +19,106 @@
 {%- elsif year and year != '' -%}
   {%- assign what = item | append: ' (' | append: year | append: ')' -%}
 {%- endif -%}
-
+ 
+{%- comment -%}
+  Разрешение
+  ----------
+  Ширина, а не высота. Высота у фильма врёт: кинематографический кадр
+  2.39:1 в честном 1080p — это 1920×804, и по высоте его пришлось бы
+  назвать 720p. Ширина же у всех форматов одна и та же, поэтому по ней
+  и раскладываем. Высота остаётся запасным вариантом на случай, если
+  ширина не приехала.
+ 
+  Поля приходят строками, «| plus: 0» превращает их в числа: пустая
+  строка станет нулём, и тогда строка про разрешение просто не покажется.
+{%- endcomment -%}
+{%- assign w = width | plus: 0 -%}
+{%- assign h = height | plus: 0 -%}
+{%- if w == 0 and h > 0 -%}
+  {%- assign w = h | times: 16 | divided_by: 9 -%}
+{%- endif -%}
+ 
+{%- assign quality = '' -%}
+{%- if w >= 3600 -%}{%- assign quality = '2160p (4K)' -%}
+{%- elsif w >= 2400 -%}{%- assign quality = '1440p' -%}
+{%- elsif w >= 1700 -%}{%- assign quality = '1080p' -%}
+{%- elsif w >= 1200 -%}{%- assign quality = '720p' -%}
+{%- elsif w >= 900 -%}{%- assign quality = '576p' -%}
+{%- elsif w >= 600 -%}{%- assign quality = '480p' -%}
+{%- elsif w > 0 -%}{%- assign quality = 'SD' -%}
+{%- endif -%}
+ 
+{%- comment -%}
+  Jellyfin отдаёт идентификатор кодека как во ffmpeg — «hevc», «h264».
+  Читаемые имена важнее: на DS725+ нет аппаратного декодера, и увидев
+  в уведомлении HEVC или AV1, сразу понимаешь, почему началось
+  транскодирование и почему процессор в потолке.
+{%- endcomment -%}
+{%- assign codec = videoCodec | default: '' | downcase -%}
+{%- case codec -%}
+  {%- when 'hevc', 'h265', 'x265' -%}{%- assign codec = 'HEVC' -%}
+  {%- when 'h264', 'avc', 'x264' -%}{%- assign codec = 'H.264' -%}
+  {%- when 'av1' -%}{%- assign codec = 'AV1' -%}
+  {%- when 'vp9' -%}{%- assign codec = 'VP9' -%}
+  {%- when 'mpeg2video' -%}{%- assign codec = 'MPEG-2' -%}
+  {%- when 'vc1' -%}{%- assign codec = 'VC-1' -%}
+  {%- when '' -%}{%- assign codec = '' -%}
+  {%- else -%}{%- assign codec = videoCodec | upcase -%}
+{%- endcase -%}
+ 
+{%- comment -%}
+  Строка «1080p · HEVC» собирается заранее: она нужна и при добавлении
+  в библиотеку, и при начале просмотра, а пустых разделителей « · »
+  в сообщении быть не должно ни в одном из четырёх сочетаний.
+{%- endcomment -%}
+{%- assign media = quality -%}
+{%- if codec != '' -%}
+  {%- if media == '' -%}{%- assign media = codec -%}
+  {%- else -%}{%- assign media = media | append: ' · ' | append: codec -%}
+  {%- endif -%}
+{%- endif -%}
+ 
 {%- case event -%}
-
+ 
 {%- when 'ItemAdded' -%}
 🍿 **Появилось в Jellyfin: {{ what }}**
-{{ itemType | default: 'медиа' }}
-
+{{ itemType | default: 'медиа' }}{% if media != '' %} · {{ media }}{% endif %}
+ 
 {%- when 'PlaybackStart' -%}
 ▶️ **{{ who }} смотрит: {{ what }}**
 {{ device | default: 'неизвестное устройство' }}{% if client and client != '' %} · {{ client }}{% endif %}
 {%- if playMethod == 'Transcode' %}
-⚠️ Идёт **транскодирование** — процессор NAS занят целиком. Проверьте кодек и субтитры.
+{% if media != '' %}{{ media }} · {% endif %}⚠️ **транскодирование** — процессор NAS занят целиком. Проверьте кодек и субтитры.
 {%- else %}
-Прямое воспроизведение: {{ playMethod | default: '—' }}
+{% if media != '' %}{{ media }} · {% endif %}прямое воспроизведение: {{ playMethod | default: '—' }}
 {%- endif -%}
-
+ 
 {%- when 'PlaybackStop' -%}
 ⏹ **{{ who }} закончил: {{ what }}**
 {% if playedToCompletion == 'True' or playedToCompletion == true %}Досмотрел до конца.{% else %}Остановился на {{ position | default: '—' }}.{% endif %}
-
+ 
 {%- when 'AuthenticationFailure' -%}
 🔴 **Неудачный вход в Jellyfin**
 Пользователь: `{{ who }}` · адрес: `{{ address | default: '—' }}`
 Если это не вы — смените пароль и проверьте, не опубликован ли Jellyfin наружу.
-
+ 
 {%- when 'AuthenticationSuccess' -%}
 🔑 **Вход в Jellyfin: {{ who }}**
 {{ device | default: '—' }} · `{{ address | default: '—' }}`
-
+ 
 {%- when 'UserLockedOut' -%}
 🔒 **Учётная запись заблокирована: {{ who }}**
 Слишком много неудачных попыток входа.
-
+ 
 {%- when 'PluginInstalled' -%}
 🧩 **В Jellyfin установлен плагин: {{ item | default: '—' }}**
-
+ 
 {%- when 'Generic' -%}
 🎞 **Jellyfin**
 {{ what }}
-
+ 
 {%- else -%}
 🎞 **Jellyfin: {{ event | default: 'событие' }}**
 {{ what }}
-
+ 
 {%- endcase -%}
