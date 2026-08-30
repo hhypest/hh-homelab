@@ -32,7 +32,7 @@ jobs:
     name: YAML · форматирование
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -45,7 +45,7 @@ jobs:
     name: Конфигурация · YAML, Jinja, секреты
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -58,7 +58,7 @@ jobs:
     name: Конфигурация · ссылки на сущности
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -78,7 +78,7 @@ jobs:
         # Поэтому проверяем на диапазоне, а не на одной версии.
         python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
@@ -93,7 +93,7 @@ jobs:
     name: Пачка · Liquid-шаблоны
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -106,7 +106,7 @@ jobs:
     name: Документация · страницы, ссылки, обезличивание
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -119,7 +119,7 @@ jobs:
     name: Docker Compose · оба стека
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Проверить, что файлы разворачиваются
         run: |
           docker compose -f media/compose.yaml config --quiet
