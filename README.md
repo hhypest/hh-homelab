@@ -246,7 +246,7 @@ cd homeassistant && sudo docker compose up -d
 | **YAML** | отступы, дубликаты ключей, форматирование | `yamllint` |
 | **Конфигурация · YAML, Jinja, секреты** | разбор YAML с тегами HA, компиляция каждого Jinja-шаблона, поиск токенов и MAC | [`validate_config.py`](scripts/validate_config.py) |
 | **Конфигурация · ссылки на сущности** | что каждый `entity_id` из автоматизаций и дашборда действительно кем-то создаётся; дубликаты id и имён скриптов | [`validate_entities.py`](scripts/validate_entities.py) |
-| **Python · ruff и тесты** | линтер и 86 тестов на Python 3.11, 3.12 и 3.13 | `ruff`, `pytest` |
+| **Python · ruff и тесты** | линтер и 91 тест на Python 3.11, 3.12 и 3.13; среди них — проверка самого workflow: кэш pip знает, где лежат зависимости, и версии действий не разъехались | `ruff`, `pytest` |
 | **Пачка · Liquid** | 22 комбинации «шаблон × пример payload», пустые сообщения, лимит 40 000 байт | [`render_pachca.py`](scripts/render_pachca.py) |
 | **Документация** | целостность HTML чек-листов, живые ссылки в markdown, отсутствие личных данных | [`validate_docs.py`](scripts/validate_docs.py) |
 | **Docker Compose** | оба файла разворачиваются, порты хоста не заняты дважды | `docker compose config`, [`check_ports.py`](scripts/check_ports.py) |

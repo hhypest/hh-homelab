@@ -32,11 +32,15 @@ jobs:
     name: YAML · форматирование
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+          # Без этой строки actions/setup-python ищет только
+          # **/requirements.txt и **/pyproject.toml, не находит их
+          # и падает — а вместе с ним и вся задача.
+          cache-dependency-path: requirements-dev.txt
       - run: pip install -r requirements-dev.txt
       - name: yamllint
         run: yamllint -c .yamllint media homeassistant pachca .github
@@ -45,11 +49,15 @@ jobs:
     name: Конфигурация · YAML, Jinja, секреты
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+          # Без этой строки actions/setup-python ищет только
+          # **/requirements.txt и **/pyproject.toml, не находит их
+          # и падает — а вместе с ним и вся задача.
+          cache-dependency-path: requirements-dev.txt
       - run: pip install -r requirements-dev.txt
       - name: Разбор YAML и компиляция шаблонов
         run: python3 scripts/validate_config.py
@@ -58,11 +66,15 @@ jobs:
     name: Конфигурация · ссылки на сущности
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+          # Без этой строки actions/setup-python ищет только
+          # **/requirements.txt и **/pyproject.toml, не находит их
+          # и падает — а вместе с ним и вся задача.
+          cache-dependency-path: requirements-dev.txt
       - run: pip install -r requirements-dev.txt
       - name: Сверка entity_id и поиск дубликатов
         run: python3 scripts/validate_entities.py
@@ -78,11 +90,15 @@ jobs:
         # Поэтому проверяем на диапазоне, а не на одной версии.
         python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
+          # Без этой строки actions/setup-python ищет только
+          # **/requirements.txt и **/pyproject.toml, не находит их
+          # и падает — а вместе с ним и вся задача.
+          cache-dependency-path: requirements-dev.txt
       - run: pip install -r requirements-dev.txt
       - name: ruff
         run: ruff check .
@@ -93,11 +109,15 @@ jobs:
     name: Пачка · Liquid-шаблоны
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+          # Без этой строки actions/setup-python ищет только
+          # **/requirements.txt и **/pyproject.toml, не находит их
+          # и падает — а вместе с ним и вся задача.
+          cache-dependency-path: requirements-dev.txt
       - run: pip install -r requirements-dev.txt
       - name: Рендер шаблонов на примерах payload
         run: python3 scripts/render_pachca.py --check
@@ -106,11 +126,15 @@ jobs:
     name: Документация · страницы, ссылки, обезличивание
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+          # Без этой строки actions/setup-python ищет только
+          # **/requirements.txt и **/pyproject.toml, не находит их
+          # и падает — а вместе с ним и вся задача.
+          cache-dependency-path: requirements-dev.txt
       - run: pip install -r requirements-dev.txt
       - name: Целостность HTML, ссылки и личные данные
         run: python3 scripts/validate_docs.py
