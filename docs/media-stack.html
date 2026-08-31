@@ -291,7 +291,9 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
       <span class="fact">телевизор <b>1366×768</b></span>
     </div>
 
-    <p class="crosslink">Соседние документы: <a href="index.html">развёртывание Home Assistant</a>
+    <p class="crosslink">Ещё не подняли стек? <a href="overview.html">Обзор проекта</a>,
+      раздел 5 — установка с нуля и переезд со старой схемы.<br>
+      Соседние документы: <a href="index.html">развёртывание Home Assistant</a>
       — метрики, уведомления в Пачку и управление телевизором;
       <a href="logs.html">журналы контейнеров</a> — ограничение размера, уборка и чтение.</p>
   </div>
@@ -1341,10 +1343,10 @@ df -h /volume1</code></pre></div>
           У Radarr и Prowlarr есть свои: <b>Settings → General → Backups</b>,
           интервал 7 дней, хранить 10. Они складываются в
           <code>/config/Backups</code> внутри контейнера, то есть в
-          <code>/volume1/docker/&lt;сервис&gt;/config</code> на NAS.
+          <code class="path">/volume1/docker/hh-homelab/media/config/&lt;сервис&gt;/Backups</code> на NAS.
         </p>
         <p>
-          Убедитесь, что <code>/volume1/docker</code> входит в задание
+          Убедитесь, что <code class="path">/volume1/docker/hh-homelab</code> входит в задание
           Hyper Backup — там же лежит и конфигурация Home Assistant.
         </p>
       </div>
@@ -1523,14 +1525,20 @@ sudo docker image prune -f</code></pre></div>
         └── Название (2024) {imdb-tt1234567} [Bluray-1080p][x264]/
             └── Название (2024) [Bluray-1080p][x264].mkv
 
-/volume1/docker/                   <span class="c">← конфигурации, в data не лезут</span>
-├── qbittorrent/config
-├── prowlarr/config
-├── radarr/config
-├── jellyfin/{config,cache}
-├── seerr/config
-└── hh-homelab/                    <span class="c">этот репозиторий</span>
-    └── homeassistant/config       <span class="c">рабочая конфигурация HA</span></code></pre></div>
+/volume1/docker/hh-homelab/        <span class="c">← клон репозитория, он же рабочая конфигурация</span>
+├── media/
+│   ├── compose.yaml
+│   ├── config/                    <span class="c">состояние сервисов, в .gitignore</span>
+│   │   ├── qbittorrent/
+│   │   ├── prowlarr/
+│   │   ├── radarr/
+│   │   ├── jellyfin/
+│   │   └── seerr/
+│   ├── cache/jellyfin/            <span class="c">кэш метаданных, в .gitignore</span>
+│   └── watch/                     <span class="c">.torrent на подхват, в .gitignore</span>
+└── homeassistant/
+    ├── compose.yaml
+    └── config/                    <span class="c">рабочая конфигурация HA</span></code></pre></div>
 
   <div class="tablewrap">
     <table>
@@ -1559,8 +1567,8 @@ sudo docker image prune -f</code></pre></div>
 <footer>
   <div class="wrap">
     Настройка приложений медиа-стека на Synology DS725+: qBittorrent, FlareSolverr,
-    Prowlarr, Radarr, Jellyfin, Seerr. Данные — в /volume1/data, конфигурации —
-    в /volume1/docker. Отметки сохраняются в этом браузере.
+    Prowlarr, Radarr, Jellyfin, Seerr. Данные — в /volume1/data, состояние сервисов —
+    в клоне репозитория. Отметки сохраняются в этом браузере.
   </div>
 </footer>
 
