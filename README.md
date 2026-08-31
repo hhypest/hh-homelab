@@ -250,7 +250,7 @@ cd homeassistant && sudo docker compose up -d
 | **YAML** | отступы, дубликаты ключей, форматирование | `yamllint` |
 | **Конфигурация · YAML, Jinja, секреты** | разбор YAML с тегами HA, компиляция каждого Jinja-шаблона, поиск токенов и MAC | [`validate_config.py`](scripts/validate_config.py) |
 | **Конфигурация · ссылки на сущности** | что каждый `entity_id` из автоматизаций и дашборда действительно кем-то создаётся; дубликаты id и имён скриптов | [`validate_entities.py`](scripts/validate_entities.py) |
-| **Python · ruff и тесты** | линтер и 113 тестов на Python 3.11, 3.12 и 3.13; среди них — проверка самого workflow: кэш pip знает, где лежат зависимости, и версии действий не разъехались | `ruff`, `pytest` |
+| **Python · ruff и тесты** | линтер и 114 тестов на Python 3.11, 3.12 и 3.13; среди них — проверка самого workflow: кэш pip знает, где лежат зависимости, и версии действий не разъехались | `ruff`, `pytest` |
 | **Пачка · Liquid** | 26 комбинаций «шаблон × пример payload», пустые сообщения, лимит 40 000 байт | [`render_pachca.py`](scripts/render_pachca.py) |
 | **Документация** | целостность HTML чек-листов, живые ссылки в markdown, отсутствие личных данных | [`validate_docs.py`](scripts/validate_docs.py) |
 | **Файлы · переводы строк и пробелы** | каждый файл заканчивается переводом строки, нет CRLF и висящих пробелов — во всех типах, а не только в YAML и Python | [`check_files.py`](scripts/check_files.py) |
