@@ -47,11 +47,11 @@ def workflow(request) -> dict:
     return yaml.safe_load(request.param.read_text(encoding="utf-8"))
 
 
-def test_есть_хотя_бы_один_workflow():
+def test_at_least_one_workflow_exists():
     assert WORKFLOWS, "каталог .github/workflows пуст — проверки не запускаются вовсе"
 
 
-def test_кэш_pip_знает_где_лежат_зависимости(workflow):
+def test_pip_cache_knows_dependency_path(workflow):
     for job_name, step in steps(workflow):
         with_ = step.get("with") or {}
         if not with_.get("cache"):
@@ -67,7 +67,7 @@ def test_кэш_pip_знает_где_лежат_зависимости(workflow
         )
 
 
-def test_версия_каждого_действия_одна_на_весь_файл(workflow):
+def test_action_pinned_to_single_version(workflow):
     versions: dict[str, set[str]] = {}
     for _, step in steps(workflow):
         uses = step.get("uses")
@@ -83,7 +83,7 @@ def test_версия_каждого_действия_одна_на_весь_ф�
         )
 
 
-def test_каждый_pip_install_ставит_наш_файл_зависимостей(workflow):
+def test_pip_install_targets_existing_requirements(workflow):
     for job_name, step in steps(workflow):
         run = step.get("run") or ""
         if "pip install" not in run:
@@ -95,7 +95,7 @@ def test_каждый_pip_install_ставит_наш_файл_зависимо�
             )
 
 
-def test_каждый_запускаемый_скрипт_существует(workflow):
+def test_every_invoked_script_exists(workflow):
     """
     Задача может звать скрипт, которого в репозитории нет: файл
     переименовали, а workflow забыли. Узнавать об этом на GitHub незачем.
@@ -113,7 +113,7 @@ def test_каждый_запускаемый_скрипт_существует(w
                     )
 
 
-def test_у_каждой_задачи_есть_checkout(workflow):
+def test_every_job_has_checkout(workflow):
     for job_name, job in (workflow.get("jobs") or {}).items():
         uses = [(s.get("uses") or "") for s in job.get("steps") or []]
         assert any(u.startswith("actions/checkout@") for u in uses), (

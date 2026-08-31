@@ -63,7 +63,7 @@ def run(proxy_url: str, *names: str) -> dict:
     return json.loads(result.stdout)
 
 
-def test_все_на_месте() -> None:
+def test_all_containers_running() -> None:
     url, httpd = make_server([RUNNING])
     try:
         data = run(url, "jellyfin")
@@ -76,7 +76,7 @@ def test_все_на_месте() -> None:
     assert data["down_names"] == []
 
 
-def test_упавший_контейнер_назван_поимённо() -> None:
+def test_down_container_is_named() -> None:
     url, httpd = make_server([RUNNING, OOM_KILLED])
     try:
         data = run(url, "jellyfin", "radarr")
@@ -88,7 +88,7 @@ def test_упавший_контейнер_назван_поимённо() -> No
     assert "137" in data["down_detail"][0]
 
 
-def test_код_137_помечается_как_нехватка_памяти() -> None:
+def test_exit_code_137_flagged_as_oom() -> None:
     """Ради этого флага в уведомление попадает подсказка про OOM."""
     url, httpd = make_server([OOM_KILLED])
     try:
@@ -97,7 +97,7 @@ def test_код_137_помечается_как_нехватка_памяти() 
         httpd.shutdown()
 
 
-def test_обычная_остановка_не_считается_нехваткой_памяти() -> None:
+def test_clean_stop_is_not_oom() -> None:
     url, httpd = make_server([STOPPED])
     try:
         data = run(url, "prowlarr")
@@ -107,7 +107,7 @@ def test_обычная_остановка_не_считается_нехват�
     assert data["oom"] is False
 
 
-def test_отсутствующий_контейнер_считается_упавшим() -> None:
+def test_missing_container_counts_as_down() -> None:
     """Проект не поднялся целиком — контейнера нет даже среди остановленных."""
     url, httpd = make_server([RUNNING])
     try:
@@ -119,7 +119,7 @@ def test_отсутствующий_контейнер_считается_упа
     assert "нет" in data["down_detail"][0]
 
 
-def test_прокси_запрещает_запрос() -> None:
+def test_proxy_forbids_request() -> None:
     """403 означает, что в dockerproxy не разрешён CONTAINERS=1."""
     url, httpd = make_server(None, status=403)
     try:
@@ -130,13 +130,13 @@ def test_прокси_запрещает_запрос() -> None:
     assert data["down"] == 0, "при ошибке нельзя объявлять контейнеры упавшими"
 
 
-def test_прокси_молчит() -> None:
+def test_proxy_unreachable() -> None:
     data = run("http://127.0.0.1:9", "jellyfin")
     assert data["error"] != ""
     assert data["down"] == 0
 
 
-def test_прокси_отдал_мусор() -> None:
+def test_proxy_returns_garbage() -> None:
     url, httpd = make_server(None, raw=b"<html>not json</html>")
     try:
         data = run(url, "jellyfin")
@@ -145,7 +145,7 @@ def test_прокси_отдал_мусор() -> None:
     assert data["error"] != ""
 
 
-def test_вывод_всегда_одна_строка_json() -> None:
+def test_output_is_always_single_json_line() -> None:
     """
     Сенсор разбирает вывод как JSON целиком. Лишняя строка сделает
     value_template невычислимым, и сенсор замолчит.
@@ -166,7 +166,7 @@ def test_вывод_всегда_одна_строка_json() -> None:
 COMPOSE_FILES = ("media/compose.yaml", "homeassistant/compose.yaml")
 
 
-def контейнеры_из_compose() -> set[str]:
+def container_names_from_compose() -> set[str]:
     """
     Имена контейнеров обоих стеков — то, что реально увидит Docker.
 
@@ -187,7 +187,7 @@ def контейнеры_из_compose() -> set[str]:
     return names
 
 
-def test_список_по_умолчанию_совпадает_с_docker_yaml() -> None:
+def test_watched_matches_docker_yaml() -> None:
     """
     Список WATCHED в скрипте и containers в packages/docker.yaml должны
     описывать одни и те же контейнеры: разойдутся — и часть сервисов
@@ -214,7 +214,7 @@ def test_список_по_умолчанию_совпадает_с_docker_yaml(
     )
 
 
-def test_список_по_умолчанию_совпадает_с_compose() -> None:
+def test_watched_matches_compose_files() -> None:
     """
     Под надзором должны быть ровно те контейнеры, которые описаны в двух
     compose-файлах — ни больше, ни меньше.
@@ -228,7 +228,7 @@ def test_список_по_умолчанию_совпадает_с_compose() ->
     from conftest import load
 
     module = load(SCRIPT)
-    из_compose = контейнеры_из_compose()
+    из_compose = container_names_from_compose()
     watched = set(module.WATCHED)
 
     assert watched == из_compose, (
@@ -239,7 +239,7 @@ def test_список_по_умолчанию_совпадает_с_compose() ->
 
 
 @pytest.mark.parametrize("names", [("jellyfin",), ("jellyfin", "radarr", "seerr")])
-def test_total_равен_числу_запрошенных(names: tuple[str, ...]) -> None:
+def test_total_equals_requested_count(names: tuple[str, ...]) -> None:
     url, httpd = make_server([RUNNING])
     try:
         assert run(url, *names)["total"] == len(names)
