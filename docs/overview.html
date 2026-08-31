@@ -287,7 +287,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <div class="facts">
       <span class="fact"><span class="dot home"></span>NAS <b>192.168.3.53</b></span>
       <span class="fact">контейнеров <b>8</b></span>
-      <span class="fact">файлов под версией <b>63</b></span>
+      <span class="fact">файлов под версией <b>63</b></span><span class="fact">страниц документации <b>7</b></span>
       <span class="fact">тестов <b>114</b></span>
       <span class="fact">задач CI <b>8</b></span>
     </div>
@@ -410,19 +410,19 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <table>
       <thead><tr><th>Область</th><th>Что содержит</th><th class="num-col">Строк</th><th class="num-col">Файлов</th></tr></thead>
       <tbody>
-        <tr><td><code class="path">docs/</code></td><td>чек-листы, гайды, дорожная карта</td><td class="num-col">6730</td><td class="num-col">6</td></tr>
+        <tr><td><code class="path">docs/</code></td><td>чек-листы, гайды, справочники, дорожная карта</td><td class="num-col">8195</td><td class="num-col">7</td></tr>
         <tr><td><code class="path">homeassistant/</code></td><td>compose, пакеты, дашборд, скрипты для сенсоров</td><td class="num-col">2173</td><td class="num-col">14</td></tr>
         <tr><td><code class="path">scripts/</code></td><td>проверки конфигурации и документации</td><td class="num-col">910</td><td class="num-col">6</td></tr>
-        <tr><td><code class="path">pachca/</code></td><td>Liquid-шаблоны уведомлений и примеры payload</td><td class="num-col">885</td><td class="num-col">21</td></tr>
+        <tr><td><code class="path">pachca/</code></td><td>Liquid-шаблоны уведомлений и примеры payload</td><td class="num-col">643</td><td class="num-col">20</td></tr>
         <tr><td><code class="path">tests/</code></td><td>pytest на скрипты, шаблоны и сам workflow</td><td class="num-col">757</td><td class="num-col">5</td></tr>
         <tr><td><code class="path">.github/</code></td><td>workflow проверок и настройка Dependabot</td><td class="num-col">201</td><td class="num-col">2</td></tr>
-        <tr><td><code class="path">media/</code></td><td>compose медиа-стека</td><td class="num-col">168</td><td class="num-col">1</td></tr>
+        <tr><td><code class="path">media/</code></td><td>compose медиа-стека</td><td class="num-col">185</td><td class="num-col">1</td></tr>
       </tbody>
     </table>
   </div>
 
   <div class="note why"><b>Что здесь необычного.</b> Отношение «документация и
-    проверки» к «собственно конфигурации» — примерно 7 к 1. Для домашнего
+    проверки» к «собственно конфигурации» — примерно 9 к 1. Для домашнего
     сервера это выглядит перекосом, пока не вспомнить, что настраивается он
     раз в год, а разбираться в нём приходится в тот вечер, когда что-то
     сломалось и половина деталей забыта.</div>
@@ -653,15 +653,15 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <table>
       <thead><tr><th>Проверка</th><th>Что делает</th><th class="num-col">Время</th></tr></thead>
       <tbody>
-        <tr><td><code>pytest</code></td><td>114 тестов</td><td class="num-col">7,58 с</td></tr>
+        <tr><td><code>pytest</code></td><td>114 тестов</td><td class="num-col">7,69 с</td></tr>
         <tr><td><code>yamllint</code></td><td>4 каталога YAML</td><td class="num-col">0,32 с</td></tr>
         <tr><td><code>render_pachca.py --check</code></td><td>26 пар «шаблон × payload»</td><td class="num-col">0,22 с</td></tr>
         <tr><td><code>validate_config.py</code></td><td>12 файлов, Jinja, секреты</td><td class="num-col">0,22 с</td></tr>
         <tr><td><code>validate_entities.py</code></td><td>сверка entity_id</td><td class="num-col">0,12 с</td></tr>
-        <tr><td><code>validate_docs.py</code></td><td>4 страницы, ссылки, 61 файл на обезличивание</td><td class="num-col">0,13 с</td></tr>
+        <tr><td><code>validate_docs.py</code></td><td>7 страниц, ссылки, 61 файл на обезличивание</td><td class="num-col">0,15 с</td></tr>
         <tr><td><code>check_files.py</code></td><td>63 файла на переводы строк</td><td class="num-col">0,04 с</td></tr>
         <tr><td><code>ruff check .</code></td><td>13 файлов Python</td><td class="num-col">0,01 с</td></tr>
-        <tr><td><b>Всего последовательно</b></td><td></td><td class="num-col"><b>8,64 с</b></td></tr>
+        <tr><td><b>Всего последовательно</b></td><td></td><td class="num-col"><b>8,77 с</b></td></tr>
       </tbody>
     </table>
   </div>
@@ -932,12 +932,224 @@ ps -eo state,pid,comm | awk '$1 ~ /D/'</code></pre></div>
 <section id="s5">
   <div class="sec-head">
     <div class="kicker">Раздел 5</div>
+    <h2>Как поднять сервис</h2>
+    <p>
+      Оба стека монтируют состояние относительными путями, поэтому
+      развёртывание сводится к «склонировать и запустить». Ниже — полный
+      порядок с проверками на каждом шаге, отдельно с нуля и отдельно
+      переезд с прежней схемы.
+    </p>
+  </div>
+
+  <div class="note why"><b>Почему пути относительные.</b>
+    <code>./config</code> у Home Assistant и <code>./config/&lt;сервис&gt;</code>
+    у медиа-стека Compose разрешает от каталога самого <code>compose.yaml</code>.
+    Весь домашний сервер поэтому переносится вместе с репозиторием:
+    склонировали в другое место — поднимается там же, без единой правки путей.
+    Абсолютным остался только <code class="path">/volume1/data</code> — это
+    не конфигурация, а библиотека на терабайты, и монтируется она одним томом
+    целиком, потому что иначе Radarr не сможет импортировать хардлинком.</div>
+
+  <ol class="steps">
+
+    <li class="step">
+      <div class="step-body" style="grid-column:1/-1">
+        <h3><span class="num">5.1</span> Что должно быть готово заранее</h3>
+        <ul>
+          <li><b>SSH на NAS включён</b> — <i>Панель управления → Терминал и SNMP</i>.</li>
+          <li><b>Container Manager установлен</b> из Центра пакетов. Команда
+            <code>docker compose</code> появляется вместе с ним.</li>
+          <li><b>Структура <code class="path">/volume1/data</code> создана</b> — папки
+            и хардлинки описаны в
+            <a href="media-stack.html">чек-листе медиа-стека</a>, раздел 1.
+            Это единственное, что нужно сделать до запуска стека.</li>
+        </ul>
+        <p>Свои PUID и PGID узнаются одной командой — подставлять чужие нельзя:</p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>id ваш_логин</code></pre></div>
+        <p>
+          В <code>compose.yaml</code> прописаны <code>PUID=1026</code>
+          и <code>PGID=100</code>. Если у вас другие — поправьте перед запуском,
+          иначе контейнеры не смогут писать в свои каталоги.
+        </p>
+      </div>
+    </li>
+
+    <li class="step">
+      <div class="step-body" style="grid-column:1/-1">
+        <h3><span class="num">5.2</span> Развёртывание с нуля</h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code><span class="c"># Клон. Именно /volume1/docker — там же лежат тома Container Manager</span>
+cd /volume1/docker
+sudo git clone https://github.com/hhypest/hh-homelab.git
+cd hh-homelab
+
+<span class="c"># Каталоги состояния. Их нет в git — это базы и кэши, версионировать</span>
+<span class="c"># нечего, — но существовать они должны ДО первого запуска</span>
+sudo mkdir -p media/config/{qbittorrent,prowlarr,radarr,jellyfin,seerr} \
+              media/cache/jellyfin media/watch
+
+<span class="c"># Владелец — тот же PUID:PGID, что в compose.yaml</span>
+sudo chown -R 1026:100 .
+
+<span class="c"># Секреты. Пример лежит в репозитории, боевой файл — нет</span>
+cp homeassistant/config/secrets.yaml.example homeassistant/config/secrets.yaml
+sudo chmod 600 homeassistant/config/secrets.yaml
+<span class="c"># отредактировать: вебхук Пачки, MAC телевизора, ключ Jellyfin, координаты</span>
+
+<span class="c"># Подъём. Медиа-стек первым: Home Assistant подключается к готовым сервисам</span>
+cd media &amp;&amp; sudo docker compose up -d &amp;&amp; cd ..
+cd homeassistant &amp;&amp; sudo docker compose up -d &amp;&amp; cd ..</code></pre></div>
+
+        <div class="note crit"><b>Шаг с <code>mkdir</code> пропускать нельзя.</b>
+          Если каталога нет, Docker создаст его сам — и владельцем будет
+          <code>root</code>. Контейнер с <code>PUID=1026</code> в такой каталог
+          писать не сможет: Radarr стартует и тут же падает, qBittorrent
+          поднимается с пустыми настройками и забывает их при каждом
+          перезапуске. Симптом обманчивый — выглядит как «приложение
+          сломалось», а дело в правах. Лечится тем же
+          <code>chown -R 1026:100</code> и пересозданием контейнера.</div>
+
+        <div class="note"><b>Через интерфейс DSM.</b> <i>Container Manager →
+          Проект → Создать</i>, путь <code class="path">/volume1/docker/hh-homelab/media</code>,
+          источник — существующий <code>compose.yaml</code>. Каталоги состояния
+          всё равно нужно создать заранее по SSH: интерфейс этого не делает.</div>
+      </div>
+    </li>
+
+    <li class="step">
+      <div class="step-body" style="grid-column:1/-1">
+        <h3><span class="num">5.3</span> Переезд с абсолютных путей<span class="tag key">миграция</span></h3>
+        <p>
+          Раньше медиа-стек монтировал <code class="path">/volume1/docker/&lt;сервис&gt;/config</code>.
+          Если стек уже работает по старой схеме, состояние надо перенести —
+          иначе сервисы поднимутся пустыми, будто их настраивают впервые.
+        </p>
+
+        <div class="note why"><b>Хорошая новость: приложения ничего не заметят.</b>
+          Меняется только хостовая сторона монтирования. Внутри контейнера пути
+          остаются прежними — <code>/config</code>, <code>/data</code>,
+          <code>/data/media</code>. Ни базы Radarr, ни библиотека Jellyfin,
+          ни список раздач qBittorrent не содержат хостовых путей, так что
+          переносить настройки или что-то перенастраивать не придётся.</div>
+
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab
+
+<span class="c"># 1. Остановить стек. Обязательно: внутри базы SQLite, копировать их</span>
+<span class="c">#    на ходу — верный способ получить повреждённый файл</span>
+cd media &amp;&amp; sudo docker compose down &amp;&amp; cd ..
+
+<span class="c"># 2. Подстраховаться. Снимок DSM или обычный архив — на ваш вкус</span>
+sudo tar czf /volume1/homes/backup-media-$(date +%F).tar.gz \
+  /volume1/docker/{qbittorrent,prowlarr,radarr,jellyfin,seerr}
+
+<span class="c"># 3. Перенести. Оба места на /volume1, поэтому mv мгновенный:</span>
+<span class="c">#    это переименование, а не копирование терабайтов</span>
+sudo mkdir -p media/config media/cache
+sudo mv /volume1/docker/qbittorrent/config media/config/qbittorrent
+sudo mv /volume1/docker/qbittorrent/watch  media/watch
+sudo mv /volume1/docker/prowlarr/config    media/config/prowlarr
+sudo mv /volume1/docker/radarr/config      media/config/radarr
+sudo mv /volume1/docker/jellyfin/config    media/config/jellyfin
+sudo mv /volume1/docker/seerr/config       media/config/seerr
+
+<span class="c"># 4. Кэш Jellyfin не переносим — он восстановится сам,</span>
+<span class="c">#    а весит обычно больше всего остального вместе взятого</span>
+sudo mkdir -p media/cache/jellyfin
+
+<span class="c"># 5. Вернуть владельца и поднять</span>
+sudo chown -R 1026:100 media
+cd media &amp;&amp; sudo docker compose up -d</code></pre></div>
+
+        <div class="note warn"><b>Старые каталоги не удаляйте сразу.</b>
+          <code class="path">/volume1/docker/qbittorrent</code> и соседние останутся
+          пустыми оболочками — пусть полежат до тех пор, пока вы не убедитесь
+          по шагу 5.4, что все шесть сервисов помнят свои настройки. Откат
+          в этот момент стоит одной команды <code>mv</code> обратно и
+          <code>git checkout media/compose.yaml</code>.</div>
+
+        <div class="note"><b>Home Assistant трогать не нужно.</b>
+          Его <code>./config</code> был относительным с самого начала —
+          переезд касается только медиа-стека.</div>
+      </div>
+    </li>
+
+    <li class="step">
+      <div class="step-body" style="grid-column:1/-1">
+        <h3><span class="num">5.4</span> Убедиться, что всё поднялось</h3>
+        <p>Три уровня проверки, от дешёвой к содержательной.</p>
+
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code><span class="c"># 1. Контейнеры запущены — шесть строк в состоянии running</span>
+cd /volume1/docker/hh-homelab/media &amp;&amp; sudo docker compose ps
+
+<span class="c"># 2. Тома указывают куда надо — внутри /config, снаружи путь в репозитории</span>
+sudo docker inspect --format '{{range .Mounts}}{{.Source}} -> {{.Destination}}
+{{end}}' radarr</code></pre></div>
+
+        <p>
+          Третий уровень — содержательный, и его не заменит никакая команда:
+          открыть каждый интерфейс и убедиться, что сервис <b>помнит себя</b>.
+        </p>
+
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Сервис</th><th>Адрес</th><th>Что должно быть на месте</th></tr></thead>
+            <tbody>
+              <tr><td>qBittorrent</td><td><a href="http://192.168.3.53:9080">:9080</a></td><td>список раздач и пути загрузки</td></tr>
+              <tr><td>Prowlarr</td><td><a href="http://192.168.3.53:9696">:9696</a></td><td>индексаторы и связь с Radarr</td></tr>
+              <tr><td>Radarr</td><td><a href="http://192.168.3.53:7878">:7878</a></td><td>библиотека фильмов, профили качества</td></tr>
+              <tr><td>Jellyfin</td><td><a href="http://192.168.3.53:8096">:8096</a></td><td>пользователи и библиотека (обложки подтянутся не сразу — кэш пуст)</td></tr>
+              <tr><td>Seerr</td><td><a href="http://192.168.3.53:5055">:5055</a></td><td>вход и связь с Radarr и Jellyfin</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note why"><b>И четвёртый уровень — сам Home Assistant.</b>
+          На дашборде <code>sensor.docker_down</code> должен показывать
+          <b>0</b> при восьми под надзором, а шесть HTTP-проверок — <code>ON</code>.
+          Это та самая пара слоёв, ради которой они и заведены: контейнер может
+          быть <code>running</code>, а приложение внутри — не отвечать.
+          Если после переезда где-то расхождение, смотреть надо туда.</div>
+      </div>
+    </li>
+
+    <li class="step">
+      <div class="step-body" style="grid-column:1/-1">
+        <h3><span class="num">5.5</span> Обновление и откат</h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab
+
+<span class="c"># Забрать изменения конфигурации</span>
+git pull
+
+<span class="c"># Обновить образы и пересоздать то, что изменилось</span>
+cd media &amp;&amp; sudo docker compose pull &amp;&amp; sudo docker compose up -d &amp;&amp; cd ..
+cd homeassistant &amp;&amp; sudo docker compose pull &amp;&amp; sudo docker compose up -d</code></pre></div>
+
+        <p>
+          Откат конфигурации — обычный git: <code>git log --oneline</code>,
+          затем <code>git checkout &lt;коммит&gt; -- media/compose.yaml</code>
+          и снова <code>up -d</code>. Это и есть смысл того, что клон и есть
+          рабочая конфигурация.
+        </p>
+
+        <div class="note warn"><b>Откат образа — отдельная история.</b>
+          Все образы стоят на <code>:latest</code>, и <code>compose pull</code>
+          затирает предыдущий. Вернуться к вчерашней версии Jellyfin через git
+          не выйдет — в репозитории нет её номера. Это ровно та причина,
+          по которой «зафиксировать версии образов» стоит третьим пунктом
+          в <a href="roadmap.html">дорожной карте</a>.</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s6">
+  <div class="sec-head">
+    <div class="kicker">Раздел 6</div>
     <h2>Куда это растёт</h2>
   </div>
 
   <p style="color:var(--ink-2);max-width:70ch">
     Полный список с поводами и оценкой усилий —
-    в <a href="https://github.com/hhypest/hh-homelab/blob/main/docs/roadmap.md">дорожной карте</a>.
+    в <a href="roadmap.html">дорожной карте</a>.
     Три вещи, которые закрывают настоящие дыры, а не добавляют удобств:
   </p>
 
