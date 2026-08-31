@@ -749,10 +749,10 @@ done</code></pre></div>
           <table>
             <thead><tr><th>Сервис</th><th>Собственные журналы</th><th>Кто их убирает</th></tr></thead>
             <tbody>
-              <tr><td>Jellyfin</td><td><code class="path">/volume1/docker/jellyfin/config/log/</code></td><td>сам, по своей политике хранения</td></tr>
-              <tr><td>Radarr</td><td><code class="path">/volume1/docker/radarr/config/logs/</code></td><td>сам, кольцевой набор файлов</td></tr>
-              <tr><td>Prowlarr</td><td><code class="path">/volume1/docker/prowlarr/config/logs/</code></td><td>сам, кольцевой набор файлов</td></tr>
-              <tr><td>qBittorrent</td><td><code class="path">/volume1/docker/qbittorrent/config/qBittorrent/data/logs/</code></td><td>сам, с ограничением из настроек</td></tr>
+              <tr><td>Jellyfin</td><td><code class="path">/volume1/docker/hh-homelab/media/config/jellyfin/log/</code></td><td>сам, по своей политике хранения</td></tr>
+              <tr><td>Radarr</td><td><code class="path">/volume1/docker/hh-homelab/media/config/radarr/logs/</code></td><td>сам, кольцевой набор файлов</td></tr>
+              <tr><td>Prowlarr</td><td><code class="path">/volume1/docker/hh-homelab/media/config/prowlarr/logs/</code></td><td>сам, кольцевой набор файлов</td></tr>
+              <tr><td>qBittorrent</td><td><code class="path">/volume1/docker/hh-homelab/media/config/qbittorrent/qBittorrent/data/logs/</code></td><td>сам, с ограничением из настроек</td></tr>
             </tbody>
           </table>
         </div>
@@ -760,7 +760,7 @@ done</code></pre></div>
           Эти каталоги ротируются самими приложениями и обычно невелики.
           Но если место кончилось, а журналы Docker в норме — искать стоит
           именно здесь, а заодно в кэше Jellyfin
-          (<code class="path">/volume1/docker/jellyfin/cache</code>), который к журналам
+          (<code class="path">/volume1/docker/hh-homelab/media/cache/jellyfin</code>), который к журналам
           отношения не имеет и растёт по своим причинам.
         </p>
       </div>
@@ -897,7 +897,7 @@ docker compose logs --since 24h | grep -iE 'error|fatal|exception'</code></pre><
         <h3><span class="num">6.3</span> Jellyfin — самый болтливый в стеке</h3>
         <p>
           <i>Панель управления → Журналы</i> показывает файлы, а уровень
-          задаётся в каталоге <code class="path">/volume1/docker/jellyfin/config/</code>.
+          задаётся в каталоге <code class="path">/volume1/docker/hh-homelab/media/config/jellyfin/</code>.
           Ловушка: образ кладёт туда <code>logging.default.json</code>
           и перезаписывает его при обновлении. Править нужно копию с именем
           <code>logging.json</code> — её Jellyfin предпочитает и не трогает.

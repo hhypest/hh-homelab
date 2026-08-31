@@ -469,7 +469,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
   <div class="sec-head">
     <div class="kicker">Раздел 1</div>
     <h2>Подготовка DSM</h2>
-    <p>Пятнадцать минут в интерфейсе NAS. Всё остальное потом делается копированием файлов.</p>
+    <p>Пятнадцать минут в интерфейсе NAS и один <code>git clone</code>. Дальше вся конфигурация уже лежит на месте.</p>
   </div>
 
   <ol class="steps">
@@ -482,24 +482,38 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
           «Включить службу SSH». Порт оставьте <code>22</code>.
         </p>
         <div class="note why"><b>Зачем.</b> Container Manager умеет собирать проект из готового
-          <code>compose.yaml</code>, но создавать вложенные папки и править права им неудобно.
-          Три команды в терминале сэкономят полчаса кликов.</div>
+          <code>compose.yaml</code>, но склонировать репозиторий и выставить права
+          через него нельзя. Три команды в терминале сэкономят полчаса кликов.</div>
       </div>
     </li>
 
     <li class="step" data-key="s1-2">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">1.2</span> Создать структуру папок</h3>
-        <p>Подключитесь по SSH под своей учётной записью и выполните:</p>
-        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo mkdir -p /volume1/docker/homeassistant/config/packages
-sudo mkdir -p /volume1/docker/homeassistant/config/bin
+        <h3><span class="num">1.2</span> Склонировать репозиторий<span class="tag key">суть</span></h3>
+        <p>
+          Конфигурация не копируется в отдельную папку — <b>клон и есть
+          рабочая конфигурация</b>. Подключитесь по SSH под своей учётной
+          записью:
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker
+sudo git clone https://github.com/hhypest/hh-homelab.git
+cd hh-homelab
 
 <span class="c"># 1026:100 — тот же PUID:PGID, что и у остальных ваших контейнеров.
 # Home Assistant внутри работает от root и всё равно сможет писать,
 # а вы сможете править файлы через File Station.</span>
-sudo chown -R 1026:100 /volume1/docker/homeassistant
-sudo chmod -R 755 /volume1/docker/homeassistant</code></pre></div>
+sudo chown -R 1026:100 .
+sudo chmod -R 755 homeassistant</code></pre></div>
+        <div class="note why"><b>Почему именно клон, а не копия файлов.</b>
+          В <code>compose.yaml</code> каталог примонтирован относительным путём
+          <code>./config</code>, и Compose разрешает такие пути от каталога
+          самого compose-файла. Рабочее дерево git — это и есть то, что читает
+          Home Assistant: правка видна в <code>git status</code> сразу,
+          обновление приходит одним <code>git pull</code>, а откат —
+          обычным <code>git checkout</code>. Скопируете файлы в отдельную
+          папку — потеряете всё это, и через месяц никто не скажет, какая
+          версия свежее.</div>
       </div>
     </li>
 
@@ -559,32 +573,43 @@ sudo chmod -R 755 /volume1/docker/homeassistant</code></pre></div>
   <div class="sec-head">
     <div class="kicker">Раздел 2</div>
     <h2>Файлы и первый запуск</h2>
-    <p>Все конфигурации приложены к сообщению отдельными файлами — их нужно разложить по местам и собрать проект.</p>
+    <p>Конфигурация пришла вместе с клоном — остаётся заполнить секреты и собрать проект.</p>
   </div>
 
   <ol class="steps">
     <li class="step" data-key="s2-1">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">2.1</span> Разложить файлы по папкам</h3>
-        <p>Через File Station или <code>scp</code>. Итоговая структура:</p>
-        <div class="code"><button class="copy" type="button">копировать</button><pre><code>/volume1/docker/homeassistant/
+        <h3><span class="num">2.1</span> Убедиться, что файлы на месте</h3>
+        <p>
+          После клона из шага 1.2 раскладывать ничего не нужно — всё уже лежит
+          как надо. Проверьте состав:
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/homeassistant &amp;&amp; ls -R</code></pre></div>
+        <div class="code"><pre><code>/volume1/docker/hh-homelab/homeassistant/
 ├── compose.yaml
+├── dashboard-infrastructure.yaml  <span class="c">вставляется через интерфейс, раздел 10</span>
 └── config/
     ├── configuration.yaml
-    ├── secrets.yaml          <span class="c">← из secrets.yaml.example</span>
+    ├── secrets.yaml.example       <span class="c">← переименовать в шаге 2.2</span>
     ├── automations.yaml
     ├── scripts.yaml
     ├── scenes.yaml
     ├── bin/
-    │   └── http_check.py
+    │   ├── http_check.py          <span class="c">жив ли сервис по HTTP</span>
+    │   └── docker_state.py        <span class="c">жив ли контейнер</span>
     └── packages/
         ├── pachca.yaml
         ├── monitoring.yaml
-        └── media_tv.yaml</code></pre></div>
-        <div class="note warn"><b>Важно.</b> File Station по умолчанию прячет файлы, начинающиеся
-          с точки, и умеет молча дописывать <code>.txt</code>. После загрузки проверьте
-          имена: <code>compose.yaml</code>, а не <code>compose.yaml.txt</code>.</div>
+        ├── docker.yaml
+        ├── media_tv.yaml
+        └── alice.yaml</code></pre></div>
+        <div class="note"><b>Если файлы всё же копируете вручную</b> — через
+          File Station или <code>scp</code>, — учтите две его привычки:
+          File Station прячет файлы, начинающиеся с точки, и умеет молча
+          дописывать <code>.txt</code>. После загрузки проверьте имена:
+          <code>compose.yaml</code>, а не <code>compose.yaml.txt</code>.
+          Но проще склонировать.</div>
       </div>
     </li>
 
@@ -598,7 +623,7 @@ sudo chmod -R 755 /volume1/docker/homeassistant</code></pre></div>
           конфига Keenetic (<code>AA:BB:CC:DD:EE:FF</code>). Вебхук Пачки добавим в разделе 5,
           пока оставьте строку-заглушку.
         </p>
-        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo chmod 600 /volume1/docker/homeassistant/config/secrets.yaml</code></pre></div>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo chmod 600 /volume1/docker/hh-homelab/homeassistant/config/secrets.yaml</code></pre></div>
       </div>
     </li>
 
@@ -611,13 +636,13 @@ sudo chmod -R 755 /volume1/docker/homeassistant</code></pre></div>
         </p>
         <ul>
           <li>название проекта: <code>homeassistant</code>;</li>
-          <li>путь: <code class="path">/volume1/docker/homeassistant</code>;</li>
+          <li>путь: <code class="path">/volume1/docker/hh-homelab/homeassistant</code>;</li>
           <li>источник: «Создать docker-compose.yml» → появится вопрос об уже существующем
             файле → выбрать <b>использовать существующий</b>;</li>
           <li>веб-портал не настраивать → <b>Готово</b>.</li>
         </ul>
         <p>Эквивалент из терминала, если так привычнее:</p>
-        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/homeassistant
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/homeassistant
 sudo docker compose up -d</code></pre></div>
       </div>
     </li>
@@ -965,7 +990,7 @@ sudo docker exec homeassistant python3 /config/bin/docker_state.py
         <p>
           Медиа-стек говорит отдельно, в чате <b>Кинозал</b>: там четыре своих бота —
           Radarr, Prowlarr, Jellyfin и Seerr. Их настройка — в чек-листе по
-          медиа-стеку, разделы 5.5 и 7.4.
+          медиа-стеку, шаги 6.5 и 8.4.
         </p>
         <div class="note crit"><b>Разделение по чатам — не эстетика.</b> Входящий вебхук
           публикует сообщение во <b>все</b> групповые чаты, где состоит бот.
@@ -1009,7 +1034,7 @@ sudo docker exec homeassistant python3 /config/bin/docker_state.py
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
         <h3><span class="num">5.3</span> Вписать URL и перезагрузить конфигурацию</h3>
-        <div class="code"><button class="copy" type="button">копировать</button><pre><code><span class="c"># /volume1/docker/homeassistant/config/secrets.yaml</span>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code><span class="c"># /volume1/docker/hh-homelab/homeassistant/config/secrets.yaml</span>
 pachca_webhook_url: "https://api.pachca.com/webhooks/ВАШ_ТОКЕН"</code></pre></div>
         <p>Затем <b>Инструменты разработчика → YAML → Перезагрузить всю YAML-конфигурацию</b>.</p>
       </div>
@@ -1846,7 +1871,7 @@ system configuration save</code></pre></div>
         <p>
           <b>Настройки → Система → Резервные копии</b>: расписание — ежедневно ночью,
           хранить последние 7. Копии складываются в
-          <code class="path">/volume1/docker/homeassistant/config/backups</code>.
+          <code class="path">/volume1/docker/hh-homelab/homeassistant/config/backups</code>.
         </p>
       </div>
     </li>
@@ -1856,7 +1881,7 @@ system configuration save</code></pre></div>
       <div class="step-body">
         <h3><span class="num">11.2</span> Добавить папку в Hyper Backup</h3>
         <p>
-          Включите <code class="path">/volume1/docker/homeassistant</code> в существующее
+          Включите <code class="path">/volume1/docker/hh-homelab/homeassistant</code> в существующее
           задание Hyper Backup.
         </p>
         <div class="note why"><b>Зачем и то, и другое.</b> Встроенный бэкап Home Assistant
@@ -1869,7 +1894,7 @@ system configuration save</code></pre></div>
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
         <h3><span class="num">11.3</span> Порядок обновления</h3>
-        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/homeassistant
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/homeassistant
 sudo docker compose pull
 sudo docker compose up -d
 sudo docker image prune -f</code></pre></div>
@@ -1886,7 +1911,7 @@ sudo docker image prune -f</code></pre></div>
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
         <h3><span class="num">11.4</span> Следить за размером базы</h3>
-        <div class="code"><button class="copy" type="button">копировать</button><pre><code>ls -lh /volume1/docker/homeassistant/config/home-assistant_v2.db</code></pre></div>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>ls -lh /volume1/docker/hh-homelab/homeassistant/config/home-assistant_v2.db</code></pre></div>
         <p>
           В <code>configuration.yaml</code> заданы <code>purge_keep_days: 21</code> и
           <code>commit_interval: 15</code> — история за три недели, запись пачками раз в
@@ -2090,7 +2115,7 @@ sudo docker image prune -f</code></pre></div>
       <tbody>
         <tr>
           <td><code>compose.yaml</code></td>
-          <td><code class="path">/volume1/docker/homeassistant/</code></td>
+          <td><code class="path">/volume1/docker/hh-homelab/homeassistant/</code></td>
           <td>два контейнера: Home Assistant в host-сети и docker-socket-proxy на петлевом адресе</td>
         </tr>
         <tr>
@@ -2154,9 +2179,9 @@ sudo docker image prune -f</code></pre></div>
           <td>пустые заготовки для того, что вы создадите через интерфейс</td>
         </tr>
         <tr>
-          <td><code>keenetic-notes.md</code></td>
+          <td><a href="keenetic.html">Заметки по роутеру</a></td>
           <td>справочно</td>
-          <td>разбор вашей текущей конфигурации роутера и команды CLI из раздела 9</td>
+          <td>что в настройках Keenetic влияет на этот стек и команды CLI из раздела 9</td>
         </tr>
       </tbody>
     </table>
