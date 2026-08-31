@@ -1,0 +1,1041 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Обзор hh-homelab: архитектура, история проекта, замеры репозитория и проверок, методика замеров NAS и разбор вопроса про Prometheus с Grafana.">
+<title>Обзор проекта hh-homelab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;font-size:14px}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+  .crosslink{margin-top:20px;font-size:13.5px;color:var(--muted)}
+  .crosslink a{color:var(--home);font-weight:500}
+</style>
+<style>
+/* ==========================================================================
+   Токены. Светлая палитра — на голом :root, тёмная переопределяет только их.
+   ========================================================================== */
+:root{
+  --ground:#F1F5F6;
+  --surface:#FFFFFF;
+  --surface-2:#E7EDEF;
+  --ink:#0E1A1E;
+  --ink-2:#3F5259;
+  --muted:#6A7E86;
+  --line:#D2DEE2;
+  --line-strong:#B2C3C9;
+  --home:#0D6B75;
+  --iot:#95590F;
+  --ok:#2A6B46;
+  --crit:#A22F26;
+  --code-bg:#0E1A1E;
+  --code-ink:#D6E3E7;
+  --code-dim:#7C949C;
+  --shadow:0 1px 2px rgba(14,26,30,.06), 0 8px 24px -16px rgba(14,26,30,.30);
+  --radius:10px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0B1214;
+    --surface:#121D21;
+    --surface-2:#19272C;
+    --ink:#E3EDF0;
+    --ink-2:#A7BBC2;
+    --muted:#7C939B;
+    --line:#22343B;
+    --line-strong:#354F59;
+    --home:#4FC2CD;
+    --iot:#DFA254;
+    --ok:#5EBD85;
+    --crit:#E8786C;
+    --code-bg:#080F11;
+    --code-ink:#CEDFE4;
+    --code-dim:#6D858D;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0B1214;
+  --surface:#121D21;
+  --surface-2:#19272C;
+  --ink:#E3EDF0;
+  --ink-2:#A7BBC2;
+  --muted:#7C939B;
+  --line:#22343B;
+  --line-strong:#354F59;
+  --home:#4FC2CD;
+  --iot:#DFA254;
+  --ok:#5EBD85;
+  --crit:#E8786C;
+  --code-bg:#080F11;
+  --code-ink:#CEDFE4;
+  --code-dim:#6D858D;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"IBM Plex Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  font-size:15.5px;
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:"Golos Text","IBM Plex Sans",system-ui,sans-serif;text-wrap:balance;margin:0}
+a{color:var(--home)}
+code,kbd,pre{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+
+/* ---------- каркас ---------- */
+.wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+.layout{display:grid;grid-template-columns:248px minmax(0,1fr);gap:48px;align-items:start}
+
+/* ---------- шапка ---------- */
+header.top{
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,var(--surface),var(--ground));
+}
+.top .wrap{padding-top:44px;padding-bottom:34px}
+.eyebrow{
+  font-family:"Golos Text",sans-serif;font-weight:600;font-size:11.5px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;
+}
+h1{font-size:clamp(30px,4.4vw,46px);font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.lede{max-width:64ch;margin-top:14px;color:var(--ink-2);font-size:17px}
+.facts{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.fact{
+  display:inline-flex;align-items:center;gap:7px;
+  border:1px solid var(--line);border-radius:100px;background:var(--surface);
+  padding:5px 13px;font-size:12.5px;color:var(--ink-2);
+}
+.fact b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+.dot.home{background:var(--home)}
+.dot.iot{background:var(--iot)}
+
+/* ---------- боковая навигация ---------- */
+nav.rail{position:sticky;top:24px;padding:24px 0 60px}
+.progress{
+  border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);
+  padding:14px;display:flex;align-items:center;gap:13px;margin-bottom:20px;box-shadow:var(--shadow);
+}
+.ring{flex:none}
+.ring circle{fill:none;stroke-width:5}
+.ring .bg{stroke:var(--line)}
+.ring .fg{stroke:var(--home);stroke-linecap:round;transition:stroke-dashoffset .35s ease}
+.progress .txt{font-size:12.5px;line-height:1.35;color:var(--muted)}
+.progress .txt b{display:block;font-family:"Golos Text",sans-serif;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+.reset{
+  appearance:none;border:1px solid var(--line);background:transparent;color:var(--muted);
+  font:inherit;font-size:11.5px;padding:2px 8px;border-radius:6px;cursor:pointer;margin-top:4px;
+}
+.reset:hover{color:var(--ink);border-color:var(--line-strong)}
+nav.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
+nav.rail a{
+  display:flex;gap:10px;align-items:baseline;
+  padding:6px 10px;border-radius:7px;text-decoration:none;color:var(--ink-2);font-size:13.5px;
+  border-left:2px solid transparent;
+}
+nav.rail a:hover{background:var(--surface-2);color:var(--ink)}
+nav.rail a.active{background:var(--surface);color:var(--ink);border-left-color:var(--home);font-weight:500}
+nav.rail a .n{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px;min-width:16px}
+nav.rail a.done .n::after{content:"✓";color:var(--ok)}
+nav.rail a.done .n{font-size:0}
+
+/* ---------- секции ---------- */
+main{padding:34px 0 120px;min-width:0}
+section{margin-bottom:56px;scroll-margin-top:20px}
+.sec-head{border-top:2px solid var(--ink);padding-top:14px;margin-bottom:22px}
+.sec-head .kicker{
+  font-family:"Golos Text",sans-serif;font-size:11.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--muted);font-weight:600;
+}
+h2{font-size:clamp(21px,2.6vw,27px);font-weight:700;letter-spacing:-.015em;margin-top:4px}
+.sec-head p{margin:10px 0 0;color:var(--ink-2);max-width:68ch}
+
+/* ---------- шаги ---------- */
+ol.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
+li.step{
+  display:grid;grid-template-columns:28px minmax(0,1fr);gap:14px;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 18px;box-shadow:var(--shadow);transition:opacity .2s ease;
+}
+li.step.checked{opacity:.55}
+li.step.checked h3{text-decoration:line-through;text-decoration-color:var(--line-strong)}
+.step-check{position:relative;display:block;width:22px;height:22px;margin-top:2px;cursor:pointer}
+.step-check input{position:absolute;opacity:0;width:22px;height:22px;margin:0;cursor:pointer}
+.step-check .box{
+  display:block;width:22px;height:22px;border:1.5px solid var(--line-strong);
+  border-radius:6px;background:var(--ground);transition:.15s ease;
+}
+.step-check input:focus-visible + .box{outline:2px solid var(--home);outline-offset:2px}
+.step-check input:checked + .box{background:var(--home);border-color:var(--home)}
+.step-check .box::after{
+  content:"";position:absolute;left:7px;top:3px;width:6px;height:11px;
+  border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(45deg) scale(0);
+  transition:transform .15s ease;
+}
+.step-check input:checked + .box::after{transform:rotate(45deg) scale(1)}
+.step-body{min-width:0}
+.step-body h3{font-size:16.5px;font-weight:600;letter-spacing:-.005em;display:flex;gap:9px;align-items:baseline}
+.step-body h3 .num{
+  font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:500;
+  color:var(--home);flex:none;padding-top:1px;
+}
+.step-body p{margin:9px 0 0;color:var(--ink-2);max-width:70ch}
+.step-body p:first-of-type{margin-top:7px}
+.step-body ul{margin:9px 0 0;padding-left:20px;color:var(--ink-2);max-width:70ch}
+.step-body li{margin:3px 0}
+.step-body b,.step-body strong{color:var(--ink);font-weight:600}
+
+/* ---------- врезки ---------- */
+.note{
+  margin-top:12px;padding:11px 14px;border-left:3px solid var(--line-strong);
+  background:var(--surface-2);border-radius:0 7px 7px 0;font-size:14px;color:var(--ink-2);
+  max-width:72ch;
+}
+.note b:first-child{color:var(--ink)}
+.note.why{border-left-color:var(--home)}
+.note.warn{border-left-color:var(--iot)}
+.note.crit{border-left-color:var(--crit)}
+.note p{margin:6px 0 0}
+.note p:first-child{margin:0}
+
+/* ---------- код ---------- */
+.code{position:relative;margin-top:12px}
+.code pre{
+  margin:0;background:var(--code-bg);color:var(--code-ink);
+  padding:14px 16px;border-radius:8px;overflow-x:auto;
+  font-size:12.8px;line-height:1.62;border:1px solid var(--line);
+}
+.code pre .c{color:var(--code-dim)}
+.code .copy{
+  position:absolute;top:8px;right:8px;appearance:none;cursor:pointer;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);
+  color:var(--code-dim);font-family:"IBM Plex Sans",sans-serif;font-size:11px;
+  padding:3px 9px;border-radius:5px;opacity:0;transition:.15s ease;
+}
+.code:hover .copy,.code .copy:focus-visible{opacity:1}
+.code .copy:hover{color:#fff;background:rgba(255,255,255,.14)}
+code:not(pre code){
+  background:var(--surface-2);border:1px solid var(--line);
+  padding:1px 5px;border-radius:4px;font-size:.88em;color:var(--ink);
+}
+.path{color:var(--home);overflow-wrap:anywhere}
+
+/* ---------- таблицы ---------- */
+.tablewrap{overflow-x:auto;margin-top:14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.8px;min-width:520px}
+th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{
+  font-family:"Golos Text",sans-serif;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);font-weight:600;background:var(--surface-2);
+}
+tbody tr:last-child td{border-bottom:none}
+td code{white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+
+/* ---------- диаграмма ---------- */
+figure{margin:0 0 26px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px 18px 16px;box-shadow:var(--shadow)}
+figure svg{display:block;width:100%;max-width:100%;height:auto;color:var(--ink-2)}
+figcaption{margin-top:14px;font-size:13.5px;color:var(--muted);max-width:74ch}
+
+/* ---------- метки ---------- */
+.tag{
+  display:inline-block;font-family:"Golos Text",sans-serif;font-size:10.5px;font-weight:600;
+  letter-spacing:.07em;text-transform:uppercase;padding:2px 7px;border-radius:4px;
+  border:1px solid currentColor;vertical-align:2px;margin-left:8px;
+}
+.tag.opt{color:var(--muted)}
+.tag.later{color:var(--iot)}
+.tag.key{color:var(--home)}
+
+footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);font-size:13px}
+
+@media (max-width:940px){
+  .layout{grid-template-columns:1fr;gap:0}
+  nav.rail{position:static;padding:18px 0 0}
+  nav.rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px}
+  main{padding-top:24px}
+}
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important;animation:none !important}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="eyebrow">Обзор проекта · DS725+ · 31 августа 2026</div>
+    <h1>Как устроен hh-homelab</h1>
+    <p class="lede">
+      Один документ на весь проект: из чего он состоит, как складывался,
+      какие правила из этого выросли, что в нём измерено — и разбор
+      единственного вопроса, который возвращается регулярно: не пора ли
+      поставить Prometheus с Grafana.
+    </p>
+    <div class="facts">
+      <span class="fact"><span class="dot home"></span>NAS <b>192.168.3.53</b></span>
+      <span class="fact">контейнеров <b>8</b></span>
+      <span class="fact">файлов под версией <b>63</b></span>
+      <span class="fact">тестов <b>114</b></span>
+      <span class="fact">задач CI <b>8</b></span>
+    </div>
+
+    <p class="crosslink">Пошаговые документы:
+      <a href="media-stack.html">медиа-стек</a> ·
+      <a href="index.html">Home Assistant</a> ·
+      <a href="logs.html">журналы контейнеров</a>.</p>
+  </div>
+</header>
+
+<div class="wrap layout">
+
+<nav class="rail" aria-label="Разделы">
+  <ol id="toc"></ol>
+</nav>
+
+<main>
+
+<section id="s0">
+  <div class="sec-head">
+    <div class="kicker">Раздел 0</div>
+    <h2>Что это такое</h2>
+    <p>
+      Домашний сервер на одной коробке: медиа-конвейер, Home Assistant
+      и уведомления. Особенность не в наборе сервисов — он обычный, —
+      а в том, что вся конфигурация лежит в git и проверяется на каждый push.
+    </p>
+  </div>
+
+  <figure>
+    <svg viewBox="0 0 900 420" role="img"
+         aria-label="Схема: два независимых compose-проекта на одном NAS. Медиа-стек из шести контейнеров в bridge-сети media публикует порты на хост. Home Assistant работает в сети хоста и ходит к ним по 127.0.0.1. Docker-сокет доступен только через прокси на петлевом адресе. Наружу уходят уведомления в Пачку, внутрь приходят команды от Алисы через облако.">
+      <defs>
+        <marker id="oa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
+        </marker>
+      </defs>
+
+      <g stroke="currentColor" fill="none" stroke-width="1.3" opacity=".45" stroke-dasharray="4 4">
+        <rect x="16" y="54" width="452" height="196" rx="12"></rect>
+        <rect x="16" y="278" width="452" height="120" rx="12"></rect>
+      </g>
+      <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="11.5" opacity=".7">
+        <text x="32" y="46">Проект media · bridge-сеть</text>
+        <text x="32" y="270">Проект homeassistant · сеть хоста</text>
+      </g>
+
+      <g stroke="currentColor" fill="none" stroke-width="1.3">
+        <rect x="36" y="72" width="126" height="46" rx="8"></rect>
+        <rect x="176" y="72" width="126" height="46" rx="8"></rect>
+        <rect x="316" y="72" width="132" height="46" rx="8"></rect>
+        <rect x="36" y="132" width="126" height="46" rx="8"></rect>
+        <rect x="176" y="132" width="126" height="46" rx="8"></rect>
+        <rect x="316" y="132" width="132" height="46" rx="8"></rect>
+        <rect x="36" y="296" width="196" height="46" rx="8"></rect>
+        <rect x="252" y="296" width="196" height="46" rx="8"></rect>
+      </g>
+      <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="12.5">
+        <text x="99" y="94" text-anchor="middle">qBittorrent</text>
+        <text x="99" y="110" text-anchor="middle" font-size="10.5" opacity=".6">9080</text>
+        <text x="239" y="94" text-anchor="middle">Prowlarr</text>
+        <text x="239" y="110" text-anchor="middle" font-size="10.5" opacity=".6">9696</text>
+        <text x="382" y="94" text-anchor="middle">FlareSolverr</text>
+        <text x="382" y="110" text-anchor="middle" font-size="10.5" opacity=".6">8191</text>
+        <text x="99" y="154" text-anchor="middle">Radarr</text>
+        <text x="99" y="170" text-anchor="middle" font-size="10.5" opacity=".6">7878</text>
+        <text x="239" y="154" text-anchor="middle">Jellyfin</text>
+        <text x="239" y="170" text-anchor="middle" font-size="10.5" opacity=".6">8096</text>
+        <text x="382" y="154" text-anchor="middle">Seerr</text>
+        <text x="382" y="170" text-anchor="middle" font-size="10.5" opacity=".6">5055</text>
+        <text x="134" y="318" text-anchor="middle">Home Assistant</text>
+        <text x="134" y="334" text-anchor="middle" font-size="10.5" opacity=".6">8123 · сеть хоста</text>
+        <text x="350" y="318" text-anchor="middle">dockerproxy</text>
+        <text x="350" y="334" text-anchor="middle" font-size="10.5" opacity=".6">127.0.0.1:2375 · только чтение</text>
+      </g>
+
+      <text x="242" y="212" text-anchor="middle" fill="currentColor" opacity=".65"
+            font-family="IBM Plex Sans, sans-serif" font-size="11.5">порты опубликованы на хосте</text>
+      <line x1="242" y1="222" x2="242" y2="290" stroke="currentColor" stroke-width="1.3" marker-end="url(#oa)"></line>
+      <text x="262" y="262" fill="currentColor" opacity=".6"
+            font-family="IBM Plex Sans, sans-serif" font-size="11">HA ходит по 127.0.0.1</text>
+
+      <g stroke="currentColor" fill="none" stroke-width="1.3" opacity=".55">
+        <rect x="520" y="72" width="176" height="46" rx="8"></rect>
+        <rect x="520" y="146" width="176" height="46" rx="8"></rect>
+        <rect x="520" y="220" width="176" height="46" rx="8"></rect>
+        <rect x="520" y="296" width="176" height="46" rx="8"></rect>
+      </g>
+      <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="12.5" opacity=".8">
+        <text x="608" y="94" text-anchor="middle">Пачка</text>
+        <text x="608" y="110" text-anchor="middle" font-size="10.5" opacity=".7">Кинозал · Мониторинг</text>
+        <text x="608" y="168" text-anchor="middle">Алиса</text>
+        <text x="608" y="184" text-anchor="middle" font-size="10.5" opacity=".7">через облако</text>
+        <text x="608" y="242" text-anchor="middle">Телевизор и приставка</text>
+        <text x="608" y="258" text-anchor="middle" font-size="10.5" opacity=".7">SSDP · mDNS · Wake-on-LAN</text>
+        <text x="608" y="318" text-anchor="middle">Synology DSM</text>
+        <text x="608" y="334" text-anchor="middle" font-size="10.5" opacity=".7">метрики NAS и дисков</text>
+      </g>
+      <g stroke="currentColor" stroke-width="1.3" opacity=".5">
+        <line x1="470" y1="140" x2="514" y2="98" marker-end="url(#oa)"></line>
+        <line x1="238" y1="342" x2="514" y2="170" marker-end="url(#oa)"></line>
+        <line x1="238" y1="330" x2="514" y2="240" marker-end="url(#oa)"></line>
+        <line x1="238" y1="322" x2="514" y2="316" marker-end="url(#oa)"></line>
+      </g>
+      <text x="700" y="382" text-anchor="end" fill="currentColor" opacity=".55"
+            font-family="IBM Plex Sans, sans-serif" font-size="11">Сегмент IoT изолирован: Алиса домашнюю сеть не видит</text>
+    </svg>
+    <figcaption>
+      Два <code>compose.yaml</code>, намеренно не слитые в один. Медиа-стек живёт
+      в bridge-сети и публикует порты; Home Assistant не может быть в bridge-сети,
+      потому что ему нужен широковещательный домен для обнаружения телевизора
+      и Wake-on-LAN — поэтому он в сети хоста и ходит к соседям по петле.
+      Docker-сокет не попадает в HA вообще: доступ к нему равносилен root на NAS,
+      и метрики контейнеров идут через прокси, разрешающий только чтение.
+    </figcaption>
+  </figure>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Область</th><th>Что содержит</th><th class="num-col">Строк</th><th class="num-col">Файлов</th></tr></thead>
+      <tbody>
+        <tr><td><code class="path">docs/</code></td><td>чек-листы, гайды, дорожная карта</td><td class="num-col">6730</td><td class="num-col">6</td></tr>
+        <tr><td><code class="path">homeassistant/</code></td><td>compose, пакеты, дашборд, скрипты для сенсоров</td><td class="num-col">2173</td><td class="num-col">14</td></tr>
+        <tr><td><code class="path">scripts/</code></td><td>проверки конфигурации и документации</td><td class="num-col">910</td><td class="num-col">6</td></tr>
+        <tr><td><code class="path">pachca/</code></td><td>Liquid-шаблоны уведомлений и примеры payload</td><td class="num-col">885</td><td class="num-col">21</td></tr>
+        <tr><td><code class="path">tests/</code></td><td>pytest на скрипты, шаблоны и сам workflow</td><td class="num-col">757</td><td class="num-col">5</td></tr>
+        <tr><td><code class="path">.github/</code></td><td>workflow проверок и настройка Dependabot</td><td class="num-col">201</td><td class="num-col">2</td></tr>
+        <tr><td><code class="path">media/</code></td><td>compose медиа-стека</td><td class="num-col">168</td><td class="num-col">1</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note why"><b>Что здесь необычного.</b> Отношение «документация и
+    проверки» к «собственно конфигурации» — примерно 7 к 1. Для домашнего
+    сервера это выглядит перекосом, пока не вспомнить, что настраивается он
+    раз в год, а разбираться в нём приходится в тот вечер, когда что-то
+    сломалось и половина деталей забыта.</div>
+</section>
+
+<section id="s1">
+  <div class="sec-head">
+    <div class="kicker">Раздел 1</div>
+    <h2>Как это складывалось</h2>
+    <p>
+      Проект молодой: первый коммит — 30 августа 2026, 08:44. Всё, что описано
+      ниже, уместилось в двое суток. Порядок, в котором оно появлялось,
+      объясняет структуру репозитория лучше, чем её описание.
+    </p>
+  </div>
+
+  <figure>
+    <svg viewBox="0 0 900 300" role="img"
+         aria-label="График роста репозитория: 23 файла в первом коммите 30 августа в 8:44, резкий подъём до 55 к 10 утра за счёт шаблонов Пачки и тестов, дальше пологий рост до 62 файлов к утру 31 августа.">
+      <g stroke="currentColor" stroke-width="1" opacity=".16">
+        <line x1="60" y1="260" x2="860" y2="260"></line>
+        <line x1="60" y1="211" x2="860" y2="211"></line>
+        <line x1="60" y1="162" x2="860" y2="162"></line>
+        <line x1="60" y1="113" x2="860" y2="113"></line>
+        <line x1="60" y1="64" x2="860" y2="64"></line>
+      </g>
+      <g fill="currentColor" opacity=".55" font-family="IBM Plex Sans, sans-serif" font-size="10.5" text-anchor="end">
+        <text x="50" y="264">20</text>
+        <text x="50" y="215">30</text>
+        <text x="50" y="166">40</text>
+        <text x="50" y="117">50</text>
+        <text x="50" y="68">60</text>
+      </g>
+      <text x="60" y="26" fill="currentColor" opacity=".6"
+            font-family="IBM Plex Sans, sans-serif" font-size="11.5">Файлов под версией</text>
+
+      <line x1="652" y1="40" x2="652" y2="260" stroke="currentColor" stroke-width="1"
+            stroke-dasharray="3 4" opacity=".3"></line>
+      <g fill="currentColor" opacity=".5" font-family="IBM Plex Sans, sans-serif" font-size="10.5">
+        <text x="70" y="280" text-anchor="middle">09:00</text>
+        <text x="187" y="280" text-anchor="middle">12:00</text>
+        <text x="420" y="280" text-anchor="middle">18:00</text>
+        <text x="652" y="280" text-anchor="middle">00:00</text>
+        <text x="644" y="52" text-anchor="end" font-size="10">30 августа</text>
+        <text x="660" y="52" font-size="10">31 августа</text>
+      </g>
+
+      <polyline fill="none" stroke="var(--home)" stroke-width="2"
+                stroke-linejoin="round" stroke-linecap="round"
+                points="60,245 70,240 86,143 108,89 239,84 440,79 490,60 860,55"></polyline>
+
+      <g fill="var(--home)">
+        <circle cx="60" cy="245" r="4"><title>30.08 08:44 — 23 файла: начальная конфигурация</title></circle>
+        <circle cx="70" cy="240" r="4"><title>30.08 08:59 — 24 файла: чек-лист медиа-стека</title></circle>
+        <circle cx="86" cy="143" r="4"><title>30.08 09:25 — 44 файла: Liquid-шаблоны Пачки</title></circle>
+        <circle cx="108" cy="89" r="4"><title>30.08 09:58 — 55 файлов: тесты и покрытие проверками</title></circle>
+        <circle cx="239" cy="84" r="4"><title>30.08 13:20 — 56 файлов: дорожная карта</title></circle>
+        <circle cx="440" cy="79" r="4"><title>30.08 18:32 — 57 файлов: починка кэша pip в CI</title></circle>
+        <circle cx="490" cy="60" r="4"><title>30.08 19:48 — 61 файл: проверка переводов строк</title></circle>
+        <circle cx="860" cy="55" r="4"><title>31.08 05:21 — 62 файла: гайд по журналам</title></circle>
+      </g>
+
+      <g font-family="IBM Plex Sans, sans-serif" font-size="11.5" fill="currentColor">
+        <text x="854" y="44" text-anchor="end" opacity=".75">62</text>
+      </g>
+    </svg>
+    <figcaption>
+      Резкий подъём в первые полтора часа — шаблоны уведомлений и тесты,
+      21 и 11 файлов соответственно. Дальше рост почти прекращается: всё
+      остальное время ушло не на новые файлы, а на правку существующих.
+      Это типичная форма для конфигурационного репозитория и повод не пугаться
+      «остановки»: содержательная работа после первого дня видна в диффах,
+      а не в числе файлов.
+    </figcaption>
+  </figure>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Когда</th><th>Что появилось</th><th>Зачем это понадобилось</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="num-col">30.08<br>08:44</td>
+          <td>Два <code>compose.yaml</code>, пакеты HA, дашборд</td>
+          <td>Рабочая конфигурация как она есть — отправная точка</td>
+        </tr>
+        <tr>
+          <td class="num-col">30.08<br>08:59</td>
+          <td>Чек-лист медиа-стека, обезличивание</td>
+          <td>Репозиторий решено сделать публичным, MAC-адреса и имена сетей вычищены</td>
+        </tr>
+        <tr>
+          <td class="num-col">30.08<br>09:25</td>
+          <td>Liquid-шаблоны Пачки и примеры payload</td>
+          <td>Уведомления от четырёх сервисов приводятся к одному виду</td>
+        </tr>
+        <tr>
+          <td class="num-col">30.08<br>09:34</td>
+          <td>Разделение на два чата</td>
+          <td>«Кинозал» для фильмов, «Мониторинг» для аварий — их читают по-разному</td>
+        </tr>
+        <tr>
+          <td class="num-col">30.08<br>09:58</td>
+          <td>Тесты и полное покрытие проверками</td>
+          <td>Ключевой поворот: конфигурация начинает проверяться автоматически</td>
+        </tr>
+        <tr>
+          <td class="num-col">30.08<br>13:20</td>
+          <td>Дорожная карта</td>
+          <td>Отделить «сделаем потом» от «решено не делать»</td>
+        </tr>
+        <tr>
+          <td class="num-col">30.08<br>18:14</td>
+          <td>Семь PR от Dependabot</td>
+          <td>Первое столкновение с автоматикой обновлений — и её последствиями</td>
+        </tr>
+        <tr>
+          <td class="num-col">30.08<br>18:32</td>
+          <td>Починка кэша pip в CI</td>
+          <td>Все восемь задач падали до первой проверки; поймано тестом на workflow</td>
+        </tr>
+        <tr>
+          <td class="num-col">30.08<br>22:27</td>
+          <td>Разрешение и кодек в уведомлениях Jellyfin</td>
+          <td>Стало видно, запустится ли транскод, ещё до нажатия «играть»</td>
+        </tr>
+        <tr>
+          <td class="num-col">31.08<br>05:21</td>
+          <td>Лимит журналов, гайд по логам</td>
+          <td>Последнее место, где что-то росло без ограничения</td>
+        </tr>
+        <tr>
+          <td class="num-col">31.08<br>06:12</td>
+          <td>Сверка надзора с compose-файлами</td>
+          <td>Тест обещал больше, чем проверял: сервис можно было забыть целиком</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note why"><b>Поучительный эпизод — Dependabot.</b>
+    Семь PR завелись одновременно, ветки — от одного и того же <code>main</code>.
+    Слияние второго откатывало правку первого, и в <code>main</code> оказалось
+    шесть <code>checkout@v4</code> рядом с одним <code>checkout@v7</code>.
+    Отдельно выяснилось, что <code>cache: pip</code> у <code>setup-python</code>
+    ищет зависимости только в <code>requirements.txt</code> и
+    <code>pyproject.toml</code>, а файл здесь называется
+    <code>requirements-dev.txt</code> — все задачи падали ещё до первой проверки.
+    Оба случая теперь закрыты тестами в <code class="path">tests/test_workflow.py</code>:
+    расхождение версий внутри файла и <code>cache</code> без
+    <code>cache-dependency-path</code>. Проверки, проверяющие сами проверки, —
+    не паранойя, а прямое следствие этого дня.</div>
+</section>
+
+<section id="s2">
+  <div class="sec-head">
+    <div class="kicker">Раздел 2</div>
+    <h2>Правила, которые из этого выросли</h2>
+    <p>
+      Ни одно из них не было решено заранее — все появились как реакция
+      на конкретную неприятность. Поэтому они и держатся.
+    </p>
+  </div>
+
+  <div class="note why"><b>Клон репозитория и есть рабочая конфигурация.</b>
+    Каталог <code>config</code> Home Assistant примонтирован относительным
+    путём <code>./config</code>, то есть рабочее дерево git — это и есть
+    то, что читает HA. Правка видна в <code>git status</code> сразу, без
+    копирования файлов туда-обратно. Именно это свойство стоит того, чтобы
+    отказаться от Home Assistant OS в виртуальной машине, — и оно же
+    единственная причина, по которой конфигурация вообще не расходится
+    с репозиторием.</div>
+
+  <div class="note why"><b>Комментарий объясняет «почему», а не «что».</b>
+    <code>network_mode: host</code> понятен и без пояснений; непонятно,
+    почему нельзя иначе. Поэтому рядом написано: без host-сети не работает
+    обнаружение телевизора по SSDP и Wake-on-LAN не уходит в бродкаст.
+    Через полгода ценность именно в этой строке.</div>
+
+  <div class="note why"><b>Всё, что может тихо разойтись, сверяется тестом.</b>
+    Список контейнеров под надзором — с двумя <code>compose.yaml</code>.
+    Каждый <code>entity_id</code> из автоматизаций — с тем, кто его создаёт.
+    Каждый скрипт, упомянутый в workflow, — с файловой системой. Версии
+    действий — между собой. Это не покрытие ради покрытия: каждая такая
+    проверка появилась после случая, когда что-то разошлось молча.</div>
+
+  <div class="note warn"><b>Обезличивание — отдельная проверка, а не аккуратность.</b>
+    Репозиторий публичный. MAC-адреса, имена устройств и имя Wi-Fi сети
+    вычищены один раз, но следующая правка легко вернёт их обратно, особенно
+    при копировании из личных заметок. Имя точки доступа есть в открытых базах
+    геолокации по SSID: рядом с именем аккаунта GitHub оно указывает
+    на домашний адрес. Поэтому <code>validate_docs.py</code> ищет их в каждом
+    отслеживаемом файле на каждый push.</div>
+
+  <div class="note"><b>Отказы записываются вместе с причиной.</b>
+    В дорожной карте есть раздел «Сознательно не делаем» — Kubernetes,
+    4K-библиотека, аппаратное транскодирование, локальный доступ Алисы.
+    Смысл не в том, чтобы закрыть тему, а в том, чтобы через полгода
+    не проходить те же рассуждения заново. Раздел 4 этого документа —
+    ровно такой разбор для Prometheus и Grafana.</div>
+</section>
+
+<section id="s3">
+  <div class="sec-head">
+    <div class="kicker">Раздел 3</div>
+    <h2>Замеры</h2>
+    <p>
+      Раздел разделён намеренно. Сначала то, что измерено и воспроизводится
+      кем угодно, — сам репозиторий и его проверки. Потом методика для NAS,
+      который измерить отсюда невозможно.
+    </p>
+  </div>
+
+  <div class="note crit"><b>Чего здесь нет.</b> Цифр производительности
+    самого DS725+. Их нельзя получить, не запустив замер на этой машине,
+    а выдуманное число в документе хуже отсутствующего: на него сошлются.
+    Ниже — протокол, по которому вы получите свои, и таблица, куда их
+    записать.</div>
+
+  <h3 style="margin-top:30px;font-size:18px">Проверки репозитория — измерено</h3>
+  <p style="color:var(--ink-2);max-width:70ch;margin-top:10px">
+    Лучшее из трёх прогонов, машина — 4 ядра Xeon 2,8 ГГц, 16 ГБ, Python 3.11.15.
+    Это <b>не</b> NAS: на двухъядерном R1600 числа будут заметно больше.
+    Ценность не в абсолютных величинах, а в пропорции между проверками —
+    она от машины почти не зависит.
+  </p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Проверка</th><th>Что делает</th><th class="num-col">Время</th></tr></thead>
+      <tbody>
+        <tr><td><code>pytest</code></td><td>114 тестов</td><td class="num-col">7,58 с</td></tr>
+        <tr><td><code>yamllint</code></td><td>4 каталога YAML</td><td class="num-col">0,32 с</td></tr>
+        <tr><td><code>render_pachca.py --check</code></td><td>26 пар «шаблон × payload»</td><td class="num-col">0,22 с</td></tr>
+        <tr><td><code>validate_config.py</code></td><td>12 файлов, Jinja, секреты</td><td class="num-col">0,22 с</td></tr>
+        <tr><td><code>validate_entities.py</code></td><td>сверка entity_id</td><td class="num-col">0,12 с</td></tr>
+        <tr><td><code>validate_docs.py</code></td><td>4 страницы, ссылки, 61 файл на обезличивание</td><td class="num-col">0,13 с</td></tr>
+        <tr><td><code>check_files.py</code></td><td>63 файла на переводы строк</td><td class="num-col">0,04 с</td></tr>
+        <tr><td><code>ruff check .</code></td><td>13 файлов Python</td><td class="num-col">0,01 с</td></tr>
+        <tr><td><b>Всего последовательно</b></td><td></td><td class="num-col"><b>8,64 с</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p style="color:var(--ink-2);max-width:70ch;margin-top:14px">
+    <b>Восемьдесят восемь процентов времени — pytest</b>, и распределено оно
+    внутри неожиданно. Стоимость определяется не числом тестов, а тем,
+    запускает ли тест отдельный процесс:
+  </p>
+
+  <figure>
+    <svg viewBox="0 0 900 250" role="img"
+         aria-label="Стоимость одного теста по файлам: test_docker_state 448 миллисекунд, test_http_check 173, test_workflow 42, test_pachca_templates 7 миллисекунд.">
+      <text x="0" y="18" fill="currentColor" opacity=".6"
+            font-family="IBM Plex Sans, sans-serif" font-size="11.5">Миллисекунд на один тест</text>
+      <line x1="200" y1="34" x2="200" y2="222" stroke="currentColor" stroke-width="1" opacity=".25"></line>
+
+      <g fill="var(--home)">
+        <rect x="200" y="40" width="660" height="22" rx="4"><title>test_docker_state.py — 13 тестов, 5,82 с, 448 мс на тест</title></rect>
+        <rect x="200" y="90" width="255" height="22" rx="4"><title>test_http_check.py — 9 тестов, 1,56 с, 173 мс на тест</title></rect>
+        <rect x="200" y="140" width="62" height="22" rx="4"><title>test_workflow.py — 6 тестов, 0,25 с, 42 мс на тест</title></rect>
+        <rect x="200" y="190" width="10" height="22" rx="4"><title>test_pachca_templates.py — 86 тестов, 0,60 с, 7 мс на тест</title></rect>
+      </g>
+
+      <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="12.5" text-anchor="end">
+        <text x="188" y="56">test_docker_state</text>
+        <text x="188" y="106">test_http_check</text>
+        <text x="188" y="156">test_workflow</text>
+        <text x="188" y="206">test_pachca_templates</text>
+      </g>
+      <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="12" opacity=".75">
+        <text x="848" y="56" text-anchor="end" fill="var(--surface)">448 мс</text>
+        <text x="467" y="106">173 мс</text>
+        <text x="274" y="156">42 мс</text>
+        <text x="222" y="206">7 мс</text>
+      </g>
+    </svg>
+    <figcaption>
+      <code>test_pachca_templates</code> прогоняет 86 тестов за 0,6 секунды —
+      он рендерит шаблоны в том же процессе. <code>test_docker_state</code>
+      на 13 тестов тратит 5,8 секунды, потому что каждый поднимает подставной
+      HTTP-сервер и запускает скрипт отдельным процессом. Разница на тест —
+      шестидесятикратная. Вывод практический: покрытие здесь дёшево, дорого
+      именно порождение процессов, и оптимизировать при желании нужно
+      один файл из четырёх, а не «тесты вообще».
+    </figcaption>
+  </figure>
+
+  <div class="note"><b>Почему это вообще важно.</b> Восемь задач CI идут
+    параллельно, так что на GitHub общее время определяет самая долгая, —
+    а это установка зависимостей, не проверки. Локально же все проверки
+    подряд занимают меньше десяти секунд, и это то число, ради которого
+    стоит гонять их перед каждым коммитом, а не надеяться на CI.</div>
+
+  <h3 style="margin-top:34px;font-size:18px">NAS — как измерить у себя</h3>
+  <p style="color:var(--ink-2);max-width:70ch;margin-top:10px">
+    Замер имеет смысл только в сравнении состояний. Одно число «Jellyfin ест
+    40 % CPU» не говорит ни о чём; «12 % в покое и 190 % при транскоде»
+    отвечает сразу на всё.
+  </p>
+
+  <ol class="steps">
+    <li class="step">
+      <div class="step-body" style="grid-column:1/-1">
+        <h3><span class="num">3.1</span> Снимок здесь и сейчас</h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>docker stats --no-stream \
+  --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}'</code></pre></div>
+        <p>
+          <code>CPUPerc</code> считается от <b>одного</b> ядра: 100 % — это
+          ядро целиком, а на четырёх потоках R1600 потолок 400 %. Значение
+          выше 100 % у Jellyfin означает работающий транскод, и это ровно
+          тот случай, ради которого приставка подключена к телевизору напрямую.
+        </p>
+      </div>
+    </li>
+
+    <li class="step">
+      <div class="step-body" style="grid-column:1/-1">
+        <h3><span class="num">3.2</span> Ряд наблюдений вместо снимка</h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code><span class="c"># Час наблюдений с шагом 10 секунд — в CSV, который потом откроется в чём угодно</span>
+OUT=/volume1/homes/$USER/stats-$(date +%Y%m%d-%H%M).csv
+echo "ts,name,cpu,mem" &gt; "$OUT"
+for i in $(seq 360); do
+  docker stats --no-stream --format "$(date +%s),{{.Name}},{{.CPUPerc}},{{.MemUsage}}" &gt;&gt; "$OUT"
+  sleep 10
+done</code></pre></div>
+        <div class="note warn"><b>Это временный замер, а не постоянная настройка.</b>
+          Сбор поконтейнерной статистики стоит дорого — именно поэтому
+          Monitor Docker в этой конфигурации опрашивается <b>раз в час</b>,
+          а дешёвая проверка «жив или нет» вынесена в отдельный
+          <code>docker_state.py</code> с опросом раз в минуту. Оставлять
+          десятисекундный цикл включённым на двух ядрах не стоит: он сам
+          станет заметной нагрузкой.</div>
+      </div>
+    </li>
+
+    <li class="step">
+      <div class="step-body" style="grid-column:1/-1">
+        <h3><span class="num">3.3</span> Пять состояний, которые стоит снять</h3>
+        <p>
+          Каждое — по десять минут, между ними дать системе успокоиться.
+          Пустая таблица ниже рассчитана на то, чтобы её заполнить и положить
+          рядом с этим документом.
+        </p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Состояние</th><th>Как воспроизвести</th><th class="num-col">CPU, %</th><th class="num-col">Память</th><th class="num-col">Отклик UI</th></tr></thead>
+            <tbody>
+              <tr><td>Покой</td><td>ничего не играет, загрузок нет</td><td class="num-col">—</td><td class="num-col">—</td><td class="num-col">—</td></tr>
+              <tr><td>Прямое воспроизведение</td><td>фильм 1080p через приставку GX1</td><td class="num-col">—</td><td class="num-col">—</td><td class="num-col">—</td></tr>
+              <tr><td>Транскод</td><td>тот же файл в браузере с принудительным качеством</td><td class="num-col">—</td><td class="num-col">—</td><td class="num-col">—</td></tr>
+              <tr><td>Скан библиотеки</td><td>Jellyfin → Панель → Сканировать</td><td class="num-col">—</td><td class="num-col">—</td><td class="num-col">—</td></tr>
+              <tr><td>Активная загрузка</td><td>раздача на полной скорости канала</td><td class="num-col">—</td><td class="num-col">—</td><td class="num-col">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          «Отклик UI» — субъективно, но записывать стоит: секунда задержки
+          в интерфейсе Radarr при скане говорит о нехватке дисковых операций
+          яснее любого счётчика.
+        </p>
+      </div>
+    </li>
+
+    <li class="step">
+      <div class="step-body" style="grid-column:1/-1">
+        <h3><span class="num">3.4</span> Диски — там, где узкое место</h3>
+        <p>
+          <code>iostat</code> в DSM по умолчанию нет, зато есть <b>Монитор
+          ресурсов</b> с вкладкой «Диск»: очередь запросов и время отклика
+          там честные. Из консоли годится и это:
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code><span class="c"># Средняя загрузка: третье число — среднее за 15 минут</span>
+cat /proc/loadavg
+
+<span class="c"># Процессы в состоянии ожидания диска (D) — их наличие важнее любых процентов</span>
+ps -eo state,pid,comm | awk '$1 ~ /D/'</code></pre></div>
+        <div class="note why"><b>Что считать нормой.</b> На двух ядрах
+          <code>loadavg</code> устойчиво выше 2 означает очередь. Но важнее
+          другое: процессы в состоянии <code>D</code> ждут не процессор,
+          а диск, и именно они превращаются в «интерфейс задумался».
+          Если они появляются регулярно — планка памяти этого не вылечит,
+          нужен том на NVMe из дорожной карты.</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s4">
+  <div class="sec-head">
+    <div class="kicker">Раздел 4</div>
+    <h2>Prometheus и Grafana: стоит ли</h2>
+    <p>
+      Вопрос возвращается регулярно, поэтому разобран подробно. Короткий
+      ответ: <b>сейчас нет</b>, и не потому, что «слишком сложно», а потому
+      что задача, которую они решают, здесь пока решается дешевле.
+      Но у отказа есть конкретный срок годности.
+    </p>
+  </div>
+
+  <h3 style="margin-top:8px;font-size:18px">Что уже есть без них</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Что</th><th>Откуда</th><th>Темп</th><th>Хранение</th></tr></thead>
+      <tbody>
+        <tr><td>CPU и память по контейнерам</td><td>Monitor Docker через <code>dockerproxy</code></td><td>раз в час</td><td>почасовые агрегаты — неограниченно</td></tr>
+        <tr><td>Жив контейнер или нет</td><td><code>docker_state.py</code></td><td>раз в минуту</td><td>сырые состояния — 21 день</td></tr>
+        <tr><td>Отвечает ли сервис по HTTP</td><td><code>http_check.py</code> × 6</td><td>раз в минуту</td><td>сырые состояния — 21 день</td></tr>
+        <tr><td>Температура, SMART, объём тома</td><td>интеграция Synology DSM</td><td>штатный опрос</td><td>почасовые агрегаты — неограниченно</td></tr>
+        <tr><td>Графики и история</td><td>встроенные карточки HA</td><td>—</td><td>—</td></tr>
+        <tr><td>Уведомления при отклонении</td><td>автоматизации → Пачка</td><td>событийно</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note why"><b>Ключевое различие, которое часто упускают.</b>
+    В Home Assistant два хранилища, а не одно. <code>recorder</code> держит
+    сырые состояния <code>purge_keep_days: 21</code> и чистит их. Но у сенсоров
+    с <code>state_class</code> есть отдельная долговременная статистика —
+    почасовые минимум, максимум и среднее, которые <b>не удаляются вообще</b>.
+    То есть «сколько Jellyfin ел в марте» система ответит и через год. Это
+    именно та задача, ради которой обычно и ставят отдельную базу метрик.</div>
+
+  <h3 style="margin-top:30px;font-size:18px">Что Prometheus добавил бы на самом деле</h3>
+  <p style="color:var(--ink-2);max-width:70ch;margin-top:10px">
+    Не «графики» — графики есть. Единственное настоящее приобретение —
+    <b>разрешение по времени</b>.
+  </p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Вариант</th><th>Шаг</th><th class="num-col">Точек в сутки</th><th>Цена</th></tr></thead>
+      <tbody>
+        <tr><td>Сейчас: <code>scan_interval: 3600</code></td><td>час</td><td class="num-col">24</td><td>ноль</td></tr>
+        <tr><td>Строка в <code>docker.yaml</code>: <code>scan_interval: 300</code></td><td>5 минут</td><td class="num-col">288</td><td>одна правка, ноль контейнеров</td></tr>
+        <tr><td>Prometheus со штатным опросом</td><td>15 секунд</td><td class="num-col">5760</td><td>3–4 контейнера, ~1 ГБ памяти, постоянная запись на диски</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note"><b>Арифметика, которая решает вопрос.</b>
+    От нынешнего часа до пяти минут — рост разрешения в <b>12 раз</b> ценой
+    одной строки: в <code>packages/docker.yaml</code> это прямо написано
+    в комментарии как предусмотренный ход. От пяти минут до пятнадцати секунд —
+    рост ещё в 20 раз, но уже ценой четырёх контейнеров и второй системы,
+    которую надо обслуживать. Первый шаг почти бесплатен, второй —
+    несоразмерен, пока не доказано, что пяти минут не хватает.</div>
+
+  <h3 style="margin-top:30px;font-size:18px">Во что обойдётся</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Компонент</th><th>Зачем</th><th class="num-col">Память</th><th>Настоящая цена</th></tr></thead>
+      <tbody>
+        <tr><td>Prometheus</td><td>сбор и хранение</td><td class="num-col">300–500 МБ</td><td>непрерывная запись WAL и уплотнение блоков</td></tr>
+        <tr><td>Grafana</td><td>графики</td><td class="num-col">150–250 МБ</td><td>вторая система дашбордов рядом с существующей</td></tr>
+        <tr><td>cAdvisor</td><td>метрики контейнеров</td><td class="num-col">150–300 МБ</td><td><b>заметная постоянная нагрузка на CPU</b> — на двух ядрах это главная статья</td></tr>
+        <tr><td>node_exporter</td><td>метрики хоста</td><td class="num-col">~20 МБ</td><td>дублирует то, что уже даёт интеграция DSM</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note crit"><b>Диски, а не память.</b> После установки планки
+    на 8 ГБ памяти в системе будет с избытком, и ~1 ГБ под стек метрик
+    погоды не сделает. Но база метрик пишет <b>постоянно</b>, каждый интервал
+    опроса, на те же два шпинделя, где уже лежат библиотека, базы Radarr
+    и Prowlarr, база Home Assistant и загрузки qBittorrent. Именно дисковые
+    операции здесь дефицитны — и добавлять к ним равномерный фоновый поток
+    ради разрешения, которого пока никто не потребовал, значит платить
+    самым дефицитным ресурсом за наименее дефицитную потребность.</div>
+
+  <div class="note warn"><b>И ещё одна цена, специфичная для этого репозитория.</b>
+    Главное свойство проекта — клон репозитория и есть рабочая конфигурация.
+    Дашборды Grafana, собранные мышкой, живут в томе контейнера и в git
+    не попадают: свойство ломается на первом же дашборде. Сохранить его
+    можно — provisioning-файлы и JSON дашбордов в репозитории, под теми же
+    проверками, — но это уже не «поставить два контейнера», а полноценная
+    подсистема со своим сопровождением.</div>
+
+  <h3 style="margin-top:30px;font-size:18px">Когда ответ изменится</h3>
+  <p style="color:var(--ink-2);max-width:70ch;margin-top:10px">
+    Два условия. Каждого по отдельности достаточно.
+  </p>
+
+  <ul style="color:var(--ink-2);max-width:70ch;margin-top:10px;padding-left:20px">
+    <li style="margin:8px 0"><b>Появился второй хост.</b> Это же условие
+      стоит у пункта «Второй наблюдатель» в дорожной карте, и не случайно.
+      Пока машина одна, вся телеметрия хранится на той самой машине, за которой
+      следит, — и её собственное падение не увидит никто. Второй хост снимает
+      это ограничение, и вот тогда полноценная база метрик на нём становится
+      естественным решением, а не роскошью.</li>
+    <li style="margin:8px 0"><b>Пяти минут действительно не хватило.</b>
+      Не «хочется красивее», а конкретно: вы поставили
+      <code>scan_interval: 300</code>, неделю ловили проблему — и она
+      по-прежнему не видна, потому что живёт на масштабе секунд. Такое бывает:
+      всплеск CPU при старте транскода длится меньше минуты и в
+      пятиминутном среднем размывается. Если дошло до этого — вопрос закрыт
+      в пользу Prometheus, и спорить не о чем.</li>
+  </ul>
+
+  <div class="note why"><b>Что делать сейчас, если детализации не хватает.</b>
+    По порядку возрастания цены: поставить <code>scan_interval: 300</code>
+    и подождать неделю; если мало — снять разовый ряд наблюдений из шага 3.2
+    с шагом 10 секунд на время разбора; и только если и этого мало — заводить
+    отдельную базу метрик. Первые два шага занимают вечер вместе взятые
+    и в девяти случаях из десяти закрывают вопрос.</div>
+</section>
+
+<section id="s5">
+  <div class="sec-head">
+    <div class="kicker">Раздел 5</div>
+    <h2>Куда это растёт</h2>
+  </div>
+
+  <p style="color:var(--ink-2);max-width:70ch">
+    Полный список с поводами и оценкой усилий —
+    в <a href="https://github.com/hhypest/hh-homelab/blob/main/docs/roadmap.md">дорожной карте</a>.
+    Три вещи, которые закрывают настоящие дыры, а не добавляют удобств:
+  </p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th class="num-col">№</th><th>Что</th><th>Почему именно это</th></tr></thead>
+      <tbody>
+        <tr><td class="num-col">1</td><td>Внешний пульс</td><td>Всё, что шлёт уведомления, работает на самом NAS. Его падение не заметит никто — это единственная логическая дыра в мониторинге</td></tr>
+        <tr><td class="num-col">2</td><td>ИБП по USB</td><td>Отключение питания на записи — битый том и долгая проверка на двухдисковом массиве</td></tr>
+        <tr><td class="num-col">3</td><td>Версии образов вместо <code>:latest</code></td><td><code>:latest</code> однажды принесёт несовместимое изменение ночью</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note"><b>Про память и новые сервисы.</b> Планка на 8 ГБ
+    (4 → 12 ГБ) снимает вопрос с памятью полностью: Sonarr и Bazarr вместе
+    добавляют около 0,5–0,8 ГБ при свободных примерно шести. Но упрутся они
+    не в память, а в два ядра и два шпинделя: Sonarr в покое почти бесплатен,
+    а Bazarr при синхронизации субтитров разбирает звуковую дорожку через
+    ffmpeg и конкурирует ровно за тот ресурс, которого не хватает транскоду.
+    После их появления пункт «Том на NVMe» из дорожной карты становится
+    следующим по важности.</div>
+
+  <p class="crosslink">Пошаговые документы:
+    <a href="media-stack.html">настройка медиа-стека</a> ·
+    <a href="index.html">развёртывание Home Assistant</a> ·
+    <a href="logs.html">журналы контейнеров</a>.</p>
+</section>
+
+</main>
+</div>
+
+<footer>
+  <div class="wrap">
+    hh-homelab · обзор проекта · замеры репозитория воспроизводятся командами
+    из раздела 3, замеры NAS — ваши
+  </div>
+</footer>
+
+<script>
+(function () {
+  var toc = document.getElementById('toc');
+  var sections = Array.prototype.slice.call(document.querySelectorAll('main section'));
+
+  sections.forEach(function (sec) {
+    var h2 = sec.querySelector('h2');
+    if (!h2) return;
+    var kicker = sec.querySelector('.kicker');
+    var label = (kicker ? kicker.textContent.replace(/Раздел\s*/i, '').replace(/Приложение\s*/i, '') : '').trim();
+    var li = document.createElement('li');
+    var a = document.createElement('a');
+    a.href = '#' + sec.id;
+    a.dataset.sec = sec.id;
+    a.innerHTML = '<span class="n">' + label + '</span><span>' + h2.textContent.trim() + '</span>';
+    li.appendChild(a);
+    toc.appendChild(li);
+  });
+
+  /* ---- кнопки «копировать» ---- */
+  Array.prototype.forEach.call(document.querySelectorAll('.code .copy'), function (btn) {
+    btn.addEventListener('click', function () {
+      var pre = btn.parentNode.querySelector('pre');
+      if (!pre) return;
+      var text = pre.innerText;
+      var done = function () {
+        var old = btn.textContent;
+        btn.textContent = 'скопировано';
+        setTimeout(function () { btn.textContent = old; }, 1400);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () {});
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) {}
+        document.body.removeChild(ta);
+      }
+    });
+  });
+
+  /* ---- подсветка текущего раздела ---- */
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        var link = toc.querySelector('a[data-sec="' + entry.target.id + '"]');
+        if (!link) return;
+        if (entry.isIntersecting) {
+          Array.prototype.forEach.call(toc.querySelectorAll('a'), function (a) { a.classList.remove('active'); });
+          link.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-10% 0px -75% 0px' });
+    sections.forEach(function (s) { obs.observe(s); });
+  }
+})();
+</script>
+
+</body>
+</html>

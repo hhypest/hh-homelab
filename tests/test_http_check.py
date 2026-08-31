@@ -63,49 +63,49 @@ def run(*args: str) -> subprocess.CompletedProcess:
     )
 
 
-def test_живой_сервис(server: str) -> None:
+def test_live_service_reports_on(server: str) -> None:
     result = run(f"{server}/200")
     assert result.stdout.strip() == "ON"
     assert result.returncode == 0
 
 
 @pytest.mark.parametrize("code", ["401", "403"])
-def test_требует_авторизации_считается_живым(server: str, code: str) -> None:
+def test_auth_required_counts_as_live(server: str, code: str) -> None:
     """qBittorrent за формой логина — живой сервис, а не отказ."""
     assert run(f"{server}/{code}").stdout.strip() == "ON"
 
 
-def test_ошибка_сервера_это_отказ(server: str) -> None:
+def test_server_error_reports_off(server: str) -> None:
     assert run(f"{server}/500").stdout.strip() == "OFF"
 
 
-def test_явный_список_кодов_сужает_проверку(server: str) -> None:
+def test_explicit_codes_narrow_the_check(server: str) -> None:
     """Со вторым аргументом успехом считается только перечисленное."""
     assert run(f"{server}/200", "200").stdout.strip() == "ON"
     assert run(f"{server}/401", "200").stdout.strip() == "OFF"
     assert run(f"{server}/404", "404").stdout.strip() == "ON"
 
 
-def test_сервис_не_слушает_порт() -> None:
+def test_connection_refused_reports_off() -> None:
     """Отказ в соединении — это OFF, а не падение."""
     result = run("http://127.0.0.1:9/")
     assert result.stdout.strip() == "OFF"
     assert result.returncode == 0
 
 
-def test_без_аргументов_не_падает() -> None:
+def test_no_arguments_does_not_crash() -> None:
     result = run()
     assert result.stdout.strip() == "OFF"
     assert result.returncode == 0
 
 
-def test_мусор_вместо_адреса_не_ломает_сенсор() -> None:
+def test_garbage_url_does_not_break_sensor() -> None:
     result = run("не-адрес-вовсе")
     assert result.stdout.strip() == "OFF"
     assert result.returncode == 0
 
 
-def test_печатает_ровно_одно_слово(server: str) -> None:
+def test_prints_exactly_one_word(server: str) -> None:
     """
     command_line-сенсор сравнивает вывод целиком. Любая лишняя строка —
     отладочный print, предупреждение — сделает состояние сенсора неизвестным.

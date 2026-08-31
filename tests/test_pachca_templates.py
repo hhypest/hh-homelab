@@ -30,17 +30,17 @@ def samples_for(service: str) -> list[pathlib.Path]:
 
 
 @pytest.mark.parametrize("template", TEMPLATES, ids=lambda p: p.name)
-def test_шаблон_компилируется(template: pathlib.Path) -> None:
+def test_template_compiles(template: pathlib.Path) -> None:
     Environment().from_string(template.read_text(encoding="utf-8"))
 
 
 @pytest.mark.parametrize("service", SERVICES)
-def test_у_каждого_сервиса_есть_примеры(service: str) -> None:
+def test_every_service_has_samples(service: str) -> None:
     assert samples_for(service), f"нет ни одного samples/{service}-*.json"
 
 
 @pytest.mark.parametrize("sample", sorted((PACHCA / "samples").glob("*.json")), ids=lambda p: p.name)
-def test_пример_это_корректный_json(sample: pathlib.Path) -> None:
+def test_sample_is_valid_json(sample: pathlib.Path) -> None:
     assert isinstance(json.loads(sample.read_text(encoding="utf-8")), dict)
 
 
@@ -51,14 +51,14 @@ def _all_cases():
 
 
 @pytest.mark.parametrize("service,sample", list(_all_cases()), ids=lambda x: getattr(x, "name", x))
-def test_сообщение_непустое(service: str, sample: pathlib.Path) -> None:
+def test_message_is_not_empty(service: str, sample: pathlib.Path) -> None:
     """Пустое сообщение Пачка не отправляет — уведомление просто исчезнет."""
     payload = json.loads(sample.read_text(encoding="utf-8"))
     assert render(PACHCA / f"{service}.liquid", payload)
 
 
 @pytest.mark.parametrize("service,sample", list(_all_cases()), ids=lambda x: getattr(x, "name", x))
-def test_нет_следов_неподставленных_полей(service: str, sample: pathlib.Path) -> None:
+def test_no_unsubstituted_fields_left(service: str, sample: pathlib.Path) -> None:
     """
     Ни nil, ни None, ни пустых скобок: если такое вылезло, значит обращение
     к полю не защищено фильтром default.
@@ -71,13 +71,13 @@ def test_нет_следов_неподставленных_полей(service: 
 
 
 @pytest.mark.parametrize("service,sample", list(_all_cases()), ids=lambda x: getattr(x, "name", x))
-def test_влезает_в_лимит_пачки(service: str, sample: pathlib.Path) -> None:
+def test_fits_pachca_size_limit(service: str, sample: pathlib.Path) -> None:
     payload = json.loads(sample.read_text(encoding="utf-8"))
     assert len(render(PACHCA / f"{service}.liquid", payload).encode("utf-8")) <= 40_000
 
 
 @pytest.mark.parametrize("template", TEMPLATES, ids=lambda p: p.name)
-def test_пустой_payload_не_ломает_шаблон(template: pathlib.Path) -> None:
+def test_empty_payload_does_not_break_template(template: pathlib.Path) -> None:
     """
     Сервис может прислать событие, о котором мы не думали. Шаблон обязан
     что-то сказать, а не упасть и не промолчать.
@@ -85,7 +85,7 @@ def test_пустой_payload_не_ломает_шаблон(template: pathlib.P
     assert render(template, {})
 
 
-def test_размер_считается_в_гигабайтах() -> None:
+def test_size_rendered_in_gigabytes() -> None:
     """
     Классическая ловушка Liquid: divided_by с целым числом делит нацело,
     и любой фильм оказывается ровно «8 ГБ». Точка в 1073741824.0 — защита
@@ -96,7 +96,7 @@ def test_размер_считается_в_гигабайтах() -> None:
     assert "8.4 ГБ" in text, f"дробная часть потерялась: {text!r}"
 
 
-def test_обновление_отличается_от_нового_фильма() -> None:
+def test_upgrade_differs_from_new_movie() -> None:
     """
     Radarr шлёт eventType=Download и на импорт, и на обновление качества.
     Различает их только isUpgrade — если шаблон это потеряет, сообщения
@@ -110,7 +110,7 @@ def test_обновление_отличается_от_нового_фильм�
     assert "качеств" in upgraded.lower()
 
 
-def test_транскодирование_помечается_предупреждением() -> None:
+def test_transcoding_is_flagged() -> None:
     """
     На DS725+ нет аппаратного кодировщика: транскодирование занимает оба ядра.
     Это главное, ради чего вообще включено уведомление о начале просмотра.
@@ -122,7 +122,7 @@ def test_транскодирование_помечается_предупре�
     assert "⚠️" not in direct
 
 
-def test_разрешение_считается_по_ширине_а_не_по_высоте() -> None:
+def test_resolution_uses_width_not_height() -> None:
     """
     Главная ловушка. Кинематографический кадр 2.39:1 в честном 1080p —
     это 1920×804. По высоте его пришлось бы назвать 720p, и уведомление
@@ -148,20 +148,20 @@ def test_разрешение_считается_по_ширине_а_не_по_
         ("320", "SD"),
     ],
 )
-def test_ширина_превращается_в_привычную_метку(width: str, expected: str) -> None:
+def test_width_maps_to_familiar_label(width: str, expected: str) -> None:
     payload = json.loads((PACHCA / "samples/jellyfin-transcode.json").read_text(encoding="utf-8"))
     text = render(PACHCA / "jellyfin.liquid", {**payload, "width": width, "height": "0"})
     assert expected in text, f"ширина {width} дала не «{expected}»: {text!r}"
 
 
-def test_высота_выручает_когда_ширины_нет() -> None:
+def test_height_used_when_width_missing() -> None:
     """Поле может не приехать; тогда считаем по высоте, а не молчим."""
     payload = json.loads((PACHCA / "samples/jellyfin-transcode.json").read_text(encoding="utf-8"))
     text = render(PACHCA / "jellyfin.liquid", {**payload, "width": "", "height": "1080"})
     assert "1080p" in text
 
 
-def test_событие_без_файла_не_показывает_разрешение() -> None:
+def test_event_without_file_shows_no_resolution() -> None:
     """
     У входа в систему и блокировки учётной записи видеодорожки нет вовсе.
     Пустые поля не должны превратиться ни в «0p», ни в висящий разделитель.
@@ -172,7 +172,7 @@ def test_событие_без_файла_не_показывает_разреш
         assert junk not in text, f"в сообщении осталось «{junk}»: {text!r}"
 
 
-def test_кодек_показывается_человеческим_именем() -> None:
+def test_codec_shown_with_human_name() -> None:
     """
     Jellyfin называет кодеки как ffmpeg: hevc, h264. На DS725+ нет
     аппаратного декодера, и по кодеку сразу видно, откуда взялось
@@ -186,7 +186,7 @@ def test_кодек_показывается_человеческим_имене
     assert "PRORES" in render(PACHCA / "jellyfin.liquid", {**payload, "videoCodec": "prores"})
 
 
-def test_разрешение_видно_и_при_пополнении_библиотеки() -> None:
+def test_resolution_shown_on_library_add() -> None:
     """
     Radarr умеет притащить не то качество. Разрешение в уведомлении
     «появилось в Jellyfin» — самый ранний момент, когда это заметно.
@@ -195,7 +195,7 @@ def test_разрешение_видно_и_при_пополнении_библ
     assert "1080p" in render(PACHCA / "jellyfin.liquid", payload)
 
 
-def test_поля_разрешения_есть_в_payload_и_в_шаблоне() -> None:
+def test_resolution_fields_in_payload_and_template() -> None:
     """Два файла правятся вместе; проверка на то, что про второй не забыли."""
     payload = (PACHCA / "payloads/jellyfin.handlebars").read_text(encoding="utf-8")
     liquid = (PACHCA / "jellyfin.liquid").read_text(encoding="utf-8")
@@ -205,7 +205,7 @@ def test_поля_разрешения_есть_в_payload_и_в_шаблоне(
         assert target in liquid, f"поле {target} не используется в jellyfin.liquid"
 
 
-def test_маршрутизатор_узнаёт_всех_отправителей() -> None:
+def test_router_recognises_every_sender() -> None:
     """Один бот на всё — запасной вариант, но он должен работать."""
     router = PACHCA / "media-router.liquid"
     expected = {
@@ -219,12 +219,12 @@ def test_маршрутизатор_узнаёт_всех_отправителе
         assert marker in render(router, payload)
 
 
-def test_маршрутизатор_честно_признаётся_если_не_узнал() -> None:
+def test_router_admits_unknown_sender() -> None:
     text = render(PACHCA / "media-router.liquid", {"чужое": "поле"})
     assert "еопознанн" in text
 
 
-def test_payload_seerr_остаётся_корректным_json() -> None:
+def test_seerr_payload_stays_valid_json() -> None:
     """
     Seerr подставляет значения прямо в этот JSON. Файл должен разбираться
     и до подстановки — иначе Seerr его не примет.
@@ -234,7 +234,7 @@ def test_payload_seerr_остаётся_корректным_json() -> None:
     assert payload["type"] == "{{notification_type}}"
 
 
-def test_payload_jellyfin_даёт_корректный_json_после_подстановки() -> None:
+def test_jellyfin_payload_valid_json_after_substitution() -> None:
     """
     Файл — шаблон Handlebars, до подстановки это не JSON. Проверяем, что
     после замены плейсхолдеров получается разбираемая структура и что
