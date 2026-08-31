@@ -276,12 +276,13 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
 <body>
 <header class="top">
   <div class="wrap">
-    <div class="eyebrow">Настройка приложений · DS725+ · 30 августа 2026</div>
+    <div class="eyebrow">Установка и настройка · DS725+ · 31 августа 2026</div>
     <h1>Медиа-стек на DS725+</h1>
     <p class="lede">
-      Шесть контейнеров уже запущены — осталось заставить их работать как один
-      конвейер: запрос в Seerr превращается в фильм в библиотеке Jellyfin без
-      единого лишнего копирования по диску.
+      От пустого NAS до работающего конвейера: шесть контейнеров поднимаются
+      и связываются так, что запрос в Seerr превращается в фильм в библиотеке
+      Jellyfin без единого лишнего копирования по диску. Установка —
+      в разделе 2, дальше настройка приложений по цепочке.
     </p>
     <div class="facts">
       <span class="fact"><span class="dot home"></span>NAS <b>192.168.3.53</b></span>
@@ -291,9 +292,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
       <span class="fact">телевизор <b>1366×768</b></span>
     </div>
 
-    <p class="crosslink">Ещё не подняли стек? <a href="overview.html">Обзор проекта</a>,
-      раздел 5 — установка с нуля и переезд со старой схемы.<br>
-      Соседние документы: <a href="index.html">развёртывание Home Assistant</a>
+    <p class="crosslink">Соседние документы: <a href="index.html">развёртывание Home Assistant</a>
       — метрики, уведомления в Пачку и управление телевизором;
       <a href="logs.html">журналы контейнеров</a> — ограничение размера, уборка и чтение.</p>
   </div>
@@ -534,6 +533,187 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
 <section id="s2">
   <div class="sec-head">
     <div class="kicker">Раздел 2</div>
+    <h2>Установка стека</h2>
+    <p>
+      Папки из раздела 1 готовы — можно поднимать контейнеры. Порядок именно
+      такой: <code class="path">/volume1/data</code> должен существовать
+      до первого запуска, иначе Docker создаст его сам и от <code>root</code>.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="m2-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.1</span> Склонировать репозиторий<span class="tag key">суть</span></h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker
+sudo git clone https://github.com/hhypest/hh-homelab.git
+cd hh-homelab</code></pre></div>
+        <div class="note why"><b>Клон и есть рабочая конфигурация.</b>
+          В <code>compose.yaml</code> состояние сервисов примонтировано
+          относительными путями — <code>./config/&lt;сервис&gt;</code>,
+          <code>./cache/jellyfin</code>, <code>./watch</code>, — а Compose
+          разрешает такие пути от каталога самого compose-файла. Весь стек
+          поэтому переносится вместе с репозиторием: склонировали в другое
+          место — поднимается там же, без единой правки путей. Обновление
+          приходит одним <code>git pull</code>, откат — обычным
+          <code>git checkout</code>.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m2-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.2</span> Создать каталоги состояния</h3>
+        <p>
+          В git их нет — это базы SQLite, кэши и логи, версионировать нечего.
+          Но существовать они должны <b>до</b> первого запуска:
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab
+sudo mkdir -p media/config/{qbittorrent,prowlarr,radarr,jellyfin,seerr} \
+              media/cache/jellyfin media/watch
+sudo chown -R 1026:100 media</code></pre></div>
+        <div class="note crit"><b>Пропустить этот шаг — потерять вечер на ложный след.</b>
+          Если каталога нет, Docker создаст его сам, и владельцем будет
+          <code>root</code>. Контейнер с <code>PUID=1026</code> писать в него
+          не сможет: Radarr стартует и тут же падает, qBittorrent поднимается
+          с пустыми настройками и забывает их при каждом перезапуске. Выглядит
+          как сломанное приложение, а дело в правах. Лечится тем же
+          <code>chown -R 1026:100</code> и пересозданием контейнера.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m2-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.3</span> Сверить PUID и PGID со своими</h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>id ваш_логин</code></pre></div>
+        <p>
+          В <code>compose.yaml</code> прописаны <code>PUID=1026</code>
+          и <code>PGID=100</code> — это владелец
+          <code class="path">/volume1/data</code> из шага 1.1. Если у вас другие,
+          поправьте у всех шести сервисов, иначе получите ту же историю
+          с правами, что в предыдущем шаге.
+        </p>
+        <p>Заодно проверьте, что YAML вообще разбирается:</p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/media
+sudo docker compose config &gt;/dev/null &amp;&amp; echo 'файл в порядке'</code></pre></div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m2-4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.4</span> Поднять стек</h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/media
+sudo docker compose up -d</code></pre></div>
+        <p>
+          Первый запуск дольше остальных: образы качаются, приложения
+          разворачивают пустые базы. Шесть контейнеров должны оказаться
+          в состоянии <code>running</code>:
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo docker compose ps</code></pre></div>
+        <div class="note"><b>Через интерфейс DSM.</b> <i>Container Manager →
+          Проект → Создать</i>, путь
+          <code class="path">/volume1/docker/hh-homelab/media</code>, источник —
+          использовать существующий <code>compose.yaml</code>. Каталоги
+          из шага 2.2 всё равно нужно создать по SSH: интерфейс этого
+          не делает.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m2-5">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.5</span> Проверить, что тома смонтированы верно</h3>
+        <p>
+          Стоит потратить полминуты сейчас: неверный том обнаружится иначе
+          через неделю, когда кончится место.
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo docker inspect --format '{{range .Mounts}}{{.Source}} -&gt; {{.Destination}}
+{{end}}' radarr</code></pre></div>
+        <div class="code"><pre><code>/volume1/docker/hh-homelab/media/config/radarr -&gt; /config
+/volume1/data -&gt; /data</code></pre></div>
+        <p>
+          Ключевое — вторая строка: <code class="path">/volume1/data</code> смонтирован
+          <b>целиком</b>, одним томом. Почему это решает судьбу хардлинков,
+          разобрано в шаге 1.2.
+        </p>
+        <p>
+          Дальше открывается шесть веб-интерфейсов — с этого и начинается
+          настройка в следующих разделах:
+        </p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Сервис</th><th>Адрес</th><th>Что должно открыться</th></tr></thead>
+            <tbody>
+              <tr><td>qBittorrent</td><td><a href="http://192.168.3.53:9080">:9080</a></td><td>форма входа</td></tr>
+              <tr><td>Prowlarr</td><td><a href="http://192.168.3.53:9696">:9696</a></td><td>мастер первичной настройки</td></tr>
+              <tr><td>Radarr</td><td><a href="http://192.168.3.53:7878">:7878</a></td><td>мастер первичной настройки</td></tr>
+              <tr><td>FlareSolverr</td><td><a href="http://192.168.3.53:8191">:8191</a></td><td>строка <code>FlareSolverr is ready!</code></td></tr>
+              <tr><td>Jellyfin</td><td><a href="http://192.168.3.53:8096">:8096</a></td><td>мастер первичной настройки</td></tr>
+              <tr><td>Seerr</td><td><a href="http://192.168.3.53:5055">:5055</a></td><td>экран входа</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m2-6">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.6</span> Переезд со старой схемы<span class="tag opt">только если стек уже работал</span></h3>
+        <p>
+          Раньше стек монтировал <code class="path">/volume1/docker/&lt;сервис&gt;/config</code>
+          абсолютными путями. Если он у вас уже настроен, состояние надо
+          перенести — иначе сервисы поднимутся пустыми, будто их настраивают
+          впервые. Свежая установка этот шаг пропускает.
+        </p>
+        <div class="note why"><b>Приложения переезда не заметят.</b>
+          Меняется только хостовая сторона монтирования. Внутри контейнера
+          пути остаются прежними — <code>/config</code>, <code>/data</code>,
+          <code>/data/media</code>. Ни базы Radarr, ни библиотека Jellyfin,
+          ни список раздач qBittorrent не хранят хостовых путей, так что
+          перенастраивать ничего не придётся.</div>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab
+
+<span class="c"># Остановить. Обязательно: внутри базы SQLite, копировать их на ходу —</span>
+<span class="c"># верный способ получить повреждённый файл</span>
+cd media &amp;&amp; sudo docker compose down &amp;&amp; cd ..
+
+<span class="c"># Подстраховаться</span>
+sudo tar czf /volume1/homes/backup-media-$(date +%F).tar.gz \
+  /volume1/docker/{qbittorrent,prowlarr,radarr,jellyfin,seerr}
+
+<span class="c"># Перенести. Оба места на /volume1, поэтому mv мгновенный:</span>
+<span class="c"># это переименование, а не копирование терабайтов</span>
+sudo mkdir -p media/config media/cache
+sudo mv /volume1/docker/qbittorrent/config media/config/qbittorrent
+sudo mv /volume1/docker/qbittorrent/watch  media/watch
+sudo mv /volume1/docker/prowlarr/config    media/config/prowlarr
+sudo mv /volume1/docker/radarr/config      media/config/radarr
+sudo mv /volume1/docker/jellyfin/config    media/config/jellyfin
+sudo mv /volume1/docker/seerr/config       media/config/seerr
+
+<span class="c"># Кэш Jellyfin не переносим — восстановится сам, а весит обычно</span>
+<span class="c"># больше всего остального вместе взятого</span>
+sudo mkdir -p media/cache/jellyfin
+
+sudo chown -R 1026:100 media
+cd media &amp;&amp; sudo docker compose up -d</code></pre></div>
+        <div class="note warn"><b>Старые каталоги не удаляйте сразу.</b>
+          <code class="path">/volume1/docker/qbittorrent</code> и соседние останутся
+          пустыми оболочками — пусть полежат, пока вы не убедитесь по шагу 2.5
+          и по интерфейсам, что все шесть сервисов помнят свои настройки.
+          Откат в этот момент стоит одной команды <code>mv</code> обратно.</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s3">
+  <div class="sec-head">
+    <div class="kicker">Раздел 3</div>
     <h2>qBittorrent</h2>
     <p>
       Веб-интерфейс на <a href="http://192.168.3.53:9080">192.168.3.53:9080</a>.
@@ -542,10 +722,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
   </div>
 
   <ol class="steps">
-    <li class="step" data-key="m2-1">
+    <li class="step" data-key="m3-1">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">2.1</span> Найти временный пароль и сменить его<span class="tag key">сразу</span></h3>
+        <h3><span class="num">3.1</span> Найти временный пароль и сменить его<span class="tag key">сразу</span></h3>
         <p>
           Современные версии qBittorrent не имеют пароля по умолчанию: при
           первом запуске генерируется случайный и печатается в лог контейнера.
@@ -563,10 +743,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m2-2">
+    <li class="step" data-key="m3-2">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">2.2</span> Включить VueTorrent</h3>
+        <h3><span class="num">3.2</span> Включить VueTorrent</h3>
         <p>
           В <code>compose.yaml</code> уже подключён мод
           <code>vuetorrent-lsio-mod</code> — современный интерфейс вместо
@@ -586,10 +766,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m2-3">
+    <li class="step" data-key="m3-3">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">2.3</span> Задать пути загрузок</h3>
+        <h3><span class="num">3.3</span> Задать пути загрузок</h3>
         <p><b>Настройки → Загрузки</b>:</p>
         <div class="tablewrap">
           <table>
@@ -610,10 +790,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m2-4">
+    <li class="step" data-key="m3-4">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">2.4</span> Создать категорию <code>movies</code></h3>
+        <h3><span class="num">3.4</span> Создать категорию <code>movies</code></h3>
         <p>
           В боковой панели, правой кнопкой по «Категории» →
           <b>Добавить категорию</b>:
@@ -633,10 +813,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m2-5">
+    <li class="step" data-key="m3-5">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">2.5</span> Ограничить число соединений<span class="tag key">важно для сети</span></h3>
+        <h3><span class="num">3.5</span> Ограничить число соединений<span class="tag key">важно для сети</span></h3>
         <p><b>Настройки → Соединение</b>:</p>
         <div class="tablewrap">
           <table>
@@ -663,10 +843,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m2-6">
+    <li class="step" data-key="m3-6">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">2.6</span> Настроить раздачу</h3>
+        <h3><span class="num">3.6</span> Настроить раздачу</h3>
         <p>
           <b>Настройки → BitTorrent → Лимиты раздачи</b>: включить «При
           достижении рейтинга» — например, <code>2.0</code> — и действие
@@ -690,9 +870,9 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
   </ol>
 </section>
 
-<section id="s3">
+<section id="s4">
   <div class="sec-head">
-    <div class="kicker">Раздел 3</div>
+    <div class="kicker">Раздел 4</div>
     <h2>FlareSolverr</h2>
     <p>
       Самый простой из шести: у него нет интерфейса и нет настроек. Внутри —
@@ -701,10 +881,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
   </div>
 
   <ol class="steps">
-    <li class="step" data-key="m3-1">
+    <li class="step" data-key="m4-1">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">3.1</span> Проверить, что отвечает</h3>
+        <h3><span class="num">4.1</span> Проверить, что отвечает</h3>
         <div class="code"><button class="copy" type="button">копировать</button><pre><code>curl -s http://127.0.0.1:8191/ | python3 -m json.tool</code></pre></div>
         <p>
           Ожидаемый ответ содержит <code>"msg": "FlareSolverr is ready!"</code>
@@ -714,10 +894,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m3-2">
+    <li class="step" data-key="m4-2">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">3.2</span> Решить, нужен ли он вообще</h3>
+        <h3><span class="num">4.2</span> Решить, нужен ли он вообще</h3>
         <p>
           FlareSolverr требуется только тем индексаторам, которые прячутся
           за проверкой Cloudflare. Если все ваши трекеры приватные и такой
@@ -735,9 +915,9 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
   </ol>
 </section>
 
-<section id="s4">
+<section id="s5">
   <div class="sec-head">
-    <div class="kicker">Раздел 4</div>
+    <div class="kicker">Раздел 5</div>
     <h2>Prowlarr</h2>
     <p>
       Единый список трекеров для всего стека:
@@ -748,10 +928,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
   </div>
 
   <ol class="steps">
-    <li class="step" data-key="m4-1">
+    <li class="step" data-key="m5-1">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">4.1</span> Включить аутентификацию</h3>
+        <h3><span class="num">5.1</span> Включить аутентификацию</h3>
         <p>
           При первом открытии Prowlarr сам попросит завести учётную запись:
           метод <b>Forms (Login page)</b>, имя и пароль. Начиная с первой
@@ -764,10 +944,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m4-2">
+    <li class="step" data-key="m5-2">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">4.2</span> Добавить индексаторы</h3>
+        <h3><span class="num">5.2</span> Добавить индексаторы</h3>
         <p>
           <b>Indexers → Add Indexer</b>, найти трекер по названию. Для приватных
           понадобятся учётные данные или passkey из профиля на сайте трекера.
@@ -782,10 +962,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m4-3">
+    <li class="step" data-key="m5-3">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">4.3</span> Привязать FlareSolverr</h3>
+        <h3><span class="num">5.3</span> Привязать FlareSolverr</h3>
         <p>
           <b>Settings → Indexers → Indexer Proxies → «+»</b> → выбрать
           <b>FlareSolverr</b>:
@@ -813,10 +993,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m4-4">
+    <li class="step" data-key="m5-4">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">4.4</span> Связать с Radarr</h3>
+        <h3><span class="num">5.4</span> Связать с Radarr</h3>
         <p>
           Понадобится ключ API из Radarr: откройте
           <a href="http://192.168.3.53:7878">192.168.3.53:7878</a> →
@@ -841,10 +1021,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m4-5">
+    <li class="step" data-key="m5-5">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">4.5</span> Убедиться, что индексаторы доехали</h3>
+        <h3><span class="num">5.5</span> Убедиться, что индексаторы доехали</h3>
         <p>
           В Radarr: <b>Settings → Indexers</b> — там должны появиться те же
           трекеры, что и в Prowlarr.
@@ -858,9 +1038,9 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
   </ol>
 </section>
 
-<section id="s5">
+<section id="s6">
   <div class="sec-head">
-    <div class="kicker">Раздел 5</div>
+    <div class="kicker">Раздел 6</div>
     <h2>Radarr</h2>
     <p>
       Дирижёр конвейера: <a href="http://192.168.3.53:7878">192.168.3.53:7878</a>.
@@ -870,10 +1050,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
   </div>
 
   <ol class="steps">
-    <li class="step" data-key="m5-1">
+    <li class="step" data-key="m6-1">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">5.1</span> Аутентификация и корневая папка</h3>
+        <h3><span class="num">6.1</span> Аутентификация и корневая папка</h3>
         <p>
           Завести учётную запись при первом входе, метод <b>Forms</b>.
         </p>
@@ -888,10 +1068,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m5-2">
+    <li class="step" data-key="m6-2">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">5.2</span> Включить хардлинки<span class="tag key">ради этого всё</span></h3>
+        <h3><span class="num">6.2</span> Включить хардлинки<span class="tag key">ради этого всё</span></h3>
         <p>
           <b>Settings → Media Management</b>, переключить наверху
           <b>Show Advanced</b> (иначе параметра не видно):
@@ -918,10 +1098,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m5-3">
+    <li class="step" data-key="m6-3">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">5.3</span> Профиль качества под ваш телевизор<span class="tag key">экономия</span></h3>
+        <h3><span class="num">6.3</span> Профиль качества под ваш телевизор<span class="tag key">экономия</span></h3>
         <p>
           <b>Settings → Profiles → Quality Profiles</b>. Разумный набор для
           вашей связки — разрешить <code>Bluray-720p</code>,
@@ -947,10 +1127,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m5-4">
+    <li class="step" data-key="m6-4">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">5.4</span> Подключить qBittorrent</h3>
+        <h3><span class="num">6.4</span> Подключить qBittorrent</h3>
         <p><b>Settings → Download Clients → «+» → qBittorrent</b>:</p>
         <div class="tablewrap">
           <table>
@@ -975,10 +1155,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m5-5">
+    <li class="step" data-key="m6-5">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">5.5</span> Уведомления в Пачку<span class="tag key">свой бот</span></h3>
+        <h3><span class="num">6.5</span> Уведомления в Пачку<span class="tag key">свой бот</span></h3>
         <p>
           Схема такая: в чате <b>Кинозал</b> живут четыре бота — по одному
           на Radarr, Prowlarr, Jellyfin и Seerr. Home Assistant говорит
@@ -1019,10 +1199,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m5-6">
+    <li class="step" data-key="m6-6">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">5.6</span> Добавить первый фильм</h3>
+        <h3><span class="num">6.6</span> Добавить первый фильм</h3>
         <p>
           <b>Movies → Add New</b>, найти что-нибудь заведомо доступное,
           выбрать корневую папку и профиль, включить <b>Start search for
@@ -1037,9 +1217,9 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
   </ol>
 </section>
 
-<section id="s6">
+<section id="s7">
   <div class="sec-head">
-    <div class="kicker">Раздел 6</div>
+    <div class="kicker">Раздел 7</div>
     <h2>Jellyfin</h2>
     <p>
       Витрина библиотеки: <a href="http://192.168.3.53:8096">192.168.3.53:8096</a>.
@@ -1049,10 +1229,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
   </div>
 
   <ol class="steps">
-    <li class="step" data-key="m6-1">
+    <li class="step" data-key="m7-1">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">6.1</span> Пройти мастер и добавить библиотеку</h3>
+        <h3><span class="num">7.1</span> Пройти мастер и добавить библиотеку</h3>
         <p>
           Язык, учётная запись администратора, затем <b>Add Media Library</b>:
         </p>
@@ -1075,10 +1255,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m6-2">
+    <li class="step" data-key="m7-2">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">6.2</span> Транскодирование: оставить выключенным<span class="tag key">важно</span></h3>
+        <h3><span class="num">7.2</span> Транскодирование: оставить выключенным<span class="tag key">важно</span></h3>
         <p>
           <b>Панель → Воспроизведение → Транскодирование</b>. Аппаратное
           ускорение — <b>None</b>, и это не оплошность:
@@ -1102,10 +1282,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m6-3">
+    <li class="step" data-key="m7-3">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">6.3</span> Отключить лишнее</h3>
+        <h3><span class="num">7.3</span> Отключить лишнее</h3>
         <ul>
           <li><b>DLNA</b> — если не пользуетесь, выключить: постоянные
             широковещательные рассылки в домашнем сегменте не нужны никому;</li>
@@ -1117,10 +1297,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m6-4">
+    <li class="step" data-key="m7-4">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">6.4</span> Завести пользователя для приставки</h3>
+        <h3><span class="num">7.4</span> Завести пользователя для приставки</h3>
         <p>
           <b>Панель → Пользователи → «+»</b>. Отдельная учётная запись удобнее
           общей административной: у неё своя история просмотра, на которой
@@ -1133,10 +1313,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m6-5">
+    <li class="step" data-key="m7-5">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">6.5</span> Настроить клиент на приставке</h3>
+        <h3><span class="num">7.5</span> Настроить клиент на приставке</h3>
         <p>
           На RockTek GX1 установить Jellyfin из Google Play, адрес сервера —
           <code>http://192.168.3.53:8096</code>, вход под пользователем
@@ -1157,9 +1337,9 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
   </ol>
 </section>
 
-<section id="s7">
+<section id="s8">
   <div class="sec-head">
-    <div class="kicker">Раздел 7</div>
+    <div class="kicker">Раздел 8</div>
     <h2>Seerr</h2>
     <p>
       Витрина запросов: <a href="http://192.168.3.53:5055">192.168.3.53:5055</a>.
@@ -1168,10 +1348,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
   </div>
 
   <ol class="steps">
-    <li class="step" data-key="m7-1">
+    <li class="step" data-key="m8-1">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">7.1</span> Подключить Jellyfin</h3>
+        <h3><span class="num">8.1</span> Подключить Jellyfin</h3>
         <p>
           В мастере выбрать <b>Jellyfin</b>, адрес сервера:
         </p>
@@ -1183,10 +1363,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m7-2">
+    <li class="step" data-key="m8-2">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">7.2</span> Подключить Radarr</h3>
+        <h3><span class="num">8.2</span> Подключить Radarr</h3>
         <p><b>Settings → Services → Add Radarr Server</b>:</p>
         <div class="tablewrap">
           <table>
@@ -1208,10 +1388,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m7-3">
+    <li class="step" data-key="m8-3">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">7.3</span> Пользователи и права</h3>
+        <h3><span class="num">8.3</span> Пользователи и права</h3>
         <p>
           <b>Settings → Users → Import Users from Jellyfin</b>. Для домашних
           можно включить <b>Auto-Approve</b> — тогда запрос уходит в Radarr
@@ -1225,10 +1405,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       </div>
     </li>
 
-    <li class="step" data-key="m7-4">
+    <li class="step" data-key="m8-4">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">7.4</span> Уведомления в Пачку</h3>
+        <h3><span class="num">8.4</span> Уведомления в Пачку</h3>
         <p>
           Заведите бота <b>Seerr</b> в чате Кинозал, шаблон —
           <code>pachca/seerr.liquid</code>. Затем в Seerr:
@@ -1261,9 +1441,9 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
   </ol>
 </section>
 
-<section id="s8">
+<section id="s9">
   <div class="sec-head">
-    <div class="kicker">Раздел 8</div>
+    <div class="kicker">Раздел 9</div>
     <h2>Сквозная проверка</h2>
     <p>
       Один запрос, прошедший всю цепочку, проверяет больше, чем десять
@@ -1272,10 +1452,10 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
   </div>
 
   <ol class="steps">
-    <li class="step" data-key="m8-1">
+    <li class="step" data-key="m9-1">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">8.1</span> Запросить фильм и проследить путь</h3>
+        <h3><span class="num">9.1</span> Запросить фильм и проследить путь</h3>
         <p>
           В Seerr найти фильм и нажать <b>Request</b>. Дальше смотреть по
           порядку:
@@ -1301,10 +1481,10 @@ sudo docker logs -f --tail 80 qbittorrent</code></pre></div>
       </div>
     </li>
 
-    <li class="step" data-key="m8-2">
+    <li class="step" data-key="m9-2">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">8.2</span> Проверить, что импорт прошёл хардлинком<span class="tag key">главная проверка</span></h3>
+        <h3><span class="num">9.2</span> Проверить, что импорт прошёл хардлинком<span class="tag key">главная проверка</span></h3>
         <p>
           Найдите файл в обеих папках и сравните номера inode:
         </p>
@@ -1316,7 +1496,7 @@ sudo docker logs -f --tail 80 qbittorrent</code></pre></div>
         </p>
         <div class="note crit"><b>Разные inode и по единице в колонке ссылок</b>
           означают, что Radarr скопировал файл. Проверьте: включён ли
-          <b>Use Hardlinks instead of Copy</b> (шаг 5.2), и смонтирован ли
+          <b>Use Hardlinks instead of Copy</b> (шаг 6.2), и смонтирован ли
           в обоих контейнерах один том <code>/volume1/data:/data</code>,
           а не две отдельные папки (шаг 1.2). До исправления каждый фильм
           будет занимать двойное место.</div>
@@ -1328,17 +1508,17 @@ df -h /volume1</code></pre></div>
   </ol>
 </section>
 
-<section id="s9">
+<section id="s10">
   <div class="sec-head">
-    <div class="kicker">Раздел 9</div>
+    <div class="kicker">Раздел 10</div>
     <h2>Обслуживание</h2>
   </div>
 
   <ol class="steps">
-    <li class="step" data-key="m9-1">
+    <li class="step" data-key="m10-1">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">9.1</span> Включить встроенные бэкапы</h3>
+        <h3><span class="num">10.1</span> Включить встроенные бэкапы</h3>
         <p>
           У Radarr и Prowlarr есть свои: <b>Settings → General → Backups</b>,
           интервал 7 дней, хранить 10. Они складываются в
@@ -1352,10 +1532,10 @@ df -h /volume1</code></pre></div>
       </div>
     </li>
 
-    <li class="step" data-key="m9-2">
+    <li class="step" data-key="m10-2">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">9.2</span> Порядок обновления</h3>
+        <h3><span class="num">10.2</span> Порядок обновления</h3>
         <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/media
 sudo docker compose pull
 sudo docker compose up -d
@@ -1367,10 +1547,10 @@ sudo docker image prune -f</code></pre></div>
       </div>
     </li>
 
-    <li class="step" data-key="m9-3">
+    <li class="step" data-key="m10-3">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">9.3</span> Следить за местом</h3>
+        <h3><span class="num">10.3</span> Следить за местом</h3>
         <p>
           Home Assistant уже присылает в Пачку предупреждение при 85 %
           и тревогу при 93 % заполнения тома. Когда придёт первое — самое
@@ -1384,10 +1564,10 @@ sudo docker image prune -f</code></pre></div>
       </div>
     </li>
 
-    <li class="step" data-key="m9-4">
+    <li class="step" data-key="m10-4">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">9.4</span> Раз в квартал заглядывать в Prowlarr</h3>
+        <h3><span class="num">10.4</span> Раз в квартал заглядывать в Prowlarr</h3>
         <p>
           <b>Indexers</b> — проверить, что все зелёные. Трекеры меняют домены,
           закрываются и вводят новую защиту; молча переставший работать
@@ -1398,9 +1578,9 @@ sudo docker image prune -f</code></pre></div>
   </ol>
 </section>
 
-<section id="s10">
+<section id="s11">
   <div class="sec-head">
-    <div class="kicker">Раздел 10</div>
+    <div class="kicker">Раздел 11</div>
     <h2>Если что-то пошло не так</h2>
   </div>
 
@@ -1411,12 +1591,12 @@ sudo docker image prune -f</code></pre></div>
         <tr>
           <td>Каждый фильм занимает вдвое больше места</td>
           <td>импорт идёт копированием, а не хардлинком</td>
-          <td>шаг 8.2 для диагностики, затем шаги 1.2 и 5.2</td>
+          <td>шаг 9.2 для диагностики, затем шаги 1.2 и 6.2</td>
         </tr>
         <tr>
           <td>Не могу войти в qBittorrent</td>
           <td>пароль генерируется случайно при первом запуске</td>
-          <td>шаг 2.1: искать «temporary password» в логах контейнера</td>
+          <td>шаг 3.1: искать «temporary password» в логах контейнера</td>
         </tr>
         <tr>
           <td>Radarr: «Test failed» на qBittorrent</td>
@@ -1426,7 +1606,7 @@ sudo docker image prune -f</code></pre></div>
         <tr>
           <td>Индексатор красный, в ошибке Cloudflare</td>
           <td>не привязан FlareSolverr</td>
-          <td>шаг 4.3: тег <code>flaresolverr</code> на самом индексаторе, а не только на прокси</td>
+          <td>шаг 5.3: тег <code>flaresolverr</code> на самом индексаторе, а не только на прокси</td>
         </tr>
         <tr>
           <td>Radarr ничего не находит</td>
@@ -1441,7 +1621,7 @@ sudo docker image prune -f</code></pre></div>
         <tr>
           <td>Интернет в доме «залипает» во время загрузок</td>
           <td>переполнена таблица соединений на роутере</td>
-          <td>шаг 2.5: ограничить число соединений</td>
+          <td>шаг 3.5: ограничить число соединений</td>
         </tr>
         <tr>
           <td>Ничего не раздаётся, рейтинг стоит</td>
@@ -1451,7 +1631,7 @@ sudo docker image prune -f</code></pre></div>
         <tr>
           <td>Jellyfin буферизует, NAS шумит</td>
           <td>идёт программное транскодирование</td>
-          <td>Панель → Активность: посмотреть, что именно пережимается; шаг 6.5</td>
+          <td>Панель → Активность: посмотреть, что именно пережимается; шаг 7.5</td>
         </tr>
         <tr>
           <td>Seerr не видит Jellyfin</td>
