@@ -318,11 +318,11 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <div class="kicker">Раздел 1</div>
     <h2 id="что-стоит-сделать-в-первую-очередь">Что стоит сделать в первую очередь</h2>
   </div>
-<p>Три вещи с наибольшей отдачей на вложенные усилия. Не потому что интересные, а потому что закрывают настоящие дыры.</p>
+<p>Первые два пункта решены и ждут только рук. Третий — единственная оставшаяся логическая дыра в мониторинге.</p>
 <div class="tablewrap"><table><thead><tr><th></th><th>Что</th><th>Почему именно это</th><th>Усилия</th></tr></thead><tbody>
-<tr><td>1</td><td><a href="#внешний-пульс">Внешний пульс</a></td><td>Сейчас падение самого NAS не заметит никто</td><td>S</td></tr>
-<tr><td>2</td><td><a href="#ибп-с-usb">ИБП с USB</a></td><td>Отключение питания на записи — это битый том и долгая проверка</td><td>S</td></tr>
-<tr><td>3</td><td><a href="#версии-образов-вместо-latest">Зафиксировать версии образов</a></td><td><code>:latest</code> однажды принесёт breaking change ночью</td><td>M</td></tr>
+<tr><td>1</td><td><a href="#том-на-nvme">Том на NVMe</a></td><td>Два шпинделя тянут весь поток мелкой случайной записи — это и есть узкое место системы</td><td>L</td></tr>
+<tr><td>2</td><td><a href="#ибп-с-usb">ИБП с USB</a></td><td>Отключение питания на записи — битый том и долгая проверка массива</td><td>S</td></tr>
+<tr><td>3</td><td><a href="#внешний-пульс">Внешний пульс</a></td><td>Сейчас падение самого NAS не заметит никто</td><td>S</td></tr>
 </tbody></table></div>
 </section>
 
@@ -332,17 +332,6 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <h2 id="ближайшее-уже-решено">Ближайшее — уже решено</h2>
   </div>
 <ol class="steps">
-    <li class="step" data-key="rm1">
-      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
-      <div class="step-body">
-        <h3>Память 4 → 12 ГБ</h3>
-        <p>Планка 8 ГБ во второй слот. Обязательно ECC SODIMM: обычная отключит
-        коррекцию ошибок на всём объёме, включая уже стоящие 4 ГБ. После
-        установки — <i>Панель управления → Информационный центр → Тест памяти</i>,
-        полный прогон.</p>
-        <p class="note"><b>Повод:</b> уже есть, планка куплена. <b>Усилия:</b> S.</p>
-      </div>
-    </li>
     <li class="step" data-key="rm3">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
@@ -412,15 +401,22 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
       <div class="step-body">
         <h3>Корректное выключение при отключении питания</h3>
         <p>Synology увидит ИБП сам, Home Assistant прочитает статус через интеграцию DSM. Даёт корректное завершение работы при отключении питания — то есть отсутствие битой файловой системы и потерянной базы. Для NAS с двумя дисками это не роскошь.</p>
-        <p class="note"><b>Повод:</b> первое моргание света, после которого пришлось ждать проверку тома. <b>Усилия:</b> S.</p>
+        <p class="note"><b>Повод:</b> решено, в приоритете. <b>Усилия:</b> S.</p>
       </div>
     </li>
     <li class="step" data-key="rm9">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3>Том на NVMe для конфигураций и базы</h3>
+        <h3 id="том-на-nvme">Том на NVMe для конфигураций и базы</h3>
         <p>Два слота M.2 свободны. Перенос <code>/volume1/docker</code> на такой том убирает со шпинделей почти весь поток мелкой случайной записи: базу Home Assistant, метаданные Jellyfin, базы Radarr и Prowlarr. DSM 7.2+ умеет делать на M.2 полноценный том, а не только кэш — официально с накопителями Synology, для остальных есть скрипты сообщества.</p>
-        <p class="note"><b>Повод:</b> база HA перевалила за 2 ГБ или интерфейс стал заметно задумчивым. <b>Усилия:</b> L — переезд с остановкой всех контейнеров.</p>
+        <p class="note"><b>Повод:</b> решено, в приоритете. <b>Усилия:</b> L — переезд с остановкой всех контейнеров.</p>
+        <p class="note warn"><b>Сначала ИБП, потом переезд.</b> Перенос
+        <code>/volume1/docker</code> на новый том — это долгая операция
+        сплошной записи с остановленными контейнерами. Отключение питания
+        ровно в этот момент — худший из возможных сценариев: на руках
+        окажется наполовину перенесённая конфигурация. ИБП стоит как обед
+        и ставится за вечер, поэтому в таблице он вторым только по порядку
+        перечисления, а по времени — первым.</p>
       </div>
     </li>
     <li class="step" data-key="rm10">
@@ -479,6 +475,97 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
 <section id="s6">
   <div class="sec-head">
     <div class="kicker">Раздел 6</div>
+    <h2 id="slack-вместо-пачки">Slack вместо Пачки</h2>
+    <p>
+      Оба пункта — далёкие планы, повода пока нет ни у одного. Записаны,
+      чтобы к моменту, когда повод появится, не выяснять заново, во что
+      это обойдётся.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="rm-slack-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3 id="уведомления-в-slack">Перенести уведомления в Slack</h3>
+        <p>
+          Incoming Webhook вместо вебхука Пачки, Block Kit вместо
+          Liquid-шаблонов. Функционально то же самое, но с одним приятным
+          архитектурным следствием.
+        </p>
+        <p class="note why"><b>Четыре бота схлопнутся в один.</b> В Пачке шаблон
+        задаётся <b>на боте</b> и применяется ко всем его сообщениям — поэтому
+        здесь четыре бота на четыре сервиса, и это вынужденное решение, а не
+        замысел. В Slack форматирование приходит в самом запросе, так что одного
+        приложения хватит на весь стек: разными будут только тела сообщений.
+        Заодно исчезнет <code>media-router.liquid</code> — запасной вариант,
+        существующий ровно из-за этого ограничения.</p>
+        <p>
+          Цена — переписать то, что сейчас завязано на Пачку: пять
+          Liquid-шаблонов, <code>notify</code>, <code>rest_command</code>
+          и скрипт форматирования в <code>packages/pachca.yaml</code>, вызовы
+          из <code>monitoring.yaml</code> и <code>docker.yaml</code>, карточки
+          дашборда, <code>render_pachca.py</code> с его тестами и справочник
+          в документации. Всего <b>14 файлов</b> — половина из них проверки,
+          которые придётся переучить на новый формат.
+        </p>
+        <p class="note warn"><b>Что стоит сохранить при переезде.</b> Разделение
+        на два канала: «что смотреть» и «что чинить». Оно появилось не из вкуса,
+        а потому что эти сообщения читают по-разному — уведомление о фильме
+        можно посмотреть вечером, уведомление о падении контейнера нельзя.
+        В Slack это два канала вместо двух чатов, и терять разделение
+        при переносе не стоит.</p>
+        <p class="note"><b>Повод:</b> переезд общения в Slack по другим причинам.
+        <b>Усилия:</b> L.</p>
+      </div>
+    </li>
+
+    <li class="step" data-key="rm-slack-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3 id="бот-для-пополнения-библиотеки">Бот для пополнения библиотеки</h3>
+        <p>
+          Пишете боту запрос — он отвечает <b>тремя релевантными вариантами</b>,
+          вы выбираете, что добавить. Если фильм уже в библиотеке, бот так
+          и говорит, вместо того чтобы предлагать скачать второй раз.
+        </p>
+        <div class="code"><pre><code>вы:   марсианин
+бот:  1. Марсианин (2015) · 1080p · <span class="c">уже в библиотеке</span>
+      2. Марсианин (2021, док.)  [ добавить ]
+      3. Марсиане (2018)         [ добавить ]</code></pre></div>
+
+        <p class="note why"><b>Не изобретать поиск.</b> Всё, что боту нужно, уже
+        умеет Seerr: искать по названию, знать, что из найденного уже есть
+        в библиотеке, и отправлять запрос в Radarr. Значит бот — это тонкая
+        прослойка: взять из поиска Seerr три первых результата, показать их
+        карточками Block Kit, а по нажатию кнопки отдать выбранное обратно
+        в Seerr. Своей базы и своей логики у него не появляется, и вопрос
+        «почему бот и Seerr разошлись во мнениях» не возникает.</p>
+
+        <p class="note why"><b>Socket Mode, а не входящий порт.</b> Slack-приложение
+        умеет держать исходящее соединение к Slack и получать события по нему.
+        Это важно именно здесь: пробрасывать порт наружу не нужно, публиковать
+        NAS в интернет не нужно, изоляция сегментов не страдает. Тот же принцип,
+        по которому голосовые команды Алисы приходят через облако,
+        а не из домашней сети.</p>
+
+        <p>
+          Цена — ещё один контейнер, а вместе с ним <b>+1 к числу</b>
+          в <code>docker_state.py</code>, <code>packages/docker.yaml</code>,
+          HTTP-проверках и на дашборде. Тест
+          <code>test_watched_matches_compose_files</code> не даст забыть
+          первые два.
+        </p>
+        <p class="note"><b>Повод:</b> сначала уведомления, потом бот — без
+        Slack-приложения он и не с чего не начинается. <b>Усилия:</b> L.</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s7">
+  <div class="sec-head">
+    <div class="kicker">Раздел 7</div>
     <h2 id="сеть">Сеть</h2>
   </div>
 <ol class="steps">
@@ -509,9 +596,9 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
 </ol>
 </section>
 
-<section id="s7">
+<section id="s8">
   <div class="sec-head">
-    <div class="kicker">Раздел 7</div>
+    <div class="kicker">Раздел 8</div>
     <h2 id="репозиторий-и-процесс">Репозиторий и процесс</h2>
   </div>
 <h3 class="sub" id="версии-образов-вместо-latest">Версии образов вместо <code>:latest</code></h3>
@@ -552,9 +639,9 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
 </ol>
 </section>
 
-<section id="s8">
+<section id="s9">
   <div class="sec-head">
-    <div class="kicker">Раздел 8</div>
+    <div class="kicker">Раздел 9</div>
     <h2 id="сознательно-не-делаем">Сознательно не делаем</h2>
   </div>
 <p>Не «когда-нибудь потом», а «решено не делать». Список нужен, чтобы через полгода не проходить те же рассуждения заново.</p>
@@ -567,55 +654,75 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
 <p><b>Раздача через VPN без проброса порта.</b> Входящие соединения через туннель не приходят, рейтинг растёт медленно — это принято как данность. Городить второй туннель ради раздачи не стоит; если у провайдера появится port forwarding, включим его одной настройкой.</p>
 </section>
 
-<section id="s9">
+<section id="s10">
   <div class="sec-head">
-    <div class="kicker">Раздел 9</div>
+    <div class="kicker">Раздел 10</div>
     <h2 id="если-захочется-все-сразу">Если захочется всё сразу</h2>
   </div>
-<p>Порядок, в котором пункты не будут мешать друг другу:</p>
+<p>Что от чего зависит и что можно делать параллельно:</p>
 <figure>
-  <svg viewBox="0 0 900 220" role="img"
-       aria-label="Порядок работ: память 12 ГБ, затем внешний пульс, затем сенсор свежести бэкапов, затем фиксация версий образов. От версий образов расходятся две ветки — ИБП и Sonarr; обе сходятся на томе NVMe.">
+  <svg viewBox="0 0 900 250" role="img"
+       aria-label="Три независимые цепочки работ. Приоритет: ИБП, затем том на NVMe. Когда появится повод: внешний пульс, сенсор свежести бэкапов, фиксация версий образов, Sonarr. Далёкие планы: уведомления в Slack, затем бот для пополнения библиотеки.">
     <defs>
       <marker id="rm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
         <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
       </marker>
     </defs>
+
+    <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="10.5" opacity=".55">
+      <text x="10" y="10">Приоритет</text>
+      <text x="10" y="94">Когда появится повод</text>
+      <text x="10" y="178">Далёкие планы</text>
+    </g>
+
     <g stroke="currentColor" fill="none" stroke-width="1.3">
-      <rect x="8" y="82" width="126" height="44" rx="8"></rect>
-      <rect x="172" y="82" width="126" height="44" rx="8"></rect>
-      <rect x="336" y="82" width="150" height="44" rx="8"></rect>
-      <rect x="524" y="82" width="140" height="44" rx="8"></rect>
-      <rect x="702" y="20" width="120" height="44" rx="8"></rect>
-      <rect x="702" y="144" width="120" height="44" rx="8"></rect>
-      <rect x="702" y="82" width="0" height="0"></rect>
-      <rect x="856" y="82" width="0" height="0"></rect>
+      <rect x="10" y="16" width="110" height="44" rx="8"></rect>
+      <rect x="152" y="16" width="140" height="44" rx="8"></rect>
+
+      <rect x="10" y="100" width="140" height="44" rx="8"></rect>
+      <rect x="182" y="100" width="165" height="44" rx="8"></rect>
+      <rect x="379" y="100" width="150" height="44" rx="8"></rect>
+      <rect x="561" y="100" width="100" height="44" rx="8"></rect>
     </g>
+    <g stroke="currentColor" fill="none" stroke-width="1.3" opacity=".55" stroke-dasharray="5 4">
+      <rect x="10" y="184" width="185" height="44" rx="8"></rect>
+      <rect x="227" y="184" width="130" height="44" rx="8"></rect>
+    </g>
+
     <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="12.5" text-anchor="middle">
-      <text x="71" y="109">Память 12 ГБ</text>
-      <text x="235" y="109">Внешний пульс</text>
-      <text x="411" y="109">Свежесть бэкапов</text>
-      <text x="594" y="109">Версии образов</text>
-      <text x="762" y="47">ИБП</text>
-      <text x="762" y="171">Sonarr</text>
+      <text x="65" y="43">ИБП</text>
+      <text x="222" y="43">Том на NVMe</text>
+
+      <text x="80" y="127">Внешний пульс</text>
+      <text x="264" y="127">Свежесть бэкапов</text>
+      <text x="454" y="127">Версии образов</text>
+      <text x="611" y="127">Sonarr</text>
     </g>
+    <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="12.5"
+       text-anchor="middle" opacity=".7">
+      <text x="102" y="211">Уведомления в Slack</text>
+      <text x="292" y="211">Бот в Slack</text>
+    </g>
+
     <g stroke="currentColor" stroke-width="1.3" fill="none">
-      <line x1="138" y1="104" x2="166" y2="104" marker-end="url(#rm)"></line>
-      <line x1="302" y1="104" x2="330" y2="104" marker-end="url(#rm)"></line>
-      <line x1="490" y1="104" x2="518" y2="104" marker-end="url(#rm)"></line>
-      <path d="M668,98 C686,98 686,42 696,42" marker-end="url(#rm)"></path>
-      <path d="M668,110 C686,110 686,166 696,166" marker-end="url(#rm)"></path>
-      <path d="M826,42 C848,42 848,98 858,101" marker-end="url(#rm)"></path>
-      <path d="M826,166 C848,166 848,112 858,108" marker-end="url(#rm)"></path>
+      <line x1="126" y1="38" x2="146" y2="38" marker-end="url(#rm)"></line>
+      <line x1="156" y1="122" x2="176" y2="122" marker-end="url(#rm)"></line>
+      <line x1="353" y1="122" x2="373" y2="122" marker-end="url(#rm)"></line>
+      <line x1="535" y1="122" x2="555" y2="122" marker-end="url(#rm)"></line>
     </g>
-    <text x="884" y="109" fill="currentColor" font-family="IBM Plex Sans, sans-serif"
-          font-size="12.5" text-anchor="middle">Том
-      <tspan x="884" dy="15">NVMe</tspan></text>
+    <g stroke="currentColor" stroke-width="1.3" fill="none" opacity=".55">
+      <line x1="201" y1="206" x2="221" y2="206" marker-end="url(#rm)"></line>
+    </g>
+
+    <text x="310" y="42" fill="currentColor" opacity=".6"
+          font-family="IBM Plex Sans, sans-serif" font-size="11.5">переезд — долгая сплошная запись, ИБП нужен раньше</text>
   </svg>
   <figcaption>
-    Порядок, в котором пункты не мешают друг другу. Первые четыре шага —
-    вечер, вечер, вечер и одни выходные; после них система перестаёт быть
-    уязвимой к тихим отказам.
+    Три цепочки, между собой не связанные — можно вести любую, не трогая
+    остальные. В верхней порядок жёсткий: переезд на NVMe останавливает все
+    контейнеры и пишет сплошным потоком, и отключение питания ровно в этот
+    момент оставит наполовину перенесённую конфигурацию. Нижняя цепочка
+    показана пунктиром: повода нет ни у одного её пункта.
   </figcaption>
 </figure>
 </section>
