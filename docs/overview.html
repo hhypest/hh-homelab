@@ -410,7 +410,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <table>
       <thead><tr><th>Область</th><th>Что содержит</th><th class="num-col">Строк</th><th class="num-col">Файлов</th></tr></thead>
       <tbody>
-        <tr><td><code class="path">docs/</code></td><td>чек-листы, гайды, справочники, дорожная карта</td><td class="num-col">8195</td><td class="num-col">7</td></tr>
+        <tr><td><code class="path">docs/</code></td><td>чек-листы, гайды, справочники, дорожная карта</td><td class="num-col">8248</td><td class="num-col">7</td></tr>
         <tr><td><code class="path">homeassistant/</code></td><td>compose, пакеты, дашборд, скрипты для сенсоров</td><td class="num-col">2173</td><td class="num-col">14</td></tr>
         <tr><td><code class="path">scripts/</code></td><td>проверки конфигурации и документации</td><td class="num-col">910</td><td class="num-col">6</td></tr>
         <tr><td><code class="path">pachca/</code></td><td>Liquid-шаблоны уведомлений и примеры payload</td><td class="num-col">643</td><td class="num-col">20</td></tr>
@@ -422,7 +422,8 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
   </div>
 
   <div class="note why"><b>Что здесь необычного.</b> Отношение «документация и
-    проверки» к «собственно конфигурации» — примерно 9 к 1. Для домашнего
+    проверки» к «собственно конфигурации» — 10 116 строк против 3001,
+    то есть примерно 3,4 к 1. Для домашнего
     сервера это выглядит перекосом, пока не вспомнить, что настраивается он
     раз в год, а разбираться в нём приходится в тот вечер, когда что-то
     сломалось и половина деталей забыта.</div>
@@ -441,7 +442,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
 
   <figure>
     <svg viewBox="0 0 900 300" role="img"
-         aria-label="График роста репозитория: 23 файла в первом коммите 30 августа в 8:44, резкий подъём до 55 к 10 утра за счёт шаблонов Пачки и тестов, дальше пологий рост до 62 файлов к утру 31 августа.">
+         aria-label="График роста репозитория: 23 файла в первом коммите 30 августа в 8:44, резкий подъём до 55 к 10 утра за счёт шаблонов Пачки и тестов, дальше пологий рост до 63 файлов к утру 31 августа.">
       <g stroke="currentColor" stroke-width="1" opacity=".16">
         <line x1="60" y1="260" x2="860" y2="260"></line>
         <line x1="60" y1="211" x2="860" y2="211"></line>
@@ -459,39 +460,41 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
       <text x="60" y="26" fill="currentColor" opacity=".6"
             font-family="IBM Plex Sans, sans-serif" font-size="11.5">Файлов под версией</text>
 
-      <line x1="652" y1="40" x2="652" y2="260" stroke="currentColor" stroke-width="1"
+      <line x1="611" y1="40" x2="611" y2="260" stroke="currentColor" stroke-width="1"
             stroke-dasharray="3 4" opacity=".3"></line>
       <g fill="currentColor" opacity=".5" font-family="IBM Plex Sans, sans-serif" font-size="10.5">
         <text x="70" y="280" text-anchor="middle">09:00</text>
-        <text x="187" y="280" text-anchor="middle">12:00</text>
-        <text x="420" y="280" text-anchor="middle">18:00</text>
-        <text x="652" y="280" text-anchor="middle">00:00</text>
-        <text x="644" y="52" text-anchor="end" font-size="10">30 августа</text>
-        <text x="660" y="52" font-size="10">31 августа</text>
+        <text x="178" y="280" text-anchor="middle">12:00</text>
+        <text x="394" y="280" text-anchor="middle">18:00</text>
+        <text x="611" y="280" text-anchor="middle">00:00</text>
+        <text x="827" y="280" text-anchor="middle">06:00</text>
+        <text x="603" y="52" text-anchor="end" font-size="10">30 августа</text>
+        <text x="619" y="52" font-size="10">31 августа</text>
       </g>
 
       <polyline fill="none" stroke="var(--home)" stroke-width="2"
                 stroke-linejoin="round" stroke-linecap="round"
-                points="60,245 70,240 86,143 108,89 239,84 440,79 490,60 860,55"></polyline>
+                points="60,245 69,240 85,143 104,89 226,84 414,79 459,60 804,55 860,50"></polyline>
 
       <g fill="var(--home)">
         <circle cx="60" cy="245" r="4"><title>30.08 08:44 — 23 файла: начальная конфигурация</title></circle>
-        <circle cx="70" cy="240" r="4"><title>30.08 08:59 — 24 файла: чек-лист медиа-стека</title></circle>
-        <circle cx="86" cy="143" r="4"><title>30.08 09:25 — 44 файла: Liquid-шаблоны Пачки</title></circle>
-        <circle cx="108" cy="89" r="4"><title>30.08 09:58 — 55 файлов: тесты и покрытие проверками</title></circle>
-        <circle cx="239" cy="84" r="4"><title>30.08 13:20 — 56 файлов: дорожная карта</title></circle>
-        <circle cx="440" cy="79" r="4"><title>30.08 18:32 — 57 файлов: починка кэша pip в CI</title></circle>
-        <circle cx="490" cy="60" r="4"><title>30.08 19:48 — 61 файл: проверка переводов строк</title></circle>
-        <circle cx="860" cy="55" r="4"><title>31.08 05:21 — 62 файла: гайд по журналам</title></circle>
+        <circle cx="69" cy="240" r="4"><title>30.08 08:59 — 24 файла: чек-лист медиа-стека</title></circle>
+        <circle cx="85" cy="143" r="4"><title>30.08 09:25 — 44 файла: Liquid-шаблоны Пачки</title></circle>
+        <circle cx="104" cy="89" r="4"><title>30.08 09:58 — 55 файлов: тесты и покрытие проверками</title></circle>
+        <circle cx="226" cy="84" r="4"><title>30.08 13:20 — 56 файлов: дорожная карта</title></circle>
+        <circle cx="414" cy="79" r="4"><title>30.08 18:32 — 57 файлов: починка кэша pip в CI</title></circle>
+        <circle cx="459" cy="60" r="4"><title>30.08 19:48 — 61 файл: проверка переводов строк</title></circle>
+        <circle cx="804" cy="55" r="4"><title>31.08 05:21 — 62 файла: гайд по журналам</title></circle>
+        <circle cx="860" cy="50" r="4"><title>31.08 06:54 — 63 файла: обзор проекта</title></circle>
       </g>
 
       <g font-family="IBM Plex Sans, sans-serif" font-size="11.5" fill="currentColor">
-        <text x="854" y="44" text-anchor="end" opacity=".75">62</text>
+        <text x="854" y="39" text-anchor="end" opacity=".75">63</text>
       </g>
     </svg>
     <figcaption>
       Резкий подъём в первые полтора часа — шаблоны уведомлений и тесты,
-      21 и 11 файлов соответственно. Дальше рост почти прекращается: всё
+      20 и 11 файлов соответственно. Дальше рост почти прекращается: всё
       остальное время ушло не на новые файлы, а на правку существующих.
       Это типичная форма для конфигурационного репозитория и повод не пугаться
       «остановки»: содержательная работа после первого дня видна в диффах,
@@ -557,6 +560,23 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
           <td class="num-col">31.08<br>06:12</td>
           <td>Сверка надзора с compose-файлами</td>
           <td>Тест обещал больше, чем проверял: сервис можно было забыть целиком</td>
+        </tr>
+        <tr>
+          <td class="num-col">31.08<br>06:54</td>
+          <td>Этот обзор</td>
+          <td>Появился документ, объясняющий систему целиком, а не ведущий по шагам</td>
+        </tr>
+        <tr>
+          <td class="num-col">31.08<br>07:41</td>
+          <td>Медиа-стек на относительных путях, документация целиком в HTML</td>
+          <td>Второй поворот после тестов: теперь весь сервер переносится вместе
+              с репозиторием, а из markdown остался только README</td>
+        </tr>
+        <tr>
+          <td class="num-col">31.08<br>08:26</td>
+          <td>Установка перенесена в чек-лист медиа-стека</td>
+          <td>Страница начиналась словами «контейнеры уже запущены», а где их
+              поднять — не говорила</td>
         </tr>
       </tbody>
     </table>
@@ -653,21 +673,21 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <table>
       <thead><tr><th>Проверка</th><th>Что делает</th><th class="num-col">Время</th></tr></thead>
       <tbody>
-        <tr><td><code>pytest</code></td><td>114 тестов</td><td class="num-col">7,69 с</td></tr>
-        <tr><td><code>yamllint</code></td><td>4 каталога YAML</td><td class="num-col">0,32 с</td></tr>
-        <tr><td><code>render_pachca.py --check</code></td><td>26 пар «шаблон × payload»</td><td class="num-col">0,22 с</td></tr>
-        <tr><td><code>validate_config.py</code></td><td>12 файлов, Jinja, секреты</td><td class="num-col">0,22 с</td></tr>
+        <tr><td><code>pytest</code></td><td>114 тестов</td><td class="num-col">7,65 с</td></tr>
+        <tr><td><code>yamllint</code></td><td>4 каталога YAML</td><td class="num-col">0,33 с</td></tr>
+        <tr><td><code>render_pachca.py --check</code></td><td>26 пар «шаблон × payload»</td><td class="num-col">0,23 с</td></tr>
+        <tr><td><code>validate_config.py</code></td><td>12 файлов, Jinja, секреты</td><td class="num-col">0,23 с</td></tr>
         <tr><td><code>validate_entities.py</code></td><td>сверка entity_id</td><td class="num-col">0,12 с</td></tr>
         <tr><td><code>validate_docs.py</code></td><td>7 страниц, ссылки, 61 файл на обезличивание</td><td class="num-col">0,15 с</td></tr>
         <tr><td><code>check_files.py</code></td><td>63 файла на переводы строк</td><td class="num-col">0,04 с</td></tr>
         <tr><td><code>ruff check .</code></td><td>13 файлов Python</td><td class="num-col">0,01 с</td></tr>
-        <tr><td><b>Всего последовательно</b></td><td></td><td class="num-col"><b>8,77 с</b></td></tr>
+        <tr><td><b>Всего последовательно</b></td><td></td><td class="num-col"><b>8,76 с</b></td></tr>
       </tbody>
     </table>
   </div>
 
   <p style="color:var(--ink-2);max-width:70ch;margin-top:14px">
-    <b>Восемьдесят восемь процентов времени — pytest</b>, и распределено оно
+    <b>Почти девять десятых времени — pytest</b>, и распределено оно
     внутри неожиданно. Стоимость определяется не числом тестов, а тем,
     запускает ли тест отдельный процесс:
   </p>
