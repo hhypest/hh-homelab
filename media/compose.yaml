@@ -11,6 +11,17 @@
 #
 #  PUID/PGID 1026:100 — пользователь DSM, владеющий /volume1/data.
 #  Проверить свои: `id ваш_логин` по SSH на NAS.
+#
+#  Логи ограничены у каждого сервиса: json-file, 10 МБ на файл, 3 файла.
+#  По умолчанию Docker не ротирует журнал вообще — файл растёт, пока не
+#  кончится место на томе, причём отнимает его у библиотеки и баз на том же
+#  /volume1. Заметнее всего у Jellyfin и FlareSolverr: первый пишет на каждый
+#  запрос плеера, второй — ход каждого обхода Cloudflare.
+#  Потолок на стек — 6 сервисов x 30 МБ = 180 МБ, дальше самые старые записи
+#  вытесняются. Журналы лежат в /volume1/@docker/containers.
+#  Настройка применяется при СОЗДАНИИ контейнера: после правки нужен
+#  `docker compose up -d`, перезапуск её не подхватит. Подробности —
+#  docs/logs.html.
 # =============================================================================
 
 services:
@@ -36,6 +47,11 @@ services:
       - "6881:6881/udp"
     networks:
       - media
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:latest
@@ -52,6 +68,11 @@ services:
       - "9696:9696"
     networks:
       - media
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   radarr:
     image: lscr.io/linuxserver/radarr:latest
@@ -69,6 +90,11 @@ services:
       - "7878:7878"
     networks:
       - media
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:latest
@@ -81,6 +107,11 @@ services:
       - "8191:8191"
     networks:
       - media
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   jellyfin:
     image: lscr.io/linuxserver/jellyfin:latest
@@ -101,6 +132,11 @@ services:
       - "7359:7359/udp"
     networks:
       - media
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   seerr:
     image: ghcr.io/seerr-team/seerr:latest
@@ -120,6 +156,11 @@ services:
       - jellyfin
     networks:
       - media
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   media:
