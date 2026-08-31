@@ -43,6 +43,8 @@ homeassistant/config/hacs.zip
 # В репозитории только compose.yaml; конфиги приложений содержат
 # API-ключи, базы и кэши.
 media/config/
+media/cache/
+media/watch/
 media/data/
 
 # --- Мусор ОС и редакторов ---------------------------------------------------

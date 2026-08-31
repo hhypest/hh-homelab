@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Дорожная карта hh-homelab: что стоит сделать в первую очередь, при каком поводе браться за каждый пункт и что решено не делать.">
+<title>Дорожная карта</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;font-size:14px}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+  .crosslink{margin-top:20px;font-size:13.5px;color:var(--muted)}
+  .crosslink a{color:var(--home);font-weight:500}
+</style>
+<style>
+/* ==========================================================================
+   Токены. Светлая палитра — на голом :root, тёмная переопределяет только их.
+   ========================================================================== */
+:root{
+  --ground:#F1F5F6;
+  --surface:#FFFFFF;
+  --surface-2:#E7EDEF;
+  --ink:#0E1A1E;
+  --ink-2:#3F5259;
+  --muted:#6A7E86;
+  --line:#D2DEE2;
+  --line-strong:#B2C3C9;
+  --home:#0D6B75;
+  --iot:#95590F;
+  --ok:#2A6B46;
+  --crit:#A22F26;
+  --code-bg:#0E1A1E;
+  --code-ink:#D6E3E7;
+  --code-dim:#7C949C;
+  --shadow:0 1px 2px rgba(14,26,30,.06), 0 8px 24px -16px rgba(14,26,30,.30);
+  --radius:10px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0B1214;
+    --surface:#121D21;
+    --surface-2:#19272C;
+    --ink:#E3EDF0;
+    --ink-2:#A7BBC2;
+    --muted:#7C939B;
+    --line:#22343B;
+    --line-strong:#354F59;
+    --home:#4FC2CD;
+    --iot:#DFA254;
+    --ok:#5EBD85;
+    --crit:#E8786C;
+    --code-bg:#080F11;
+    --code-ink:#CEDFE4;
+    --code-dim:#6D858D;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0B1214;
+  --surface:#121D21;
+  --surface-2:#19272C;
+  --ink:#E3EDF0;
+  --ink-2:#A7BBC2;
+  --muted:#7C939B;
+  --line:#22343B;
+  --line-strong:#354F59;
+  --home:#4FC2CD;
+  --iot:#DFA254;
+  --ok:#5EBD85;
+  --crit:#E8786C;
+  --code-bg:#080F11;
+  --code-ink:#CEDFE4;
+  --code-dim:#6D858D;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"IBM Plex Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  font-size:15.5px;
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:"Golos Text","IBM Plex Sans",system-ui,sans-serif;text-wrap:balance;margin:0}
+a{color:var(--home)}
+code,kbd,pre{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+
+/* ---------- каркас ---------- */
+.wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+.layout{display:grid;grid-template-columns:248px minmax(0,1fr);gap:48px;align-items:start}
+
+/* ---------- шапка ---------- */
+header.top{
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,var(--surface),var(--ground));
+}
+.top .wrap{padding-top:44px;padding-bottom:34px}
+.eyebrow{
+  font-family:"Golos Text",sans-serif;font-weight:600;font-size:11.5px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;
+}
+h1{font-size:clamp(30px,4.4vw,46px);font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.lede{max-width:64ch;margin-top:14px;color:var(--ink-2);font-size:17px}
+.facts{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.fact{
+  display:inline-flex;align-items:center;gap:7px;
+  border:1px solid var(--line);border-radius:100px;background:var(--surface);
+  padding:5px 13px;font-size:12.5px;color:var(--ink-2);
+}
+.fact b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+.dot.home{background:var(--home)}
+.dot.iot{background:var(--iot)}
+
+/* ---------- боковая навигация ---------- */
+nav.rail{position:sticky;top:24px;padding:24px 0 60px}
+.progress{
+  border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);
+  padding:14px;display:flex;align-items:center;gap:13px;margin-bottom:20px;box-shadow:var(--shadow);
+}
+.ring{flex:none}
+.ring circle{fill:none;stroke-width:5}
+.ring .bg{stroke:var(--line)}
+.ring .fg{stroke:var(--home);stroke-linecap:round;transition:stroke-dashoffset .35s ease}
+.progress .txt{font-size:12.5px;line-height:1.35;color:var(--muted)}
+.progress .txt b{display:block;font-family:"Golos Text",sans-serif;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+.reset{
+  appearance:none;border:1px solid var(--line);background:transparent;color:var(--muted);
+  font:inherit;font-size:11.5px;padding:2px 8px;border-radius:6px;cursor:pointer;margin-top:4px;
+}
+.reset:hover{color:var(--ink);border-color:var(--line-strong)}
+nav.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
+nav.rail a{
+  display:flex;gap:10px;align-items:baseline;
+  padding:6px 10px;border-radius:7px;text-decoration:none;color:var(--ink-2);font-size:13.5px;
+  border-left:2px solid transparent;
+}
+nav.rail a:hover{background:var(--surface-2);color:var(--ink)}
+nav.rail a.active{background:var(--surface);color:var(--ink);border-left-color:var(--home);font-weight:500}
+nav.rail a .n{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px;min-width:16px}
+nav.rail a.done .n::after{content:"✓";color:var(--ok)}
+nav.rail a.done .n{font-size:0}
+
+/* ---------- секции ---------- */
+main{padding:34px 0 120px;min-width:0}
+section{margin-bottom:56px;scroll-margin-top:20px}
+.sec-head{border-top:2px solid var(--ink);padding-top:14px;margin-bottom:22px}
+.sec-head .kicker{
+  font-family:"Golos Text",sans-serif;font-size:11.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--muted);font-weight:600;
+}
+h2{font-size:clamp(21px,2.6vw,27px);font-weight:700;letter-spacing:-.015em;margin-top:4px}
+.sec-head p{margin:10px 0 0;color:var(--ink-2);max-width:68ch}
+
+/* ---------- шаги ---------- */
+ol.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
+li.step{
+  display:grid;grid-template-columns:28px minmax(0,1fr);gap:14px;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 18px;box-shadow:var(--shadow);transition:opacity .2s ease;
+}
+li.step.checked{opacity:.55}
+li.step.checked h3{text-decoration:line-through;text-decoration-color:var(--line-strong)}
+.step-check{position:relative;display:block;width:22px;height:22px;margin-top:2px;cursor:pointer}
+.step-check input{position:absolute;opacity:0;width:22px;height:22px;margin:0;cursor:pointer}
+.step-check .box{
+  display:block;width:22px;height:22px;border:1.5px solid var(--line-strong);
+  border-radius:6px;background:var(--ground);transition:.15s ease;
+}
+.step-check input:focus-visible + .box{outline:2px solid var(--home);outline-offset:2px}
+.step-check input:checked + .box{background:var(--home);border-color:var(--home)}
+.step-check .box::after{
+  content:"";position:absolute;left:7px;top:3px;width:6px;height:11px;
+  border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(45deg) scale(0);
+  transition:transform .15s ease;
+}
+.step-check input:checked + .box::after{transform:rotate(45deg) scale(1)}
+.step-body{min-width:0}
+.step-body h3{font-size:16.5px;font-weight:600;letter-spacing:-.005em;display:flex;gap:9px;align-items:baseline}
+.step-body h3 .num{
+  font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:500;
+  color:var(--home);flex:none;padding-top:1px;
+}
+.step-body p{margin:9px 0 0;color:var(--ink-2);max-width:70ch}
+.step-body p:first-of-type{margin-top:7px}
+.step-body ul{margin:9px 0 0;padding-left:20px;color:var(--ink-2);max-width:70ch}
+.step-body li{margin:3px 0}
+.step-body b,.step-body strong{color:var(--ink);font-weight:600}
+
+/* ---------- врезки ---------- */
+.note{
+  margin-top:12px;padding:11px 14px;border-left:3px solid var(--line-strong);
+  background:var(--surface-2);border-radius:0 7px 7px 0;font-size:14px;color:var(--ink-2);
+  max-width:72ch;
+}
+.note b:first-child{color:var(--ink)}
+.note.why{border-left-color:var(--home)}
+.note.warn{border-left-color:var(--iot)}
+.note.crit{border-left-color:var(--crit)}
+.note p{margin:6px 0 0}
+.note p:first-child{margin:0}
+
+/* ---------- код ---------- */
+.code{position:relative;margin-top:12px}
+.code pre{
+  margin:0;background:var(--code-bg);color:var(--code-ink);
+  padding:14px 16px;border-radius:8px;overflow-x:auto;
+  font-size:12.8px;line-height:1.62;border:1px solid var(--line);
+}
+.code pre .c{color:var(--code-dim)}
+.code .copy{
+  position:absolute;top:8px;right:8px;appearance:none;cursor:pointer;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);
+  color:var(--code-dim);font-family:"IBM Plex Sans",sans-serif;font-size:11px;
+  padding:3px 9px;border-radius:5px;opacity:0;transition:.15s ease;
+}
+.code:hover .copy,.code .copy:focus-visible{opacity:1}
+.code .copy:hover{color:#fff;background:rgba(255,255,255,.14)}
+code:not(pre code){
+  background:var(--surface-2);border:1px solid var(--line);
+  padding:1px 5px;border-radius:4px;font-size:.88em;color:var(--ink);
+}
+.path{color:var(--home);overflow-wrap:anywhere}
+
+/* ---------- таблицы ---------- */
+.tablewrap{overflow-x:auto;margin-top:14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.8px;min-width:520px}
+th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{
+  font-family:"Golos Text",sans-serif;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);font-weight:600;background:var(--surface-2);
+}
+tbody tr:last-child td{border-bottom:none}
+td code{white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+
+/* ---------- диаграмма ---------- */
+figure{margin:0 0 26px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px 18px 16px;box-shadow:var(--shadow)}
+figure svg{display:block;width:100%;max-width:100%;height:auto;color:var(--ink-2)}
+figcaption{margin-top:14px;font-size:13.5px;color:var(--muted);max-width:74ch}
+
+/* ---------- метки ---------- */
+.tag{
+  display:inline-block;font-family:"Golos Text",sans-serif;font-size:10.5px;font-weight:600;
+  letter-spacing:.07em;text-transform:uppercase;padding:2px 7px;border-radius:4px;
+  border:1px solid currentColor;vertical-align:2px;margin-left:8px;
+}
+.tag.opt{color:var(--muted)}
+.tag.later{color:var(--iot)}
+.tag.key{color:var(--home)}
+
+footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);font-size:13px}
+
+@media (max-width:940px){
+  .layout{grid-template-columns:1fr;gap:0}
+  nav.rail{position:static;padding:18px 0 0}
+  nav.rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px}
+  main{padding-top:24px}
+}
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important;animation:none !important}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="eyebrow">План · точки роста · чего решено не делать</div>
+    <h1>Дорожная карта</h1>
+    <p class="lede">Куда это хозяйство может расти дальше — и куда сознательно не растёт.</p>
+    <div class="facts"><span class="fact">оценки <b>S · M · L</b></span><span class="fact">вместо сроков — <b>повод</b></span></div>
+    <p class="crosslink">Соседние документы: <a href="overview.html">обзор проекта</a> · <a href="media-stack.html">медиа-стек</a>.</p>
+  </div>
+</header>
+
+<div class="wrap layout">
+
+<nav class="rail" aria-label="Разделы">
+  <div class="progress">
+    <svg class="ring" width="46" height="46" viewBox="0 0 46 46" aria-hidden="true">
+      <circle class="bg" cx="23" cy="23" r="19"></circle>
+      <circle class="fg" cx="23" cy="23" r="19" transform="rotate(-90 23 23)"
+              stroke-dasharray="119.4" stroke-dashoffset="119.4"></circle>
+    </svg>
+    <div class="txt">
+      <b><span id="p-done">0</span> / <span id="p-total">0</span></b>
+      пунктов отмечено
+      <button class="reset" id="reset" type="button">сбросить</button>
+    </div>
+  </div>
+  <ol id="toc"></ol>
+</nav>
+
+<main>
+
+<section id="s0">
+  <div class="sec-head">
+    <div class="kicker">Раздел 0</div>
+    <h2 id="как-читать">Как читать</h2>
+  </div>
+<p>Дат здесь нет: домашний сервер живёт не по спринтам. Вместо сроков у каждого пункта <b>повод</b> — событие, после которого браться за него имеет смысл. Пока повода нет, пункт лежит и не мешает.</p>
+<p>Оценки усилий условны: <b>S</b> — вечер, <b>M</b> — выходные, <b>L</b> — несколько подходов с риском что-нибудь сломать.</p>
+</section>
+
+<section id="s1">
+  <div class="sec-head">
+    <div class="kicker">Раздел 1</div>
+    <h2 id="что-стоит-сделать-в-первую-очередь">Что стоит сделать в первую очередь</h2>
+  </div>
+<p>Три вещи с наибольшей отдачей на вложенные усилия. Не потому что интересные, а потому что закрывают настоящие дыры.</p>
+<div class="tablewrap"><table><thead><tr><th></th><th>Что</th><th>Почему именно это</th><th>Усилия</th></tr></thead><tbody>
+<tr><td>1</td><td><a href="#внешний-пульс">Внешний пульс</a></td><td>Сейчас падение самого NAS не заметит никто</td><td>S</td></tr>
+<tr><td>2</td><td><a href="#ибп-с-usb">ИБП с USB</a></td><td>Отключение питания на записи — это битый том и долгая проверка</td><td>S</td></tr>
+<tr><td>3</td><td><a href="#версии-образов-вместо-latest">Зафиксировать версии образов</a></td><td><code>:latest</code> однажды принесёт breaking change ночью</td><td>M</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="s2">
+  <div class="sec-head">
+    <div class="kicker">Раздел 2</div>
+    <h2 id="ближайшее-уже-решено">Ближайшее — уже решено</h2>
+  </div>
+<ol class="steps">
+    <li class="step" data-key="rm1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3>Память 4 → 12 ГБ. Планка 8 ГБ во второй слот. Обязательно ECC</h3>
+        <p>SODIMM: обычная отключит коррекцию ошибок на всём объёме, включая уже стоящие 4 ГБ. После установки — <i>Панель управления → Информационный центр → Тест памяти</i>, полный прогон. <b>Повод:</b> уже есть, планка куплена. <b>Усилия:</b> S.</p>
+      </div>
+    </li>
+    <li class="step" data-key="rm2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3>Опубликовать репозиторий и включить GitHub Pages</h3>
+        <p><i>Settings → Pages → Deploy from a branch → main → /docs</i>. <b>Усилия:</b> S.</p>
+      </div>
+    </li>
+    <li class="step" data-key="rm3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3>Пройти оба чек-листа до конца. Прогресс сохраняется в браузере,</h3>
+        <p>так что бросать и возвращаться можно спокойно. <b>Усилия:</b> M.</p>
+      </div>
+    </li>
+</ol>
+</section>
+
+<section id="s3">
+  <div class="sec-head">
+    <div class="kicker">Раздел 3</div>
+    <h2 id="наблюдаемость">Наблюдаемость</h2>
+  </div>
+<h3 class="sub" id="внешний-пульс">Внешний пульс</h3>
+<ol class="steps">
+    <li class="step" data-key="rm4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3>Сообщение о том, что NAS лёг</h3>
+        <p>Сейчас в мониторинге есть логическая дыра: всё, что шлёт уведомления, работает на самом NAS. Упадёт контейнер — придёт сообщение. Отвалится индексатор — придёт. Выключится NAS целиком, потеряется питание, зависнет DSM — <b>не придёт ничего</b>, и узнаете вы об этом вечером, когда не откроется Jellyfin.</p>
+        <p>Лечится это только снаружи. Home Assistant раз в пять минут дёргает внешний адрес, а сторонний сервис шлёт письмо, когда пинги прекратились. Подойдёт любой heartbeat-мониторинг с бесплатным тарифом; со стороны HA это один <code>rest_command</code> и одна автоматизация по расписанию.</p>
+        <p>Учтите VPN: весь исходящий трафик NAS идёт в туннель, так что адрес пульса должен быть из него доступен — проверяется тем же <code>curl</code>, что и Пачка.</p>
+        <p class="note"><b>Повод:</b> есть прямо сейчас. <b>Усилия:</b> S.</p>
+      </div>
+    </li>
+    <li class="step" data-key="rm5">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3>Долговременные метрики без Grafana</h3>
+        <p>Home Assistant уже хранит почасовые агрегаты бессрочно — это отдельный механизм от recorder, и он почти ничего не стоит. Панель <i>Статистика</i> покажет температуру и загрузку за год, когда данные накопятся. Отдельная база и Grafana на двух ядрах R1600 того не стоят: см. <a href="#сознательно-не-делаем">чего не делаем</a>.</p>
+        <p class="note"><b>Повод:</b> через полгода накопленных данных. <b>Усилия:</b> S.</p>
+      </div>
+    </li>
+    <li class="step" data-key="rm6">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3>Присутствие дома</h3>
+        <p>Мобильное приложение Home Assistant плюс список устройств Keenetic дают достаточно точное «кто-то дома». Дальше — выключать телевизор при уходе, не будить его ночью, не слать уведомления о фильмах, когда никого нет.</p>
+        <p class="note"><b>Повод:</b> желание, чтобы дом реагировал на уход и возвращение. <b>Усилия:</b> M.</p>
+      </div>
+    </li>
+    <li class="step" data-key="rm7">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3>Второй наблюдатель, если появится второй хост</h3>
+        <p>Uptime Kuma или похожее имеет смысл только на отдельном железе — на том же NAS он не увидит падения этого NAS. Маленькая Raspberry Pi закрыла бы и это, и внешний пульс, и стала бы вторым DNS.</p>
+        <p class="note"><b>Повод:</b> появление второго устройства в доме. <b>Усилия:</b> M.</p>
+      </div>
+    </li>
+</ol>
+</section>
+
+<section id="s4">
+  <div class="sec-head">
+    <div class="kicker">Раздел 4</div>
+    <h2 id="хранилище">Хранилище</h2>
+  </div>
+<h3 class="sub" id="ибп-с-usb">ИБП с USB</h3>
+<ol class="steps">
+    <li class="step" data-key="rm8">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3>Корректное выключение при отключении питания</h3>
+        <p>Synology увидит ИБП сам, Home Assistant прочитает статус через интеграцию DSM. Даёт корректное завершение работы при отключении питания — то есть отсутствие битой файловой системы и потерянной базы. Для NAS с двумя дисками это не роскошь.</p>
+        <p class="note"><b>Повод:</b> первое моргание света, после которого пришлось ждать проверку тома. <b>Усилия:</b> S.</p>
+      </div>
+    </li>
+    <li class="step" data-key="rm9">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3>Том на NVMe для конфигураций и базы</h3>
+        <p>Два слота M.2 свободны. Перенос <code>/volume1/docker</code> на такой том убирает со шпинделей почти весь поток мелкой случайной записи: базу Home Assistant, метаданные Jellyfin, базы Radarr и Prowlarr. DSM 7.2+ умеет делать на M.2 полноценный том, а не только кэш — официально с накопителями Synology, для остальных есть скрипты сообщества.</p>
+        <p class="note"><b>Повод:</b> база HA перевалила за 2 ГБ или интерфейс стал заметно задумчивым. <b>Усилия:</b> L — переезд с остановкой всех контейнеров.</p>
+      </div>
+    </li>
+    <li class="step" data-key="rm10">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3>План замены дисков</h3>
+        <p>Synology DSM уже отдаёт в Home Assistant SMART-статус и остаточный ресурс каждого диска, а автоматизация шлёт 🔴 при любом отклонении от <code>normal</code>. Чего нет — решения, что делать дальше. Стоит заранее определить: при каком проценте ресурса заказываем замену, и лежит ли дома запасной диск.</p>
+        <p class="note"><b>Повод:</b> первое предупреждение SMART. <b>Усилия:</b> S — это решение, а не работа.</p>
+      </div>
+    </li>
+    <li class="step" data-key="rm11">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3>Расширение объёма</h3>
+        <p>Уведомление о заполнении тома на 85 % уже настроено. Варианты, когда оно придёт: диски большего объёма, отсек расширения DX525 или чистка библиотеки. Первый вариант на двухдисковом NAS означает долгую перестройку массива — планировать заранее.</p>
+        <p class="note"><b>Повод:</b> сообщение о 85 %. <b>Усилия:</b> L.</p>
+      </div>
+    </li>
+</ol>
+</section>
+
+<section id="s5">
+  <div class="sec-head">
+    <div class="kicker">Раздел 5</div>
+    <h2 id="медиа-стек">Медиа-стек</h2>
+  </div>
+<ol class="steps">
+    <li class="step" data-key="rm12">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3>Sonarr для сериалов</h3>
+        <p>Самое дешёвое расширение: структура папок под него уже заложена (<code>torrents/tv</code> и <code>media/tv</code> создаются одной командой), Prowlarr раздаст индексаторы автоматически, Seerr подхватит как второй сервер. Плюс один контейнер, около 300 МБ памяти.</p>
+        <p>Не забыть: добавить в <code>docker.yaml</code>, в <code>WATCHED</code> внутри <code>docker_state.py</code>, в HTTP-проверки и на дашборд. Первые два поймает <code>test_watched_matches_compose_files</code>: он сверяет надзор с обоими compose-файлами, так что забыть контейнер целиком не выйдет. HTTP-проверка в <code>monitoring.yaml</code> и карточка на дашборде остаются на совести человека.</p>
+        <p class="note"><b>Повод:</b> первое «хочу посмотреть сериал». <b>Усилия:</b> M.</p>
+      </div>
+    </li>
+    <li class="step" data-key="rm13">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3>Bazarr для субтитров</h3>
+        <p>Имеет смысл только если смотрите с субтитрами. Заодно снимет одну из причин транскодирования: заранее скачанный внешний файл <code>.srt</code> лучше, чем субтитры, вшитые в видеопоток.</p>
+        <p class="note"><b>Повод:</b> необходимость субтитров. <b>Усилия:</b> S.</p>
+      </div>
+    </li>
+    <li class="step" data-key="rm14">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3>Профили качества как код</h3>
+        <p>Recyclarr переносит рекомендованные профили и форматы TRaSH-guides в Radarr по конфигурационному файлу. Это ложится в репозиторий естественно — ещё один YAML под теми же проверками, и «почему скачалась именно эта раздача» перестаёт быть загадкой.</p>
+        <p class="note"><b>Повод:</b> когда надоест, что Radarr берёт не то. <b>Усилия:</b> M.</p>
+      </div>
+    </li>
+</ol>
+</section>
+
+<section id="s6">
+  <div class="sec-head">
+    <div class="kicker">Раздел 6</div>
+    <h2 id="сеть">Сеть</h2>
+  </div>
+<ol class="steps">
+    <li class="step" data-key="rm15">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3>Резервный DNS на интерфейсе провайдера</h3>
+        <p>Технический долг, замеченный при разборе конфигурации: единственный сервер имён объявлен только на интерфейсе туннеля. Упадёт туннель — встанет разрешение имён во всей сети, включая телевизор и телефоны. Две команды, описаны в <a href="keenetic.html">заметках по роутеру</a>.</p>
+        <p class="note"><b>Повод:</b> есть прямо сейчас. <b>Усилия:</b> S.</p>
+      </div>
+    </li>
+    <li class="step" data-key="rm16">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3>Пересмотреть публикацию DSM наружу</h3>
+        <p>Панель управления NAS, доступная из интернета, — это сервис аутентификации, открытый всем. Безопаснее поднять WireGuard-сервер на самом Keenetic и ходить домой через него, а через KeenDNS публиковать только то, что действительно должно быть снаружи.</p>
+        <p class="note"><b>Повод:</b> первая запись в журнале DSM о неудачном входе с чужого адреса. <b>Усилия:</b> M.</p>
+      </div>
+    </li>
+    <li class="step" data-key="rm17">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3>Гостевой сегмент</h3>
+        <p>Два сегмента уже есть, механика понятна. Третий — для гостевого Wi-Fi, с доступом только в интернет. Гостям не нужно видеть ни NAS, ни телевизор.</p>
+        <p class="note"><b>Повод:</b> гости с ноутбуками. <b>Усилия:</b> S.</p>
+      </div>
+    </li>
+</ol>
+</section>
+
+<section id="s7">
+  <div class="sec-head">
+    <div class="kicker">Раздел 7</div>
+    <h2 id="репозиторий-и-процесс">Репозиторий и процесс</h2>
+  </div>
+<h3 class="sub" id="версии-образов-вместо-latest">Версии образов вместо <code>:latest</code></h3>
+<ol class="steps">
+    <li class="step" data-key="rm18">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3>Закрепить версии и обновляться осознанно</h3>
+        <p>Сейчас все восемь контейнеров на <code>:latest</code>. Это работает ровно до дня, когда <code>docker compose pull</code> принесёт мажорное обновление с изменённым форматом базы, и вы узнаете об этом по нерабочему Jellyfin в девять вечера. Особенно неприятно, если обновятся сразу несколько — искать виноватого придётся среди всех.</p>
+        <p>Лечится закреплением тегов плюс Renovate или Dependabot: обновление приходит пул-реквестом, проверки прогоняются, вы читаете changelog и мержите когда готовы. Инфраструктура для этого уже есть — семь проверок в CI и <code>.github/dependabot.yml</code>, туда добавляется экосистема <code>docker-compose</code>.</p>
+        <p class="note"><b>Повод:</b> есть прямо сейчас. <b>Усилия:</b> M.</p>
+      </div>
+    </li>
+    <li class="step" data-key="rm19">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3>Проверка конфигурации настоящим Home Assistant</h3>
+        <p>Нынешние проверки разбирают YAML и компилируют шаблоны, но не знают, существует ли интеграция и верны ли имена ключей. Настоящую проверку делает <code>hass --script check_config</code> внутри официального образа. Мешает одно: без установленных компонентов HACS часть пакетов не загрузится. Обходится заглушками в <code>custom_components</code> — работа на пару вечеров, зато закрывает последний непокрытый класс ошибок.</p>
+        <p class="note"><b>Повод:</b> первый случай, когда конфигурация не загрузилась после обновления HA. <b>Усилия:</b> L.</p>
+      </div>
+    </li>
+    <li class="step" data-key="rm20">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3>Pre-commit хуки</h3>
+        <p>Те же проверки, что в CI, но до коммита. Экономят круг «запушил → подождал → упало → поправил». Пять строк конфигурации.</p>
+        <p class="note"><b>Повод:</b> третий раз, когда CI поймал то, что можно было увидеть локально. <b>Усилия:</b> S.</p>
+      </div>
+    </li>
+    <li class="step" data-key="rm21">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3>Сенсор свежести резервных копий</h3>
+        <p>Бэкапы настроены, но никто не проверяет, что они действительно создаются. Классика жанра — узнать об этом в момент восстановления. Достаточно <code>command_line</code>-сенсора на возраст самого свежего файла в <code>config/backups</code> и уведомления, если ему больше двух суток.</p>
+        <p class="note"><b>Повод:</b> есть прямо сейчас. <b>Усилия:</b> S.</p>
+      </div>
+    </li>
+</ol>
+</section>
+
+<section id="s8">
+  <div class="sec-head">
+    <div class="kicker">Раздел 8</div>
+    <h2 id="сознательно-не-делаем">Сознательно не делаем</h2>
+  </div>
+<p>Не «когда-нибудь потом», а «решено не делать». Список нужен, чтобы через полгода не проходить те же рассуждения заново.</p>
+<p><b>Аппаратное транскодирование.</b> У AMD Ryzen R1600 нет встроенной графики. Включать нечего, никакая настройка Jellyfin этого не изменит. Стратегия остаётся прежней: смотреть через приставку прямым воспроизведением, транскод не запускать вовсе.</p>
+<p><b>Библиотека в 4K и HDR.</b> Матрица телевизора — 1366×768. Файл на 60 ГБ отличается на этом экране от 1080p на 8 ГБ только занятым местом. Профиль качества ограничен 1080p намеренно; пересматривать это имеет смысл только вместе с телевизором.</p>
+<p><b>Kubernetes, Portainer, Swarm.</b> Восемь контейнеров на одном хосте. Docker Compose с ними справляется, а любая оркестрация добавит слой, который придётся обслуживать, не решив ни одной существующей задачи.</p>
+<p><b>Отдельная виртуальная машина с Home Assistant OS.</b> Дала бы Add-ons и чуть более гладкие обновления, но отняла бы главное свойство нынешней схемы: клон репозитория и есть рабочая конфигурация. Плюс 2–4 ГБ памяти под гипервизор.</p>
+<p><b>Локальный доступ Алисы к Home Assistant.</b> Ускорил бы отклик на секунду-две ценой дыры в изоляции сегментов. Колонка — устройство, которое слушает комнату и обновляется само; ей незачем видеть домашнюю сеть.</p>
+<p><b>Grafana с отдельной базой метрик.</b> InfluxDB или VictoriaMetrics плюс Grafana — это ещё два контейнера, гигабайт памяти и постоянная запись на диски ради графиков, которые почти полностью закрывает встроенная статистика Home Assistant. На двух ядрах R1600 цена несоразмерна. Подробный разбор с ценами, арифметикой разрешения и двумя условиями, при которых ответ изменится, — в <a href="overview.html">обзоре проекта</a>, раздел 4. Дешёвый первый шаг, если детализации не хватает: <code>scan_interval: 300</code> в <code>packages/docker.yaml</code> вместо нынешнего часа.</p>
+<p><b>Раздача через VPN без проброса порта.</b> Входящие соединения через туннель не приходят, рейтинг растёт медленно — это принято как данность. Городить второй туннель ради раздачи не стоит; если у провайдера появится port forwarding, включим его одной настройкой.</p>
+</section>
+
+<section id="s9">
+  <div class="sec-head">
+    <div class="kicker">Раздел 9</div>
+    <h2 id="если-захочется-все-сразу">Если захочется всё сразу</h2>
+  </div>
+<p>Порядок, в котором пункты не будут мешать друг другу:</p>
+<figure>
+  <svg viewBox="0 0 900 220" role="img"
+       aria-label="Порядок работ: память 12 ГБ, затем внешний пульс, затем сенсор свежести бэкапов, затем фиксация версий образов. От версий образов расходятся две ветки — ИБП и Sonarr; обе сходятся на томе NVMe.">
+    <defs>
+      <marker id="rm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
+      </marker>
+    </defs>
+    <g stroke="currentColor" fill="none" stroke-width="1.3">
+      <rect x="8" y="82" width="126" height="44" rx="8"></rect>
+      <rect x="172" y="82" width="126" height="44" rx="8"></rect>
+      <rect x="336" y="82" width="150" height="44" rx="8"></rect>
+      <rect x="524" y="82" width="140" height="44" rx="8"></rect>
+      <rect x="702" y="20" width="120" height="44" rx="8"></rect>
+      <rect x="702" y="144" width="120" height="44" rx="8"></rect>
+      <rect x="702" y="82" width="0" height="0"></rect>
+      <rect x="856" y="82" width="0" height="0"></rect>
+    </g>
+    <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="12.5" text-anchor="middle">
+      <text x="71" y="109">Память 12 ГБ</text>
+      <text x="235" y="109">Внешний пульс</text>
+      <text x="411" y="109">Свежесть бэкапов</text>
+      <text x="594" y="109">Версии образов</text>
+      <text x="762" y="47">ИБП</text>
+      <text x="762" y="171">Sonarr</text>
+    </g>
+    <g stroke="currentColor" stroke-width="1.3" fill="none">
+      <line x1="138" y1="104" x2="166" y2="104" marker-end="url(#rm)"></line>
+      <line x1="302" y1="104" x2="330" y2="104" marker-end="url(#rm)"></line>
+      <line x1="490" y1="104" x2="518" y2="104" marker-end="url(#rm)"></line>
+      <path d="M668,98 C686,98 686,42 696,42" marker-end="url(#rm)"></path>
+      <path d="M668,110 C686,110 686,166 696,166" marker-end="url(#rm)"></path>
+      <path d="M826,42 C848,42 848,98 858,101" marker-end="url(#rm)"></path>
+      <path d="M826,166 C848,166 848,112 858,108" marker-end="url(#rm)"></path>
+    </g>
+    <text x="884" y="109" fill="currentColor" font-family="IBM Plex Sans, sans-serif"
+          font-size="12.5" text-anchor="middle">Том
+      <tspan x="884" dy="15">NVMe</tspan></text>
+  </svg>
+  <figcaption>
+    Порядок, в котором пункты не мешают друг другу. Первые четыре шага —
+    вечер, вечер, вечер и одни выходные; после них система перестаёт быть
+    уязвимой к тихим отказам.
+  </figcaption>
+</figure>
+</section>
+
+</main>
+</div>
+
+<footer>
+  <div class="wrap">hh-homelab · Дорожная карта</div>
+</footer>
+
+<script>
+(function () {
+  var KEY = 'roadmap-ds725-checklist-v1';
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; }
+    catch (e) { return {}; }
+  }
+  function save(state) {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  }
+
+  var state = load();
+  var steps = Array.prototype.slice.call(document.querySelectorAll('li.step'));
+  var ring = document.querySelector('.ring .fg');
+  var CIRC = 2 * Math.PI * 19;
+  var doneEl = document.getElementById('p-done');
+  var totalEl = document.getElementById('p-total');
+
+  /* ---- оглавление строится из секций ---- */
+  var toc = document.getElementById('toc');
+  var sections = Array.prototype.slice.call(document.querySelectorAll('main section'));
+  sections.forEach(function (sec) {
+    var h2 = sec.querySelector('h2');
+    if (!h2) return;
+    var kicker = sec.querySelector('.kicker');
+    var label = (kicker ? kicker.textContent.replace(/Раздел\s*/i, '').replace(/Приложение\s*/i, '') : '').trim();
+    var li = document.createElement('li');
+    var a = document.createElement('a');
+    a.href = '#' + sec.id;
+    a.dataset.sec = sec.id;
+    a.innerHTML = '<span class="n">' + label + '</span><span>' +
+      h2.textContent.replace(/\s*(когда приедет|план)\s*$/i, '').trim() + '</span>';
+    li.appendChild(a);
+    toc.appendChild(li);
+  });
+
+  /* ---- отметка раздела как пройденного ---- */
+  function refreshToc() {
+    sections.forEach(function (sec) {
+      var boxes = sec.querySelectorAll('li.step input[type=checkbox]');
+      var link = toc.querySelector('a[data-sec="' + sec.id + '"]');
+      if (!link) return;
+      var all = boxes.length > 0;
+      Array.prototype.forEach.call(boxes, function (b) { if (!b.checked) all = false; });
+      link.classList.toggle('done', all);
+    });
+  }
+
+  function refreshProgress() {
+    var done = steps.filter(function (s) { return s.classList.contains('checked'); }).length;
+    doneEl.textContent = done;
+    totalEl.textContent = steps.length;
+    ring.setAttribute('stroke-dasharray', CIRC.toFixed(1));
+    ring.setAttribute('stroke-dashoffset', (CIRC * (1 - (steps.length ? done / steps.length : 0))).toFixed(1));
+    refreshToc();
+  }
+
+  steps.forEach(function (step) {
+    var key = step.dataset.key;
+    var input = step.querySelector('input[type=checkbox]');
+    if (!input) return;
+    input.id = 'chk-' + key;
+    if (state[key]) { input.checked = true; step.classList.add('checked'); }
+    input.addEventListener('change', function () {
+      step.classList.toggle('checked', input.checked);
+      state[key] = input.checked;
+      if (!input.checked) delete state[key];
+      save(state);
+      refreshProgress();
+    });
+  });
+
+  document.getElementById('reset').addEventListener('click', function () {
+    steps.forEach(function (step) {
+      var input = step.querySelector('input[type=checkbox]');
+      if (input) { input.checked = false; }
+      step.classList.remove('checked');
+    });
+    state = {};
+    save(state);
+    refreshProgress();
+  });
+
+  refreshProgress();
+
+  /* ---- кнопки «копировать» ---- */
+  Array.prototype.forEach.call(document.querySelectorAll('.code .copy'), function (btn) {
+    btn.addEventListener('click', function () {
+      var pre = btn.parentNode.querySelector('pre');
+      if (!pre) return;
+      var text = pre.innerText;
+      var done = function () {
+        var old = btn.textContent;
+        btn.textContent = 'скопировано';
+        setTimeout(function () { btn.textContent = old; }, 1400);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () {});
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) {}
+        document.body.removeChild(ta);
+      }
+    });
+  });
+
+  /* ---- подсветка текущего раздела ---- */
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        var link = toc.querySelector('a[data-sec="' + entry.target.id + '"]');
+        if (!link) return;
+        if (entry.isIntersecting) {
+          Array.prototype.forEach.call(toc.querySelectorAll('a'), function (a) { a.classList.remove('active'); });
+          link.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-10% 0px -75% 0px' });
+    sections.forEach(function (s) { obs.observe(s); });
+  }
+})();
+</script>
+
+</body>
+</html>

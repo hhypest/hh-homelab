@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Какой бот в каком чате, где чей Liquid-шаблон и как настроить вебхуки каждого сервиса для уведомлений в Пачку.">
+<title>Уведомления медиа-стека в Пачку</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;font-size:14px}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+  .crosslink{margin-top:20px;font-size:13.5px;color:var(--muted)}
+  .crosslink a{color:var(--home);font-weight:500}
+</style>
+<style>
+/* ==========================================================================
+   Токены. Светлая палитра — на голом :root, тёмная переопределяет только их.
+   ========================================================================== */
+:root{
+  --ground:#F1F5F6;
+  --surface:#FFFFFF;
+  --surface-2:#E7EDEF;
+  --ink:#0E1A1E;
+  --ink-2:#3F5259;
+  --muted:#6A7E86;
+  --line:#D2DEE2;
+  --line-strong:#B2C3C9;
+  --home:#0D6B75;
+  --iot:#95590F;
+  --ok:#2A6B46;
+  --crit:#A22F26;
+  --code-bg:#0E1A1E;
+  --code-ink:#D6E3E7;
+  --code-dim:#7C949C;
+  --shadow:0 1px 2px rgba(14,26,30,.06), 0 8px 24px -16px rgba(14,26,30,.30);
+  --radius:10px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0B1214;
+    --surface:#121D21;
+    --surface-2:#19272C;
+    --ink:#E3EDF0;
+    --ink-2:#A7BBC2;
+    --muted:#7C939B;
+    --line:#22343B;
+    --line-strong:#354F59;
+    --home:#4FC2CD;
+    --iot:#DFA254;
+    --ok:#5EBD85;
+    --crit:#E8786C;
+    --code-bg:#080F11;
+    --code-ink:#CEDFE4;
+    --code-dim:#6D858D;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0B1214;
+  --surface:#121D21;
+  --surface-2:#19272C;
+  --ink:#E3EDF0;
+  --ink-2:#A7BBC2;
+  --muted:#7C939B;
+  --line:#22343B;
+  --line-strong:#354F59;
+  --home:#4FC2CD;
+  --iot:#DFA254;
+  --ok:#5EBD85;
+  --crit:#E8786C;
+  --code-bg:#080F11;
+  --code-ink:#CEDFE4;
+  --code-dim:#6D858D;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"IBM Plex Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  font-size:15.5px;
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:"Golos Text","IBM Plex Sans",system-ui,sans-serif;text-wrap:balance;margin:0}
+a{color:var(--home)}
+code,kbd,pre{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+
+/* ---------- каркас ---------- */
+.wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+.layout{display:grid;grid-template-columns:248px minmax(0,1fr);gap:48px;align-items:start}
+
+/* ---------- шапка ---------- */
+header.top{
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,var(--surface),var(--ground));
+}
+.top .wrap{padding-top:44px;padding-bottom:34px}
+.eyebrow{
+  font-family:"Golos Text",sans-serif;font-weight:600;font-size:11.5px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;
+}
+h1{font-size:clamp(30px,4.4vw,46px);font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.lede{max-width:64ch;margin-top:14px;color:var(--ink-2);font-size:17px}
+.facts{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.fact{
+  display:inline-flex;align-items:center;gap:7px;
+  border:1px solid var(--line);border-radius:100px;background:var(--surface);
+  padding:5px 13px;font-size:12.5px;color:var(--ink-2);
+}
+.fact b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+.dot.home{background:var(--home)}
+.dot.iot{background:var(--iot)}
+
+/* ---------- боковая навигация ---------- */
+nav.rail{position:sticky;top:24px;padding:24px 0 60px}
+.progress{
+  border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);
+  padding:14px;display:flex;align-items:center;gap:13px;margin-bottom:20px;box-shadow:var(--shadow);
+}
+.ring{flex:none}
+.ring circle{fill:none;stroke-width:5}
+.ring .bg{stroke:var(--line)}
+.ring .fg{stroke:var(--home);stroke-linecap:round;transition:stroke-dashoffset .35s ease}
+.progress .txt{font-size:12.5px;line-height:1.35;color:var(--muted)}
+.progress .txt b{display:block;font-family:"Golos Text",sans-serif;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+.reset{
+  appearance:none;border:1px solid var(--line);background:transparent;color:var(--muted);
+  font:inherit;font-size:11.5px;padding:2px 8px;border-radius:6px;cursor:pointer;margin-top:4px;
+}
+.reset:hover{color:var(--ink);border-color:var(--line-strong)}
+nav.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
+nav.rail a{
+  display:flex;gap:10px;align-items:baseline;
+  padding:6px 10px;border-radius:7px;text-decoration:none;color:var(--ink-2);font-size:13.5px;
+  border-left:2px solid transparent;
+}
+nav.rail a:hover{background:var(--surface-2);color:var(--ink)}
+nav.rail a.active{background:var(--surface);color:var(--ink);border-left-color:var(--home);font-weight:500}
+nav.rail a .n{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px;min-width:16px}
+nav.rail a.done .n::after{content:"✓";color:var(--ok)}
+nav.rail a.done .n{font-size:0}
+
+/* ---------- секции ---------- */
+main{padding:34px 0 120px;min-width:0}
+section{margin-bottom:56px;scroll-margin-top:20px}
+.sec-head{border-top:2px solid var(--ink);padding-top:14px;margin-bottom:22px}
+.sec-head .kicker{
+  font-family:"Golos Text",sans-serif;font-size:11.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--muted);font-weight:600;
+}
+h2{font-size:clamp(21px,2.6vw,27px);font-weight:700;letter-spacing:-.015em;margin-top:4px}
+.sec-head p{margin:10px 0 0;color:var(--ink-2);max-width:68ch}
+
+/* ---------- шаги ---------- */
+ol.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
+li.step{
+  display:grid;grid-template-columns:28px minmax(0,1fr);gap:14px;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 18px;box-shadow:var(--shadow);transition:opacity .2s ease;
+}
+li.step.checked{opacity:.55}
+li.step.checked h3{text-decoration:line-through;text-decoration-color:var(--line-strong)}
+.step-check{position:relative;display:block;width:22px;height:22px;margin-top:2px;cursor:pointer}
+.step-check input{position:absolute;opacity:0;width:22px;height:22px;margin:0;cursor:pointer}
+.step-check .box{
+  display:block;width:22px;height:22px;border:1.5px solid var(--line-strong);
+  border-radius:6px;background:var(--ground);transition:.15s ease;
+}
+.step-check input:focus-visible + .box{outline:2px solid var(--home);outline-offset:2px}
+.step-check input:checked + .box{background:var(--home);border-color:var(--home)}
+.step-check .box::after{
+  content:"";position:absolute;left:7px;top:3px;width:6px;height:11px;
+  border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(45deg) scale(0);
+  transition:transform .15s ease;
+}
+.step-check input:checked + .box::after{transform:rotate(45deg) scale(1)}
+.step-body{min-width:0}
+.step-body h3{font-size:16.5px;font-weight:600;letter-spacing:-.005em;display:flex;gap:9px;align-items:baseline}
+.step-body h3 .num{
+  font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:500;
+  color:var(--home);flex:none;padding-top:1px;
+}
+.step-body p{margin:9px 0 0;color:var(--ink-2);max-width:70ch}
+.step-body p:first-of-type{margin-top:7px}
+.step-body ul{margin:9px 0 0;padding-left:20px;color:var(--ink-2);max-width:70ch}
+.step-body li{margin:3px 0}
+.step-body b,.step-body strong{color:var(--ink);font-weight:600}
+
+/* ---------- врезки ---------- */
+.note{
+  margin-top:12px;padding:11px 14px;border-left:3px solid var(--line-strong);
+  background:var(--surface-2);border-radius:0 7px 7px 0;font-size:14px;color:var(--ink-2);
+  max-width:72ch;
+}
+.note b:first-child{color:var(--ink)}
+.note.why{border-left-color:var(--home)}
+.note.warn{border-left-color:var(--iot)}
+.note.crit{border-left-color:var(--crit)}
+.note p{margin:6px 0 0}
+.note p:first-child{margin:0}
+
+/* ---------- код ---------- */
+.code{position:relative;margin-top:12px}
+.code pre{
+  margin:0;background:var(--code-bg);color:var(--code-ink);
+  padding:14px 16px;border-radius:8px;overflow-x:auto;
+  font-size:12.8px;line-height:1.62;border:1px solid var(--line);
+}
+.code pre .c{color:var(--code-dim)}
+.code .copy{
+  position:absolute;top:8px;right:8px;appearance:none;cursor:pointer;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);
+  color:var(--code-dim);font-family:"IBM Plex Sans",sans-serif;font-size:11px;
+  padding:3px 9px;border-radius:5px;opacity:0;transition:.15s ease;
+}
+.code:hover .copy,.code .copy:focus-visible{opacity:1}
+.code .copy:hover{color:#fff;background:rgba(255,255,255,.14)}
+code:not(pre code){
+  background:var(--surface-2);border:1px solid var(--line);
+  padding:1px 5px;border-radius:4px;font-size:.88em;color:var(--ink);
+}
+.path{color:var(--home);overflow-wrap:anywhere}
+
+/* ---------- таблицы ---------- */
+.tablewrap{overflow-x:auto;margin-top:14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.8px;min-width:520px}
+th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{
+  font-family:"Golos Text",sans-serif;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);font-weight:600;background:var(--surface-2);
+}
+tbody tr:last-child td{border-bottom:none}
+td code{white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+
+/* ---------- диаграмма ---------- */
+figure{margin:0 0 26px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px 18px 16px;box-shadow:var(--shadow)}
+figure svg{display:block;width:100%;max-width:100%;height:auto;color:var(--ink-2)}
+figcaption{margin-top:14px;font-size:13.5px;color:var(--muted);max-width:74ch}
+
+/* ---------- метки ---------- */
+.tag{
+  display:inline-block;font-family:"Golos Text",sans-serif;font-size:10.5px;font-weight:600;
+  letter-spacing:.07em;text-transform:uppercase;padding:2px 7px;border-radius:4px;
+  border:1px solid currentColor;vertical-align:2px;margin-left:8px;
+}
+.tag.opt{color:var(--muted)}
+.tag.later{color:var(--iot)}
+.tag.key{color:var(--home)}
+
+footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);font-size:13px}
+
+@media (max-width:940px){
+  .layout{grid-template-columns:1fr;gap:0}
+  nav.rail{position:static;padding:18px 0 0}
+  nav.rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px}
+  main{padding-top:24px}
+}
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important;animation:none !important}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="eyebrow">Справочник · уведомления в Пачку</div>
+    <h1>Уведомления медиа-стека в Пачку</h1>
+    <p class="lede">Liquid-шаблоны, которые превращают JSON от Radarr, Prowlarr, Jellyfin и Seerr в читаемые сообщения.</p>
+    <div class="facts"><span class="fact">чата <b>2</b></span><span class="fact">ботов <b>5</b></span><span class="fact">шаблонов <b>5</b></span></div>
+    <p class="crosslink">Соседние документы: <a href="media-stack.html">медиа-стек</a> · <a href="index.html">развёртывание Home Assistant</a>.</p>
+  </div>
+</header>
+
+<div class="wrap layout">
+
+<nav class="rail" aria-label="Разделы">
+  <ol id="toc"></ol>
+</nav>
+
+<main>
+
+<section id="s0">
+  <div class="sec-head">
+    <div class="kicker">Раздел 0</div>
+    <h2 id="как-это-разложено-по-чатам">Как это разложено по чатам</h2>
+  </div>
+<p>Пять ботов, два чата. Разделение по смыслу: в одном чате то, что смотреть, в другом — то, что чинить.</p>
+<div class="tablewrap"><table><thead><tr><th>Чат</th><th>Бот</th><th>Шаблон</th><th>О чём говорит</th></tr></thead><tbody>
+<tr><td><b>Кинозал</b></td><td>Radarr</td><td><a href="https://github.com/hhypest/hh-homelab/blob/main/pachca/radarr.liquid"><code>radarr.liquid</code></a></td><td>фильм скачался, обновилось качество, импорт застрял</td></tr>
+<tr><td><b>Кинозал</b></td><td>Prowlarr</td><td><a href="https://github.com/hhypest/hh-homelab/blob/main/pachca/prowlarr.liquid"><code>prowlarr.liquid</code></a></td><td>индексаторы отвалились или ожили</td></tr>
+<tr><td><b>Кинозал</b></td><td>Jellyfin</td><td><a href="https://github.com/hhypest/hh-homelab/blob/main/pachca/jellyfin.liquid"><code>jellyfin.liquid</code></a></td><td>появилось новое, кто что смотрит, неудачный вход</td></tr>
+<tr><td><b>Кинозал</b></td><td>Seerr</td><td><a href="https://github.com/hhypest/hh-homelab/blob/main/pachca/seerr.liquid"><code>seerr.liquid</code></a></td><td>кто что попросил, что доехало, что не выполнилось</td></tr>
+<tr><td><b>Мониторинг</b></td><td>Home Assistant</td><td><i>шаблона нет</i></td><td>железо, контейнеры, сервисы, утренняя сводка</td></tr>
+</tbody></table></div>
+<p>Четыре бота с аватарами по сервисам — в чате сразу видно, кто говорит, и не нужно начинать каждое сообщение с названия сервиса.</p>
+</section>
+
+<section id="s1">
+  <div class="sec-head">
+    <div class="kicker">Раздел 1</div>
+    <h2 id="два-правила-которые-нельзя-нарушать">Два правила, которые нельзя нарушать</h2>
+  </div>
+<p><b>Шаблон задаётся на боте, а не на вебхуке</b>, и применяется ко всем сообщениям этого бота. Поэтому у каждого сервиса свой бот: одним шаблоном четыре разных payload не обслужить.</p>
+<p><b>У бота Home Assistant шаблона быть не должно.</b> Он шлёт уже готовый текст — <code>{"message": "..."}</code> — и Пачка публикует его как есть. Стоит задать этому боту любой шаблон, и все уведомления мониторинга исчезнут: поля <code>movie</code> или <code>subject</code> в его payload нет, шаблон отрендерится в пустоту, а пустое сообщение Пачка не отправляет.</p>
+<p><b>Бот публикует во все групповые чаты, где состоит.</b> Добавьте бота Radarr заодно в Мониторинг — и туда полетят фильмы. Держите каждого ровно в одном чате.</p>
+</section>
+
+<section id="s2">
+  <div class="sec-head">
+    <div class="kicker">Раздел 2</div>
+    <h2 id="куда-отнести-prowlarr-сломался">Куда отнести «Prowlarr сломался»</h2>
+  </div>
+<p>Уведомления Prowlarr о здоровье индексаторов стоят в Кинозале, и это осознанный выбор, хотя выглядит как инфраструктурная тревога.</p>
+<p>Дело в том, что Home Assistant уже следит за Prowlarr со своей стороны: HTTP-проверка раз в минуту заметит, что контейнер лёг, и напишет в Мониторинг. Но она не видит, что Prowlarr жив, а его трекеры отвалились — а это как раз то, из-за чего «Radarr вдруг перестал что-либо находить». Две системы смотрят на разные отказы, и ни одна не заменяет другую.</p>
+<p>Если сообщение об индексаторах в три часа ночи в Кинозале раздражает — уберите бота Prowlarr из Кинозала и добавьте в Мониторинг. Тогда там же окажутся и его события «отдал релиз», но их можно просто не включать в настройках Prowlarr.</p>
+</section>
+
+<section id="s3">
+  <div class="sec-head">
+    <div class="kicker">Раздел 3</div>
+    <h2 id="если-однажды-захочется-одного-бота">Если однажды захочется одного бота</h2>
+  </div>
+<p><a href="https://github.com/hhypest/hh-homelab/blob/main/pachca/media-router.liquid"><code>media-router.liquid</code></a> — один шаблон, который сам определяет отправителя и разбирает payload всех четырёх сервисов. <b>В текущей схеме не используется</b>, лежит на случай, если четыре аватара в чате надоедят.</p>
+<p>Платить придётся сокращённым набором событий: в маршрутизаторе разобрано только то, ради чего уведомления и заводят, остальное сводится к одной строке. Отправитель определяется по полю <code>service</code> (его проставляют Jellyfin и Seerr в своих payload) или по <code>instanceName</code> (его шлют Radarr и Prowlarr).</p>
+</section>
+
+<section id="s4">
+  <div class="sec-head">
+    <div class="kicker">Раздел 4</div>
+    <h2 id="кто-формирует-payload">Кто формирует payload</h2>
+  </div>
+<div class="tablewrap"><table><thead><tr><th>Сервис</th><th>Payload</th><th>Что из этого следует</th></tr></thead><tbody>
+<tr><td>Radarr</td><td>фиксированный, задан разработчиками</td><td>разбираем как есть</td></tr>
+<tr><td>Prowlarr</td><td>фиксированный</td><td>разбираем как есть</td></tr>
+<tr><td>Jellyfin</td><td>задаёте вы — <a href="https://github.com/hhypest/hh-homelab/blob/main/pachca/payloads/jellyfin.handlebars"><code>payloads/jellyfin.handlebars</code></a></td><td>правите два файла вместе</td></tr>
+<tr><td>Seerr</td><td>задаёте вы — <a href="https://github.com/hhypest/hh-homelab/blob/main/pachca/payloads/seerr.json"><code>payloads/seerr.json</code></a></td><td>правите два файла вместе</td></tr>
+</tbody></table></div>
+<p>Jellyfin и Seerr можно было бы заставить слать сразу готовый текст и обойтись без Liquid вовсе. Так не сделано намеренно: пока текст собирается в одном месте — в Пачке — все четыре сервиса выглядят одинаково и правятся одинаково.</p>
+</section>
+
+<section id="s5">
+  <div class="sec-head">
+    <div class="kicker">Раздел 5</div>
+    <h2 id="настройка">Настройка</h2>
+  </div>
+<h3 class="sub" id="1-бот-и-вебхук">1. Бот и вебхук</h3>
+<p>Четыре раза, по одному на сервис. Пачка → <b>Автоматизации → Интеграции → Чат-боты и Вебхуки → Создать</b>:</p>
+<p>1. имя и аватар по сервису — «Radarr», «Prowlarr», «Jellyfin», «Seerr»; 2. поле шаблона: движок <b>Liquid</b>, содержимое соответствующего <code>.liquid</code> файла целиком; 3. вкладка <b>Входящий вебхук</b> → скопировать URL; 4. добавить бота <b>только в чат Кинозал</b>.</p>
+<p>Бот Home Assistant создаётся так же, но <b>без шаблона</b> и добавляется <b>только в чат Мониторинг</b>. Его вебхук идёт в <code>secrets.yaml</code> в переменную <code>pachca_webhook_url</code>.</p>
+<h3 class="sub" id="2-radarr">2. Radarr</h3>
+<p><b>Settings → Connect → «+» → Webhook</b></p>
+<div class="tablewrap"><table><thead><tr><th>Поле</th><th>Значение</th></tr></thead><tbody>
+<tr><td>URL</td><td>вебхук бота Radarr (чат Кинозал)</td></tr>
+<tr><td>Method</td><td>POST</td></tr>
+<tr><td>События</td><td>On Grab, On File Import, On File Upgrade, On Movie Delete, On Health Issue, On Health Restored, On Manual Interaction Required</td></tr>
+</tbody></table></div>
+<p>Кнопка <b>Test</b> пришлёт «Проверка связи из Radarr» — это и есть проверка, что шаблон сохранён верно.</p>
+<h3 class="sub" id="3-prowlarr">3. Prowlarr</h3>
+<p><b>Settings → Connect → «+» → Webhook</b>, URL — вебхук бота Prowlarr (чат Кинозал), события: <b>On Health Issue</b>, <b>On Health Restored</b>, <b>On Application Update</b>.</p>
+<p>Событие «On Release Grab» включайте, только если хотите видеть каждый запрос от Radarr — это довольно шумно и дублирует «On Grab» из Radarr.</p>
+<div class="note">Prowlarr — единственный, чьи уведомления стоит оставить, даже если все остальные вы отключите. Молча отвалившийся индексатор выглядит как «Radarr вдруг перестал что-либо находить», и без этого сообщения причину ищут часами. Почему это в Кинозале, а не в Мониторинге — в разделе выше.</div>
+<h3 class="sub" id="4-jellyfin">4. Jellyfin</h3>
+<p>Нужен плагин: <b>Панель → Плагины → Каталог → Webhook</b>, установить, перезапустить Jellyfin.</p>
+<p><b>Панель → Плагины → Webhook → Add Generic Destination</b>:</p>
+<div class="tablewrap"><table><thead><tr><th>Поле</th><th>Значение</th></tr></thead><tbody>
+<tr><td>Webhook Name</td><td>Пачка</td></tr>
+<tr><td>Webhook Url</td><td>вебхук бота Jellyfin (чат Кинозал)</td></tr>
+<tr><td>Notification Type</td><td>Item Added, Playback Start, Authentication Failure, User Locked Out</td></tr>
+<tr><td>Item Type</td><td>Movies (и Episodes, если появятся сериалы)</td></tr>
+<tr><td>Template</td><td>содержимое <a href="https://github.com/hhypest/hh-homelab/blob/main/pachca/payloads/jellyfin.handlebars"><code>payloads/jellyfin.handlebars</code></a></td></tr>
+</tbody></table></div>
+<p>Галку <b>Send All Properties</b> не ставьте: она игнорирует шаблон и шлёт всё подряд, отчего Liquid-шаблон перестанет находить свои поля.</p>
+<p><b>Разрешение в уведомлениях.</b> Плагин нумерует дорожки файла по типу: <code>Video_0_Width</code>, <code>Video_0_Height</code>, <code>Video_0_Codec</code> — характеристики первой видеодорожки. Из них собирается привычная метка:</p>
+<div class="tablewrap"><table><thead><tr><th>Ширина кадра</th><th>Метка</th></tr></thead><tbody>
+<tr><td>от 3600</td><td><code>2160p (4K)</code></td></tr>
+<tr><td>от 2400</td><td><code>1440p</code></td></tr>
+<tr><td>от 1700</td><td><code>1080p</code></td></tr>
+<tr><td>от 1200</td><td><code>720p</code></td></tr>
+<tr><td>от 900</td><td><code>576p</code></td></tr>
+<tr><td>от 600</td><td><code>480p</code></td></tr>
+<tr><td>меньше</td><td><code>SD</code></td></tr>
+</tbody></table></div>
+<p>Считается по ширине, а не по высоте, и это не придирка. Фильм в формате 2.39:1 в честном 1080p — это 1920×804: по высоте его пришлось бы назвать 720p, и уведомление врало бы на каждом втором фильме. Ширина у всех форматов кадра одинакова. Высота остаётся запасным вариантом, если ширина не приехала.</p>
+<p>Два предостережения:</p>
+<ul><li>Это разрешение <b>исходного файла</b>, а не потока, уехавшего на телевизор. При транскодировании Jellyfin картинку ужимает, но в вебхук об этом ничего не попадает. «1080p · HEVC · транскодирование» читается как «в библиотеке лежит 1080p HEVC, и NAS его сейчас пережимает».</li><li>У событий без файла — вход в систему, блокировка учётной записи — подстановки нет вовсе. В <code>payloads/jellyfin.handlebars</code> числа поэтому взяты в кавычки: без них на месте пустого значения оказалась бы дырка <code>"height": ,</code>, то есть битый JSON и молча потерянное уведомление.</li></ul>
+<h3 class="sub" id="5-seerr">5. Seerr</h3>
+<p><b>Settings → Notifications → Webhook</b></p>
+<div class="tablewrap"><table><thead><tr><th>Поле</th><th>Значение</th></tr></thead><tbody>
+<tr><td>Webhook URL</td><td>вебхук бота Seerr (чат Кинозал)</td></tr>
+<tr><td>JSON Payload</td><td>содержимое <a href="https://github.com/hhypest/hh-homelab/blob/main/pachca/payloads/seerr.json"><code>payloads/seerr.json</code></a></td></tr>
+<tr><td>Типы уведомлений</td><td>Request Pending, Request Automatically Approved, Media Available, Request Failed</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="s6">
+  <div class="sec-head">
+    <div class="kicker">Раздел 6</div>
+    <h2 id="проверка-без-ожидания-событий">Проверка без ожидания событий</h2>
+  </div>
+<p>Ждать настоящего события, чтобы узнать, что в шаблоне опечатка, — плохой способ. Все шаблоны прогоняются локально на сохранённых примерах:</p>
+<div class="code"><button class="copy" type="button">копировать</button><pre><code>pip install python-liquid
+python3 scripts/render_pachca.py            # показать все сообщения
+python3 scripts/render_pachca.py radarr     # только Radarr
+python3 scripts/render_pachca.py --check    # молча, для CI</code></pre></div>
+<p>Скрипт рендерит каждый шаблон на каждом подходящем примере из <a href="samples/"><code>samples/</code></a> и заодно проверяет две вещи, которые Пачка не простит: пустое сообщение и превышение лимита в 40 000 байт.</p>
+<p>То же самое гоняется в CI на каждый push — сломанный шаблон не доедет до main.</p>
+<p>Добавляете новое событие — положите рядом пример <code>samples/&lt;сервис&gt;-&lt;событие&gt;.json</code>, и он подхватится сам. Настоящий payload удобно взять из логов: включите событие, нажмите Test и посмотрите, что пришло.</p>
+</section>
+
+<section id="s7">
+  <div class="sec-head">
+    <div class="kicker">Раздел 7</div>
+    <h2 id="что-учтено-в-шаблонах">Что учтено в шаблонах</h2>
+  </div>
+<p><b>Все обращения к полям защищены <code>default</code>.</b> Сервисы шлют разный набор полей в разных событиях, и отсутствующее поле в Liquid рендерится в пустоту — сообщение выходит рваным, но не падает. С <code>default</code> вместо дырки будет прочерк.</p>
+<p><b>Размер считается в гигабайтах явно.</b> <code>release.size</code> приходит в байтах; <code>divided_by: 1073741824.0</code> с точкой на конце — это не опечатка, а принудительное деление с плавающей точкой: без неё Liquid поделит нацело и любой фильм окажется «8 ГБ».</p>
+<p><b>Import и Upgrade — одно событие.</b> Radarr шлёт <code>eventType: "Download"</code> и в том, и в другом случае; отличает их булев флаг <code>isUpgrade</code>. Шаблон показывает разные иконки, чтобы обновление качества не путалось с новым фильмом.</p>
+<p><b>Транскодирование отмечается отдельно.</b> В уведомлении Jellyfin о начале воспроизведения строка <code>playMethod</code> показывается всегда, а <code>Transcode</code> дополнительно помечается предупреждением: на DS725+ без аппаратного кодировщика это означает, что оба ядра заняты пережатием видео.</p>
+<p><b>Кавычки в названиях.</b> Jellyfin и Seerr подставляют значения прямо в JSON, который вы задали. Название фильма с двойной кавычкой сломало бы разбор. У Jellyfin двойные фигурные скобки экранируют HTML, поэтому кавычка приедет как <code>&amp;quot;</code> — некрасиво, но JSON цел. У Seerr такой защиты нет; за пять лет это ломалось у людей считанные разы, но если однажды сообщение не придёт вовсе — смотрите в эту сторону.</p>
+</section>
+
+</main>
+</div>
+
+<footer>
+  <div class="wrap">hh-homelab · Уведомления медиа-стека в Пачку</div>
+</footer>
+
+<script>
+(function () {
+  var toc = document.getElementById('toc');
+  var sections = Array.prototype.slice.call(document.querySelectorAll('main section'));
+
+  sections.forEach(function (sec) {
+    var h2 = sec.querySelector('h2');
+    if (!h2) return;
+    var kicker = sec.querySelector('.kicker');
+    var label = (kicker ? kicker.textContent.replace(/Раздел\s*/i, '').replace(/Приложение\s*/i, '') : '').trim();
+    var li = document.createElement('li');
+    var a = document.createElement('a');
+    a.href = '#' + sec.id;
+    a.dataset.sec = sec.id;
+    a.innerHTML = '<span class="n">' + label + '</span><span>' + h2.textContent.trim() + '</span>';
+    li.appendChild(a);
+    toc.appendChild(li);
+  });
+
+  /* ---- кнопки «копировать» ---- */
+  Array.prototype.forEach.call(document.querySelectorAll('.code .copy'), function (btn) {
+    btn.addEventListener('click', function () {
+      var pre = btn.parentNode.querySelector('pre');
+      if (!pre) return;
+      var text = pre.innerText;
+      var done = function () {
+        var old = btn.textContent;
+        btn.textContent = 'скопировано';
+        setTimeout(function () { btn.textContent = old; }, 1400);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () {});
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) {}
+        document.body.removeChild(ta);
+      }
+    });
+  });
+
+  /* ---- подсветка текущего раздела ---- */
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        var link = toc.querySelector('a[data-sec="' + entry.target.id + '"]');
+        if (!link) return;
+        if (entry.isIntersecting) {
+          Array.prototype.forEach.call(toc.querySelectorAll('a'), function (a) { a.classList.remove('active'); });
+          link.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-10% 0px -75% 0px' });
+    sections.forEach(function (s) { obs.observe(s); });
+  }
+})();
+</script>
+
+</body>
+</html>
