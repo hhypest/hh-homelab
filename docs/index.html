@@ -291,8 +291,9 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
       <span class="fact">HA <b>:8123</b></span>
     </div>
 
-    <p class="crosslink">Соседний документ: <a href="media-stack.html">настройка медиа-стека</a>
-      — qBittorrent, Prowlarr, Radarr, Jellyfin и Seerr.</p>
+    <p class="crosslink">Соседние документы: <a href="media-stack.html">настройка медиа-стека</a>
+      — qBittorrent, Prowlarr, Radarr, Jellyfin и Seerr;
+      <a href="logs.html">журналы контейнеров</a> — ограничение размера, уборка и чтение.</p>
   </div>
 </header>
 
@@ -2028,9 +2029,9 @@ sudo docker image prune -f</code></pre></div>
       <code>127.0.0.1:2375</code>, получит право останавливать ваши сервисы.
     </p>
     <p>
-      Второе очевидное направление — Zigbee-стик в USB DS725+ и датчики температуры,
-      открытия и протечки. Тогда Home Assistant перестанет быть только панелью
-      мониторинга NAS.
+      Второе очевидное направление — ИБП по USB. Synology увидит его сам, статус
+      придёт в Home Assistant через интеграцию DSM, а NAS начнёт выключаться
+      корректно, а не по обрыву питания.
     </p>
   </div>
 </section>

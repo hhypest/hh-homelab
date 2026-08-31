@@ -1,0 +1,1239 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Журналы контейнеров медиа-стека на Synology DS725+: ограничение размера в compose.yaml, применение, проверка, уборка накопленного и чтение логов.">
+<title>Журналы контейнеров на DS725+</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;font-size:14px}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+  .crosslink{margin-top:20px;font-size:13.5px;color:var(--muted)}
+  .crosslink a{color:var(--home);font-weight:500}
+</style>
+<style>
+/* ==========================================================================
+   Токены. Светлая палитра — на голом :root, тёмная переопределяет только их.
+   ========================================================================== */
+:root{
+  --ground:#F1F5F6;
+  --surface:#FFFFFF;
+  --surface-2:#E7EDEF;
+  --ink:#0E1A1E;
+  --ink-2:#3F5259;
+  --muted:#6A7E86;
+  --line:#D2DEE2;
+  --line-strong:#B2C3C9;
+  --home:#0D6B75;
+  --iot:#95590F;
+  --ok:#2A6B46;
+  --crit:#A22F26;
+  --code-bg:#0E1A1E;
+  --code-ink:#D6E3E7;
+  --code-dim:#7C949C;
+  --shadow:0 1px 2px rgba(14,26,30,.06), 0 8px 24px -16px rgba(14,26,30,.30);
+  --radius:10px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0B1214;
+    --surface:#121D21;
+    --surface-2:#19272C;
+    --ink:#E3EDF0;
+    --ink-2:#A7BBC2;
+    --muted:#7C939B;
+    --line:#22343B;
+    --line-strong:#354F59;
+    --home:#4FC2CD;
+    --iot:#DFA254;
+    --ok:#5EBD85;
+    --crit:#E8786C;
+    --code-bg:#080F11;
+    --code-ink:#CEDFE4;
+    --code-dim:#6D858D;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0B1214;
+  --surface:#121D21;
+  --surface-2:#19272C;
+  --ink:#E3EDF0;
+  --ink-2:#A7BBC2;
+  --muted:#7C939B;
+  --line:#22343B;
+  --line-strong:#354F59;
+  --home:#4FC2CD;
+  --iot:#DFA254;
+  --ok:#5EBD85;
+  --crit:#E8786C;
+  --code-bg:#080F11;
+  --code-ink:#CEDFE4;
+  --code-dim:#6D858D;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"IBM Plex Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  font-size:15.5px;
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:"Golos Text","IBM Plex Sans",system-ui,sans-serif;text-wrap:balance;margin:0}
+a{color:var(--home)}
+code,kbd,pre{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+
+/* ---------- каркас ---------- */
+.wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+.layout{display:grid;grid-template-columns:248px minmax(0,1fr);gap:48px;align-items:start}
+
+/* ---------- шапка ---------- */
+header.top{
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,var(--surface),var(--ground));
+}
+.top .wrap{padding-top:44px;padding-bottom:34px}
+.eyebrow{
+  font-family:"Golos Text",sans-serif;font-weight:600;font-size:11.5px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;
+}
+h1{font-size:clamp(30px,4.4vw,46px);font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.lede{max-width:64ch;margin-top:14px;color:var(--ink-2);font-size:17px}
+.facts{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.fact{
+  display:inline-flex;align-items:center;gap:7px;
+  border:1px solid var(--line);border-radius:100px;background:var(--surface);
+  padding:5px 13px;font-size:12.5px;color:var(--ink-2);
+}
+.fact b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+.dot.home{background:var(--home)}
+.dot.iot{background:var(--iot)}
+
+/* ---------- боковая навигация ---------- */
+nav.rail{position:sticky;top:24px;padding:24px 0 60px}
+.progress{
+  border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);
+  padding:14px;display:flex;align-items:center;gap:13px;margin-bottom:20px;box-shadow:var(--shadow);
+}
+.ring{flex:none}
+.ring circle{fill:none;stroke-width:5}
+.ring .bg{stroke:var(--line)}
+.ring .fg{stroke:var(--home);stroke-linecap:round;transition:stroke-dashoffset .35s ease}
+.progress .txt{font-size:12.5px;line-height:1.35;color:var(--muted)}
+.progress .txt b{display:block;font-family:"Golos Text",sans-serif;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+.reset{
+  appearance:none;border:1px solid var(--line);background:transparent;color:var(--muted);
+  font:inherit;font-size:11.5px;padding:2px 8px;border-radius:6px;cursor:pointer;margin-top:4px;
+}
+.reset:hover{color:var(--ink);border-color:var(--line-strong)}
+nav.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
+nav.rail a{
+  display:flex;gap:10px;align-items:baseline;
+  padding:6px 10px;border-radius:7px;text-decoration:none;color:var(--ink-2);font-size:13.5px;
+  border-left:2px solid transparent;
+}
+nav.rail a:hover{background:var(--surface-2);color:var(--ink)}
+nav.rail a.active{background:var(--surface);color:var(--ink);border-left-color:var(--home);font-weight:500}
+nav.rail a .n{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px;min-width:16px}
+nav.rail a.done .n::after{content:"✓";color:var(--ok)}
+nav.rail a.done .n{font-size:0}
+
+/* ---------- секции ---------- */
+main{padding:34px 0 120px;min-width:0}
+section{margin-bottom:56px;scroll-margin-top:20px}
+.sec-head{border-top:2px solid var(--ink);padding-top:14px;margin-bottom:22px}
+.sec-head .kicker{
+  font-family:"Golos Text",sans-serif;font-size:11.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--muted);font-weight:600;
+}
+h2{font-size:clamp(21px,2.6vw,27px);font-weight:700;letter-spacing:-.015em;margin-top:4px}
+.sec-head p{margin:10px 0 0;color:var(--ink-2);max-width:68ch}
+
+/* ---------- шаги ---------- */
+ol.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
+li.step{
+  display:grid;grid-template-columns:28px minmax(0,1fr);gap:14px;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 18px;box-shadow:var(--shadow);transition:opacity .2s ease;
+}
+li.step.checked{opacity:.55}
+li.step.checked h3{text-decoration:line-through;text-decoration-color:var(--line-strong)}
+.step-check{position:relative;display:block;width:22px;height:22px;margin-top:2px;cursor:pointer}
+.step-check input{position:absolute;opacity:0;width:22px;height:22px;margin:0;cursor:pointer}
+.step-check .box{
+  display:block;width:22px;height:22px;border:1.5px solid var(--line-strong);
+  border-radius:6px;background:var(--ground);transition:.15s ease;
+}
+.step-check input:focus-visible + .box{outline:2px solid var(--home);outline-offset:2px}
+.step-check input:checked + .box{background:var(--home);border-color:var(--home)}
+.step-check .box::after{
+  content:"";position:absolute;left:7px;top:3px;width:6px;height:11px;
+  border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(45deg) scale(0);
+  transition:transform .15s ease;
+}
+.step-check input:checked + .box::after{transform:rotate(45deg) scale(1)}
+.step-body{min-width:0}
+.step-body h3{font-size:16.5px;font-weight:600;letter-spacing:-.005em;display:flex;gap:9px;align-items:baseline}
+.step-body h3 .num{
+  font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:500;
+  color:var(--home);flex:none;padding-top:1px;
+}
+.step-body p{margin:9px 0 0;color:var(--ink-2);max-width:70ch}
+.step-body p:first-of-type{margin-top:7px}
+.step-body ul{margin:9px 0 0;padding-left:20px;color:var(--ink-2);max-width:70ch}
+.step-body li{margin:3px 0}
+.step-body b,.step-body strong{color:var(--ink);font-weight:600}
+
+/* ---------- врезки ---------- */
+.note{
+  margin-top:12px;padding:11px 14px;border-left:3px solid var(--line-strong);
+  background:var(--surface-2);border-radius:0 7px 7px 0;font-size:14px;color:var(--ink-2);
+  max-width:72ch;
+}
+.note b:first-child{color:var(--ink)}
+.note.why{border-left-color:var(--home)}
+.note.warn{border-left-color:var(--iot)}
+.note.crit{border-left-color:var(--crit)}
+.note p{margin:6px 0 0}
+.note p:first-child{margin:0}
+
+/* ---------- код ---------- */
+.code{position:relative;margin-top:12px}
+.code pre{
+  margin:0;background:var(--code-bg);color:var(--code-ink);
+  padding:14px 16px;border-radius:8px;overflow-x:auto;
+  font-size:12.8px;line-height:1.62;border:1px solid var(--line);
+}
+.code pre .c{color:var(--code-dim)}
+.code .copy{
+  position:absolute;top:8px;right:8px;appearance:none;cursor:pointer;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);
+  color:var(--code-dim);font-family:"IBM Plex Sans",sans-serif;font-size:11px;
+  padding:3px 9px;border-radius:5px;opacity:0;transition:.15s ease;
+}
+.code:hover .copy,.code .copy:focus-visible{opacity:1}
+.code .copy:hover{color:#fff;background:rgba(255,255,255,.14)}
+code:not(pre code){
+  background:var(--surface-2);border:1px solid var(--line);
+  padding:1px 5px;border-radius:4px;font-size:.88em;color:var(--ink);
+}
+.path{color:var(--home)}
+
+/* ---------- таблицы ---------- */
+.tablewrap{overflow-x:auto;margin-top:14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.8px;min-width:520px}
+th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{
+  font-family:"Golos Text",sans-serif;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);font-weight:600;background:var(--surface-2);
+}
+tbody tr:last-child td{border-bottom:none}
+td code{white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+
+/* ---------- диаграмма ---------- */
+figure{margin:0 0 26px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px 18px 16px;box-shadow:var(--shadow)}
+figure svg{display:block;width:100%;max-width:100%;height:auto;color:var(--ink-2)}
+figcaption{margin-top:14px;font-size:13.5px;color:var(--muted);max-width:74ch}
+
+/* ---------- метки ---------- */
+.tag{
+  display:inline-block;font-family:"Golos Text",sans-serif;font-size:10.5px;font-weight:600;
+  letter-spacing:.07em;text-transform:uppercase;padding:2px 7px;border-radius:4px;
+  border:1px solid currentColor;vertical-align:2px;margin-left:8px;
+}
+.tag.opt{color:var(--muted)}
+.tag.later{color:var(--iot)}
+.tag.key{color:var(--home)}
+
+footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);font-size:13px}
+
+@media (max-width:940px){
+  .layout{grid-template-columns:1fr;gap:0}
+  nav.rail{position:static;padding:18px 0 0}
+  nav.rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px}
+  main{padding-top:24px}
+}
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important;animation:none !important}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="eyebrow">Эксплуатация · DS725+ · медиа-стек</div>
+    <h1>Журналы контейнеров</h1>
+    <p class="lede">
+      По умолчанию Docker не ротирует журналы вообще: файл растёт, пока
+      на томе не кончится место. В <code>media/compose.yaml</code> у каждого
+      сервиса теперь стоит потолок — 10 МБ на файл, три файла. Здесь разобрано,
+      что именно это значит, как применить, как проверить и что делать
+      с тем, что уже накопилось.
+    </p>
+    <div class="facts">
+      <span class="fact"><span class="dot home"></span>NAS <b>192.168.3.53</b></span>
+      <span class="fact">драйвер <b>json-file</b></span>
+      <span class="fact">на файл <b>10 МБ</b></span>
+      <span class="fact">файлов <b>3</b></span>
+      <span class="fact">потолок стека <b>180 МБ</b></span>
+    </div>
+
+    <p class="crosslink">Соседние документы:
+      <a href="media-stack.html">настройка медиа-стека</a> ·
+      <a href="index.html">развёртывание Home Assistant</a>.</p>
+  </div>
+</header>
+
+<div class="wrap layout">
+
+<nav class="rail" aria-label="Разделы">
+  <div class="progress">
+    <svg class="ring" width="46" height="46" viewBox="0 0 46 46" aria-hidden="true">
+      <circle class="bg" cx="23" cy="23" r="19"></circle>
+      <circle class="fg" cx="23" cy="23" r="19" transform="rotate(-90 23 23)"
+              stroke-dasharray="119.4" stroke-dashoffset="119.4"></circle>
+    </svg>
+    <div class="txt">
+      <b><span id="p-done">0</span> / <span id="p-total">0</span></b>
+      шагов выполнено
+      <button class="reset" id="reset" type="button">сбросить</button>
+    </div>
+  </div>
+  <ol id="toc"></ol>
+</nav>
+
+<main>
+
+<section id="s0">
+  <div class="sec-head">
+    <div class="kicker">Раздел 0</div>
+    <h2>Что происходит без ограничения</h2>
+    <p>
+      Контейнер пишет в стандартный вывод — Docker перехватывает эти строки
+      и складывает в один файл на томе. Файл этот никем не убирается: ни
+      logrotate DSM, ни сам контейнер о нём не знают. Пока сервис работает,
+      файл только растёт.
+    </p>
+  </div>
+
+  <figure>
+    <svg viewBox="0 0 900 300" role="img"
+         aria-label="Схема: контейнер пишет в стандартный вывод, драйвер json-file складывает строки в файл на томе. Без ограничения файл растёт неограниченно. С ограничением активный файл обрезается на 10 мегабайтах, сдвигается в архив, архивов держится не больше двух, самый старый удаляется.">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
+        </marker>
+      </defs>
+
+      <g stroke="currentColor" fill="none" stroke-width="1.3">
+        <rect x="14" y="112" width="150" height="58" rx="9"></rect>
+        <rect x="242" y="112" width="150" height="58" rx="9"></rect>
+      </g>
+      <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="13">
+        <text x="89" y="136" text-anchor="middle">jellyfin</text>
+        <text x="89" y="155" text-anchor="middle" opacity=".65">stdout / stderr</text>
+        <text x="317" y="136" text-anchor="middle">драйвер</text>
+        <text x="317" y="155" text-anchor="middle" opacity=".65">json-file</text>
+      </g>
+      <line x1="168" y1="141" x2="236" y2="141" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"></line>
+
+      <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="11.5" opacity=".7">
+        <text x="470" y="42">Без ограничения</text>
+        <text x="470" y="196">Стало: max-size 10m, max-file 3</text>
+      </g>
+
+      <line x1="396" y1="130" x2="462" y2="72" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)" opacity=".45"></line>
+      <line x1="396" y1="152" x2="462" y2="228" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"></line>
+
+      <g stroke="currentColor" fill="none" stroke-width="1.3" opacity=".45">
+        <rect x="470" y="56" width="392" height="52" rx="8"></rect>
+      </g>
+      <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="12.5" opacity=".65">
+        <text x="486" y="80">один файл, растёт без предела</text>
+        <text x="486" y="98" font-size="11.5">…-json.log · 3 ГБ · и дальше, пока есть место на томе</text>
+      </g>
+
+      <g stroke="currentColor" fill="none" stroke-width="1.3">
+        <rect x="470" y="212" width="118" height="52" rx="8"></rect>
+        <rect x="600" y="212" width="118" height="52" rx="8" opacity=".7"></rect>
+        <rect x="730" y="212" width="118" height="52" rx="8" opacity=".45"></rect>
+      </g>
+      <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="11.5">
+        <text x="529" y="234" text-anchor="middle">активный</text>
+        <text x="529" y="252" text-anchor="middle" opacity=".65">до 10 МБ</text>
+        <text x="659" y="234" text-anchor="middle" opacity=".8">…log.1</text>
+        <text x="659" y="252" text-anchor="middle" opacity=".55">10 МБ</text>
+        <text x="789" y="234" text-anchor="middle" opacity=".6">…log.2</text>
+        <text x="789" y="252" text-anchor="middle" opacity=".45">10 МБ</text>
+      </g>
+      <g stroke="currentColor" stroke-width="1.3">
+        <line x1="592" y1="238" x2="596" y2="238" marker-end="url(#ar)"></line>
+        <line x1="722" y1="238" x2="726" y2="238" marker-end="url(#ar)" opacity=".7"></line>
+        <line x1="852" y1="238" x2="880" y2="238" marker-end="url(#ar)" opacity=".45"></line>
+      </g>
+      <text x="866" y="284" text-anchor="middle" fill="currentColor" opacity=".55"
+            font-family="IBM Plex Sans, sans-serif" font-size="11">удаляется</text>
+    </svg>
+    <figcaption>
+      Ротация не «чистит» файл, а сдвигает его: активный журнал доходит
+      до 10 МБ, переименовывается в <code>.1</code>, на его месте начинается
+      новый. Когда архивов становится больше двух, самый старый удаляется.
+      Итог — не больше 30 МБ на сервис, и это потолок, а не средняя величина.
+    </figcaption>
+  </figure>
+
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr><th>Параметр</th><th>По умолчанию у Docker</th><th>Стало в медиа-стеке</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>driver</code></td><td><code>json-file</code></td><td><code>json-file</code> — тот же, просто задан явно</td></tr>
+        <tr><td><code>max-size</code></td><td>не задан — файл не обрезается никогда</td><td><code>10m</code></td></tr>
+        <tr><td><code>max-file</code></td><td>не задан</td><td><code>3</code> — активный плюс два архива</td></tr>
+        <tr><td>Потолок на сервис</td><td>объём тома</td><td class="num-col">30 МБ</td></tr>
+        <tr><td>Потолок на стек</td><td>объём тома</td><td class="num-col">180 МБ (6 сервисов)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note why"><b>Почему это не абстрактная предосторожность.</b>
+    Журнал живёт на том же томе, что библиотека и базы приложений. Разросшийся
+    файл отнимает место не у себя, а у Radarr, у базы Jellyfin и у загрузок —
+    и первым симптомом будет не «много логов», а неудачный импорт фильма
+    или база, упавшая в read-only. Уведомление о заполнении тома на 85 %
+    придёт, но объяснит только следствие.</div>
+
+  <div class="note warn"><b>Home Assistant это уже касалось.</b>
+    В <code>homeassistant/compose.yaml</code> лимиты стояли с самого начала:
+    10 МБ × 3 у HA и 2 МБ × 2 у <code>dockerproxy</code>. Медиа-стек до сих пор
+    оставался единственным местом в репозитории, где журналы росли свободно.</div>
+</section>
+
+<section id="s1">
+  <div class="sec-head">
+    <div class="kicker">Раздел 1</div>
+    <h2>Что изменилось в compose.yaml</h2>
+    <p>
+      Правка механическая и одинаковая для всех шести сервисов. Читать её
+      стоит один раз — чтобы понимать, что именно применяется на NAS
+      в следующем разделе.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="lg1-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">1.1</span> Блок, добавленный каждому сервису</h3>
+        <p>
+          В <code class="path">media/compose.yaml</code> у <code>qbittorrent</code>,
+          <code>prowlarr</code>, <code>radarr</code>, <code>flaresolverr</code>,
+          <code>jellyfin</code> и <code>seerr</code> появилось одно и то же:
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>    networks:
+      - media
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"</code></pre></div>
+        <p>
+          Кавычки не для красоты: параметры драйвера — строки. Без них YAML
+          отдаст <code>3</code> числом, и дальше как повезёт с версией Compose:
+          одна приведёт к строке молча, другая откажется разбирать файл.
+          Кавычки снимают вопрос — и так же записано в
+          <code class="path">homeassistant/compose.yaml</code>.
+        </p>
+      </div>
+    </li>
+
+    <li class="step" data-key="lg1-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">1.2</span> Что означают 10m и 3<span class="tag key">суть</span></h3>
+        <ul>
+          <li><b><code>max-size: "10m"</code></b> — потолок <b>активного</b> файла.
+            Дойдя до него, Docker переименовывает файл и начинает новый.
+            Суффиксы: <code>k</code>, <code>m</code>, <code>g</code>.</li>
+          <li><b><code>max-file: "3"</code></b> — сколько файлов держать <b>всего</b>,
+            включая активный. То есть активный плюс <code>.1</code> и <code>.2</code>.</li>
+        </ul>
+        <div class="note"><b>Считать надо произведение.</b> 10 × 3 = 30 МБ
+          на сервис в худшем случае, 180 МБ на весь стек. Частая ошибка —
+          прочитать <code>max-size</code> как общий лимит и удивиться, что
+          на диске втрое больше.</div>
+        <div class="note why"><b>Почему именно 10 МБ, а не 1 и не 100.</b>
+          Журнал нужен для разбора аварии, а разбирают её обычно в тот же
+          вечер. 10 МБ текста — это от нескольких часов до нескольких недель
+          истории в зависимости от болтливости сервиса; при 1 МБ ночная серия
+          повторяющихся ошибок вытеснит собственное начало, и причину вы уже
+          не увидите. Три файла дают запас на случай, когда авария случилась
+          вчера, а заметили её сегодня.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="lg1-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">1.3</span> Почему настройка стоит у каждого сервиса, а не у демона</h3>
+        <p>
+          Тот же результат даёт <code>log-driver</code> и <code>log-opts</code>
+          в конфигурации демона Docker — тогда лимит достался бы всем
+          контейнерам сразу, включая будущие.
+        </p>
+        <p>
+          На DSM этот путь плохой: конфигурация демона принадлежит пакету
+          Container Manager и может быть перезаписана при его обновлении,
+          а сам файл не лежит в этом репозитории — то есть настройка
+          существовала бы только на живом NAS и потерялась бы при
+          переустановке. Строки в <code>compose.yaml</code> версионируются,
+          переезжают вместе с репозиторием и видны в diff.
+        </p>
+        <div class="note warn"><b>Цена решения.</b> Седьмой сервис, добавленный
+          в стек без блока <code>logging</code>, снова будет писать без
+          ограничения. При добавлении контейнера блок нужно копировать —
+          это же относится к Sonarr и Bazarr из
+          <a href="https://github.com/hhypest/hh-homelab/blob/main/docs/roadmap.md">дорожной карты</a>.</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s2">
+  <div class="sec-head">
+    <div class="kicker">Раздел 2</div>
+    <h2>Применить на NAS</h2>
+    <p>
+      Настройка журналирования задаётся при <b>создании</b> контейнера.
+      Перезапуск существующего её не подхватит — контейнер нужно пересоздать.
+      Compose делает это сам, увидев изменившийся файл.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="lg2-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.1</span> Забрать изменения на NAS</h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab
+git pull</code></pre></div>
+        <p>
+          Каталог проекта — <code class="path">/volume1/docker/hh-homelab/media</code>,
+          тот же, что указан в шапке <code>compose.yaml</code>.
+        </p>
+      </div>
+    </li>
+
+    <li class="step" data-key="lg2-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.2</span> Проверить файл до применения</h3>
+        <p>Опечатка в отступе здесь стоит недоступного сервиса, поэтому сначала разбор:</p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/media
+docker compose config | grep -A4 logging</code></pre></div>
+        <p>
+          <code>docker compose config</code> печатает конфигурацию так, как её
+          понял Docker. Блоков <code>logging</code> должно быть <b>шесть</b>,
+          в каждом — <code>max-size</code> со значением 10m и <code>max-file</code>
+          со значением 3. Если команда ругается на разбор — правьте YAML,
+          до контейнеров дело ещё не дошло и ничего не сломано.
+        </p>
+      </div>
+    </li>
+
+    <li class="step" data-key="lg2-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.3</span> Пересоздать контейнеры</h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/media
+docker compose up -d</code></pre></div>
+        <p>
+          Compose сравнит желаемое состояние с текущим, увидит изменившийся
+          <code>LogConfig</code> и пересоздаст все шесть контейнеров:
+          <code>Recreating qbittorrent … done</code> и так далее. Образы
+          не перекачиваются, простой — несколько секунд на сервис.
+        </p>
+        <div class="note why"><b>Данные при пересоздании не теряются.</b>
+          Всё состояние приложений лежит в томах <code class="path">/volume1/docker/&lt;сервис&gt;/config</code>
+          и <code class="path">/volume1/data</code>, которые монтируются снаружи. Пересоздаётся
+          только сам контейнер — оболочка вокруг процесса. Настройки Radarr,
+          библиотека Jellyfin и активные раздачи qBittorrent остаются на месте.</div>
+        <div class="note"><b>Через интерфейс DSM.</b> То же самое делает
+          <i>Container Manager → Проект <code>media</code> → Действие → Собрать</i>.
+          Результат тот же; из SSH просто виднее, что именно произошло.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="lg2-4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.4</span> Убедиться, что всё поднялось</h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>docker compose ps</code></pre></div>
+        <p>
+          Шесть строк в состоянии <code>running</code>. Дальше — обычная
+          проверка живости: открыть <a href="http://192.168.3.53:5055">Seerr</a>
+          и <a href="http://192.168.3.53:8096">Jellyfin</a>, убедиться, что
+          раздачи в qBittorrent продолжились.
+        </p>
+        <div class="note warn"><b>Если сервис не поднялся.</b> Смотрите
+          <code>docker compose logs --tail 50 &lt;сервис&gt;</code>. Жалоба на
+          настройку логирования или на размер означает опечатку в
+          <code>max-size</code> — вернитесь к шагу 2.2. Откатиться всегда можно
+          так: убрать блок <code>logging</code> и снова
+          <code>docker compose up -d</code>.</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s3">
+  <div class="sec-head">
+    <div class="kicker">Раздел 3</div>
+    <h2>Проверить, что ограничение действует</h2>
+    <p>
+      Три проверки: настройка записана в контейнер, файл журнала лежит там,
+      где ожидается, и его размер укладывается в потолок.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="lg3-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">3.1</span> Спросить сам контейнер<span class="tag key">главная проверка</span></h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>for c in qbittorrent prowlarr radarr flaresolverr jellyfin seerr; do
+  printf '%-13s %s\n' "$c" "$(docker inspect --format '{{json .HostConfig.LogConfig}}' "$c")"
+done</code></pre></div>
+        <p>Ожидаемый вывод — шесть одинаковых строк:</p>
+        <div class="code"><pre><code>qbittorrent   {"Type":"json-file","Config":{"max-file":"3","max-size":"10m"}}</code></pre></div>
+        <div class="note crit"><b>Пустой <code>Config</code> — значит контейнер не пересоздан.</b>
+          <code>{"Type":"json-file","Config":{}}</code> говорит, что работает
+          старый контейнер, поднятый до правки, и его журнал по-прежнему
+          не ограничен. Помогает <code>docker compose up -d --force-recreate &lt;сервис&gt;</code>.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="lg3-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">3.2</span> Посмотреть на файлы журналов</h3>
+        <p>
+          Docker сам скажет, где лежит журнал каждого контейнера — гадать
+          с идентификаторами не нужно:
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>for c in $(docker ps --format '{{.Names}}'); do
+  p=$(docker inspect --format '{{.LogPath}}' "$c")
+  printf '%-15s %8s  %s\n' "$c" "$(sudo du -sh "$p" | cut -f1)" "$p"
+done</code></pre></div>
+        <p>
+          На DSM каталог с журналами — <code class="path">/volume1/@docker/containers/</code>,
+          и заглянуть туда можно только с <code>sudo</code>. Полное дерево
+          с архивами:
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo ls -lh /volume1/@docker/containers/*/*-json.log*</code></pre></div>
+      </div>
+    </li>
+
+    <li class="step" data-key="lg3-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">3.3</span> Понять, что вы видите</h3>
+        <ul>
+          <li>Файлов на контейнер — <b>не больше трёх</b>: <code>…-json.log</code>,
+            <code>…-json.log.1</code>, <code>…-json.log.2</code>.</li>
+          <li>Каждый — <b>не больше 10 МБ</b>. Активный обычно меньше:
+            он растёт до порога и только тогда сдвигается.</li>
+          <li>Сразу после пересоздания архивов нет вообще — журнал начат
+            с нуля. Это нормально и означает, что всё сработало.</li>
+        </ul>
+        <div class="note"><b>Одного прогона мало для полной уверенности.</b>
+          Что ротация действительно происходит, видно только когда сервис
+          наговорит первые 10 МБ. У FlareSolverr и Jellyfin это дни, у Prowlarr —
+          недели. Достаточно вернуться к этой проверке через месяц: если
+          файлов три и все по 10 МБ — механизм работает ровно как задумано,
+          и расти дальше он уже не будет.</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s4">
+  <div class="sec-head">
+    <div class="kicker">Раздел 4</div>
+    <h2>Разобрать то, что уже накопилось</h2>
+    <p>
+      Лимит действует только на новые записи. Хорошая новость: пересоздание
+      контейнеров из раздела 2 уже унесло старые журналы с собой. Этот раздел
+      нужен для контейнеров, которые пересоздавать нельзя или не хочется.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="lg4-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">4.1</span> Понять, куда делись старые журналы<span class="tag key">суть</span></h3>
+        <p>
+          Журнал принадлежит <b>контейнеру</b>, а не образу и не сервису.
+          Удаляется контейнер — удаляется и его каталог в
+          <code class="path">/volume1/@docker/containers/</code> вместе со всеми файлами журнала.
+        </p>
+        <p>
+          <code>docker compose up -d</code> из шага 2.3 именно это и сделал:
+          старые контейнеры удалены, новые созданы с нуля. Всё, что медиа-стек
+          накопил до правки, освободилось само. Отдельная уборка не нужна —
+          достаточно посмотреть на свободное место до и после.
+        </p>
+        <div class="note warn"><b>Обратная сторона.</b> Вместе с местом
+          пропала и история. Если вы разбирали аварию недельной давности
+          и собирались вернуться к записям — сохраните их <b>до</b> шага 2.3:
+          <code>docker logs qbittorrent &gt; /volume1/homes/…/qb.log 2&gt;&amp;1</code>.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="lg4-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">4.2</span> Обрезать журнал живого контейнера</h3>
+        <p>
+          Нужно, когда контейнер трогать нельзя: идёт долгая раздача,
+          Jellyfin отдаёт фильм, или это чужой контейнер вне этого стека.
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code><span class="c"># Обнулить журнал одного контейнера, не останавливая его</span>
+sudo truncate -s 0 "$(docker inspect --format '{{.LogPath}}' jellyfin)"
+
+<span class="c"># Все контейнеры разом</span>
+for c in $(docker ps -q); do
+  sudo truncate -s 0 "$(docker inspect --format '{{.LogPath}}' "$c")"
+done</code></pre></div>
+        <p>
+          <code>truncate -s 0</code> обнуляет длину файла, не трогая сам файл.
+          Открытый у Docker дескриптор остаётся действительным, запись
+          продолжается с начала, перезапуск не нужен.
+        </p>
+        <div class="note crit"><b>Не удаляйте файл журнала через <code>rm</code>.</b>
+          Docker держит его открытым. После <code>rm</code> место
+          <b>не освободится</b> — ядро не отдаст блоки, пока жив дескриптор, —
+          зато <code>docker logs</code> начнёт отдавать пустоту, а сам файл
+          исчезнет из <code>ls</code>. Получается худшее из двух: места нет
+          и журнала нет. Разбирается это только перезапуском контейнера.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="lg4-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">4.3</span> Не перепутать с журналами приложений</h3>
+        <p>
+          Docker ограничивает <b>стандартный вывод</b>. Приложения, которые
+          пишут ещё и в собственные файлы внутри тома <code>config</code>,
+          этим лимитом не затронуты вообще:
+        </p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Сервис</th><th>Собственные журналы</th><th>Кто их убирает</th></tr></thead>
+            <tbody>
+              <tr><td>Jellyfin</td><td><code class="path">/volume1/docker/jellyfin/config/log/</code></td><td>сам, по своей политике хранения</td></tr>
+              <tr><td>Radarr</td><td><code class="path">/volume1/docker/radarr/config/logs/</code></td><td>сам, кольцевой набор файлов</td></tr>
+              <tr><td>Prowlarr</td><td><code class="path">/volume1/docker/prowlarr/config/logs/</code></td><td>сам, кольцевой набор файлов</td></tr>
+              <tr><td>qBittorrent</td><td><code class="path">/volume1/docker/qbittorrent/config/qBittorrent/data/logs/</code></td><td>сам, с ограничением из настроек</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Эти каталоги ротируются самими приложениями и обычно невелики.
+          Но если место кончилось, а журналы Docker в норме — искать стоит
+          именно здесь, а заодно в кэше Jellyfin
+          (<code class="path">/volume1/docker/jellyfin/cache</code>), который к журналам
+          отношения не имеет и растёт по своим причинам.
+        </p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s5">
+  <div class="sec-head">
+    <div class="kicker">Раздел 5</div>
+    <h2>Читать журналы</h2>
+    <p>
+      Теперь, когда журнал заведомо не длиннее 30 МБ, его стало реально
+      прочитать. Несколько приёмов, которые экономят время при разборе.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="lg5-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">5.1</span> Смотреть по времени, а не по количеству строк</h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code><span class="c"># Что происходило за последний час</span>
+docker logs --since 1h radarr
+
+<span class="c"># Живой поток, последние 50 строк как контекст</span>
+docker logs -f --tail 50 jellyfin
+
+<span class="c"># Окно вокруг известного момента аварии</span>
+docker logs --since 2026-08-30T22:00:00 --until 2026-08-30T23:00:00 qbittorrent</code></pre></div>
+        <div class="note"><b>Про <code>--since</code> и ротацию.</b> Docker
+          читает и архивы <code>.1</code>, <code>.2</code>, так что запрос
+          за вчера сработает. Но если сервис за это время наговорил больше
+          30 МБ, начало окна уже вытеснено — и тогда стоит поднять
+          <code>max-size</code> именно этому сервису, см. раздел 7.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="lg5-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">5.2</span> Искать по всему стеку сразу</h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/media
+
+<span class="c"># Все шесть сервисов одним потоком, с префиксом имени</span>
+docker compose logs -f --tail 20
+
+<span class="c"># Только ошибки за сутки</span>
+docker compose logs --since 24h | grep -iE 'error|fatal|exception'</code></pre></div>
+        <p>
+          <code>docker compose logs</code> помечает каждую строку именем
+          сервиса — это единственный способ увидеть, как события в одном
+          контейнере совпадают по времени с событиями в другом. Половина
+          неполадок в конвейере видна только так: Radarr сообщает об ошибке
+          ровно тогда, когда FlareSolverr отдаёт таймаут.
+        </p>
+      </div>
+    </li>
+
+    <li class="step" data-key="lg5-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">5.3</span> Не забывать про <code>--timestamps</code></h3>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>docker logs -t --since 30m seerr</code></pre></div>
+        <p>
+          Не каждое приложение печатает время в собственных строках.
+          Docker знает момент каждой записи и подставит его флагом
+          <code>-t</code> — без этого сопоставить журнал с уведомлением
+          в Пачке или с отметкой в Home Assistant нечем.
+        </p>
+        <div class="note why"><b>Часовой пояс.</b> <code>-t</code> печатает UTC,
+          а контейнеры живут в <code>Europe/Moscow</code> из <code>TZ</code>.
+          Расхождение на три часа — это не сбой часов, а разница представления;
+          собственные строки приложения при этом московские.</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s6">
+  <div class="sec-head">
+    <div class="kicker">Раздел 6</div>
+    <h2>Убавить источник шума</h2>
+    <p>
+      Ограничение размера — это про следствие. Причина в том, сколько сервис
+      говорит, и её тоже стоит подкрутить: в тихом журнале авария заметна,
+      в болтливом — тонет.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="lg6-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">6.1</span> FlareSolverr и Seerr — переменной окружения</h3>
+        <p>
+          У обоих уровень задаётся прямо в <code>compose.yaml</code> и уже
+          стоит в <code>info</code>:
+        </p>
+        <div class="code"><pre><code>environment:
+  - LOG_LEVEL=info</code></pre></div>
+        <p>
+          Ставить <code>debug</code> стоит только на время разбора конкретной
+          неполадки — и возвращать обратно. FlareSolverr в отладочном режиме
+          пишет ход каждого обхода защиты Cloudflare и способен выбрать
+          все 30 МБ за вечер активного поиска.
+        </p>
+        <div class="note warn"><b>После правки — пересоздать контейнер.</b>
+          Переменные окружения, как и <code>logging</code>, задаются при
+          создании: <code>docker compose up -d flaresolverr</code>.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="lg6-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">6.2</span> Radarr и Prowlarr — в веб-интерфейсе</h3>
+        <p>
+          <i>Settings → General → Logging → Log Level</i>. Рабочее значение —
+          <code>Info</code>. <code>Debug</code> и особенно <code>Trace</code>
+          включают запись каждого обращения к индексаторам: журнал разрастается
+          в десятки раз, а на медленных дисках это ещё и заметная нагрузка.
+        </p>
+        <div class="note"><b>Не забыть вернуть.</b> Уровень остаётся
+          в настройках навсегда и переживает перезапуск контейнера.
+          Включённый год назад <code>Trace</code> — довольно частая причина
+          того, что журналы разрослись «сами по себе».</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="lg6-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">6.3</span> Jellyfin — самый болтливый в стеке</h3>
+        <p>
+          <i>Панель управления → Журналы</i> показывает файлы, а уровень
+          задаётся в каталоге <code class="path">/volume1/docker/jellyfin/config/</code>.
+          Ловушка: образ кладёт туда <code>logging.default.json</code>
+          и перезаписывает его при обновлении. Править нужно копию с именем
+          <code>logging.json</code> — её Jellyfin предпочитает и не трогает.
+          Значение по умолчанию — <code>Information</code>; менять его стоит,
+          только если журнал переполняется за день.
+        </p>
+        <div class="note why"><b>Откуда объём.</b> Jellyfin пишет строку
+          на каждый запрос плеера, а плеер при перемотке шлёт их пачками.
+          Плюс сканирование библиотеки и разбор метаданных. Отсюда и решение
+          дать ему тот же лимит, что и остальным: 30 МБ хватит примерно
+          на неделю обычного просмотра, а именно неделя и нужна.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="lg6-4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">6.4</span> qBittorrent — отключить лишнее</h3>
+        <p>
+          Веб-интерфейс на <a href="http://192.168.3.53:9080">192.168.3.53:9080</a>,
+          раздел <i>Настройки → Поведение → Файл журнала</i>. Там же, где
+          включается сам файл, задаётся его архивирование и удаление старых
+          копий — это про собственный журнал qBittorrent из шага 4.3,
+          не про журнал Docker.
+        </p>
+        <p>
+          Что показывать в <i>Инструменты → Журнал выполнения</i>, выбирается
+          галочками прямо в окне журнала. Категория с сообщениями о пирах
+          на активной раздаче даёт основной поток строк, а для разбора
+          неполадок почти бесполезна.
+        </p>
+      </div>
+    </li>
+
+    <li class="step" data-key="lg6-5">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">6.5</span> Проверить, что стало тише</h3>
+        <p>
+          Объективная мера — сколько строк сервис пишет в минуту. Сравните
+          до и после:
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>for c in qbittorrent prowlarr radarr flaresolverr jellyfin seerr; do
+  printf '%-13s %s строк за 10 минут\n' "$c" "$(docker logs --since 10m "$c" 2>&amp;1 | wc -l)"
+done</code></pre></div>
+        <p>
+          Единицы строк за десять минут — норма для простаивающего стека.
+          Сотни у сервиса, который сейчас ничего не делает, — повод
+          вернуться к его уровню логирования.
+        </p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="s7">
+  <div class="sec-head">
+    <div class="kicker">Раздел 7</div>
+    <h2>Если 10 МБ не подходит</h2>
+    <p>
+      Значения выбраны как разумная середина, а не как догма. Менять их
+      уместно — важно понимать, что вы покупаете и чем платите.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li class="step" data-key="lg7-1">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">7.1</span> Выбрать значение под задачу</h3>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Ситуация</th><th>Настройка</th><th>Потолок</th></tr></thead>
+            <tbody>
+              <tr><td>Разбираете неполадку, нужна история за недели</td><td><code>50m</code> × <code>5</code></td><td class="num-col">250 МБ на сервис</td></tr>
+              <tr><td>Обычная работа — текущий выбор</td><td><code>10m</code> × <code>3</code></td><td class="num-col">30 МБ на сервис</td></tr>
+              <tr><td>Служебный контейнер, журнал нужен только «на сейчас»</td><td><code>2m</code> × <code>2</code></td><td class="num-col">4 МБ — как у <code>dockerproxy</code></td></tr>
+              <tr><td>Журнал не нужен совсем</td><td><code>driver: none</code></td><td class="num-col">0 — и <code>docker logs</code> перестанет работать</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note crit"><b><code>driver: none</code> — почти всегда плохая идея.</b>
+          Он отключает не запись в файл, а сам сбор вывода: <code>docker logs</code>
+          вернёт ошибку, <code>docker compose logs</code> тоже, и разбирать
+          аварию будет нечем. Дешевле поставить <code>1m</code> × <code>1</code>:
+          мегабайт места и последние строки перед падением на месте.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="lg7-2">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">7.2</span> Изменить и применить</h3>
+        <p>
+          Правится <code class="path">media/compose.yaml</code>, применяется тем же
+          <code>docker compose up -d</code> — Compose пересоздаст только те
+          сервисы, у которых настройка изменилась.
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/media
+docker compose config &gt;/dev/null &amp;&amp; docker compose up -d
+</code></pre></div>
+        <p>
+          Первая половина команды проверяет YAML и молчит, если всё хорошо;
+          вторая выполнится только при успешной проверке. Дальше — раздел 3,
+          проверка через <code>docker inspect</code>.
+        </p>
+        <div class="note warn"><b>Правка должна попасть в репозиторий.</b>
+          Рабочее дерево на NAS и есть клон репозитория, так что
+          <code>git status</code> сразу покажет изменение. Незакоммиченная
+          правка потеряется при следующем <code>git pull</code>.</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="sA">
+  <div class="sec-head">
+    <div class="kicker">Приложение A</div>
+    <h2>Шпаргалка</h2>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Задача</th><th>Команда</th></tr></thead>
+      <tbody>
+        <tr><td>Проверить настройку контейнера</td><td><code>docker inspect --format '{{json .HostConfig.LogConfig}}' radarr</code></td></tr>
+        <tr><td>Найти файл журнала</td><td><code>docker inspect --format '{{.LogPath}}' radarr</code></td></tr>
+        <tr><td>Размер всех журналов</td><td><code>sudo du -ch /volume1/@docker/containers/*/*-json.log*</code></td></tr>
+        <tr><td>Обнулить журнал живого контейнера</td><td><code>sudo truncate -s 0 "$(docker inspect --format '{{.LogPath}}' radarr)"</code></td></tr>
+        <tr><td>Последний час</td><td><code>docker logs --since 1h radarr</code></td></tr>
+        <tr><td>Живой поток со временем</td><td><code>docker logs -f -t --tail 50 radarr</code></td></tr>
+        <tr><td>Весь стек одним потоком</td><td><code>docker compose logs -f --tail 20</code></td></tr>
+        <tr><td>Ошибки за сутки по всему стеку</td><td><code>docker compose logs --since 24h | grep -iE 'error|fatal'</code></td></tr>
+        <tr><td>Сохранить журнал в файл</td><td><code>docker logs radarr &gt; ~/radarr.log 2&gt;&amp;1</code></td></tr>
+        <tr><td>Применить изменённый compose</td><td><code>docker compose up -d</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note"><b>Все команды выполняются по SSH на NAS.</b> Для тех,
+    что читают <code class="path">/volume1/@docker</code>, нужен <code>sudo</code>:
+    каталог принадлежит root, и это правильно — в журналах бывают ключи
+    и токены, попавшие туда из сообщений об ошибках.</div>
+</section>
+
+<section id="sB">
+  <div class="sec-head">
+    <div class="kicker">Приложение B</div>
+    <h2>Что смотреть, если не сходится</h2>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Симптом</th><th>Причина</th><th>Что делать</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>LogConfig</code> пустой у одного сервиса</td>
+          <td>Контейнер не пересоздан — например, поднят вручную мимо Compose</td>
+          <td><code>docker compose up -d --force-recreate &lt;сервис&gt;</code>, шаг 3.1</td>
+        </tr>
+        <tr>
+          <td>Файл журнала больше 10 МБ</td>
+          <td>Контейнер создан до правки; лимит применяется к новым записям, а не задним числом</td>
+          <td>Пересоздать контейнер либо обрезать, шаг 4.2</td>
+        </tr>
+        <tr>
+          <td>Место на томе не освободилось после уборки</td>
+          <td>Файл удалён через <code>rm</code>, дескриптор ещё открыт у Docker</td>
+          <td>Перезапустить контейнер; впредь <code>truncate -s 0</code>, шаг 4.2</td>
+        </tr>
+        <tr>
+          <td>Контейнер не стартует после правки</td>
+          <td>Значение без кавычек или неверный суффикс в <code>max-size</code></td>
+          <td><code>docker compose config</code>, шаг 2.2</td>
+        </tr>
+        <tr>
+          <td><code>docker logs</code> ничего не отдаёт</td>
+          <td>У сервиса выставлен <code>driver: none</code> или журнал только что обнулён</td>
+          <td>Проверить <code>LogConfig</code>, шаг 3.1</td>
+        </tr>
+        <tr>
+          <td>Журналы Docker в норме, а место кончается</td>
+          <td>Растут собственные файлы приложений или кэш Jellyfin</td>
+          <td>Шаг 4.3</td>
+        </tr>
+        <tr>
+          <td>История за вчера уже вытеснена</td>
+          <td>Сервис говорит больше 30 МБ в сутки</td>
+          <td>Убавить уровень логирования (раздел 6) или поднять лимит (раздел 7)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="crosslink">Дальше по теме:
+    <a href="media-stack.html">настройка медиа-стека</a> — что именно делает
+    каждый из шести сервисов, и <a href="https://github.com/hhypest/hh-homelab/blob/main/docs/roadmap.md">дорожная карта</a> —
+    что в стеке планируется менять.</p>
+</section>
+
+</main>
+</div>
+
+<footer>
+  <div class="wrap">
+    hh-homelab · журналы контейнеров медиа-стека ·
+    исходник настройки — <code>media/compose.yaml</code>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var KEY = 'logs-ds725-checklist-v1';
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; }
+    catch (e) { return {}; }
+  }
+  function save(state) {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  }
+
+  var state = load();
+  var steps = Array.prototype.slice.call(document.querySelectorAll('li.step'));
+  var ring = document.querySelector('.ring .fg');
+  var CIRC = 2 * Math.PI * 19;
+  var doneEl = document.getElementById('p-done');
+  var totalEl = document.getElementById('p-total');
+
+  /* ---- оглавление строится из секций ---- */
+  var toc = document.getElementById('toc');
+  var sections = Array.prototype.slice.call(document.querySelectorAll('main section'));
+  sections.forEach(function (sec) {
+    var h2 = sec.querySelector('h2');
+    if (!h2) return;
+    var kicker = sec.querySelector('.kicker');
+    var label = (kicker ? kicker.textContent.replace(/Раздел\s*/i, '').replace(/Приложение\s*/i, '') : '').trim();
+    var li = document.createElement('li');
+    var a = document.createElement('a');
+    a.href = '#' + sec.id;
+    a.dataset.sec = sec.id;
+    a.innerHTML = '<span class="n">' + label + '</span><span>' +
+      h2.textContent.replace(/\s*(когда приедет|план)\s*$/i, '').trim() + '</span>';
+    li.appendChild(a);
+    toc.appendChild(li);
+  });
+
+  /* ---- отметка раздела как пройденного ---- */
+  function refreshToc() {
+    sections.forEach(function (sec) {
+      var boxes = sec.querySelectorAll('li.step input[type=checkbox]');
+      var link = toc.querySelector('a[data-sec="' + sec.id + '"]');
+      if (!link) return;
+      var all = boxes.length > 0;
+      Array.prototype.forEach.call(boxes, function (b) { if (!b.checked) all = false; });
+      link.classList.toggle('done', all);
+    });
+  }
+
+  function refreshProgress() {
+    var done = steps.filter(function (s) { return s.classList.contains('checked'); }).length;
+    doneEl.textContent = done;
+    totalEl.textContent = steps.length;
+    ring.setAttribute('stroke-dasharray', CIRC.toFixed(1));
+    ring.setAttribute('stroke-dashoffset', (CIRC * (1 - (steps.length ? done / steps.length : 0))).toFixed(1));
+    refreshToc();
+  }
+
+  steps.forEach(function (step) {
+    var key = step.dataset.key;
+    var input = step.querySelector('input[type=checkbox]');
+    if (!input) return;
+    input.id = 'chk-' + key;
+    if (state[key]) { input.checked = true; step.classList.add('checked'); }
+    input.addEventListener('change', function () {
+      step.classList.toggle('checked', input.checked);
+      state[key] = input.checked;
+      if (!input.checked) delete state[key];
+      save(state);
+      refreshProgress();
+    });
+  });
+
+  document.getElementById('reset').addEventListener('click', function () {
+    steps.forEach(function (step) {
+      var input = step.querySelector('input[type=checkbox]');
+      if (input) { input.checked = false; }
+      step.classList.remove('checked');
+    });
+    state = {};
+    save(state);
+    refreshProgress();
+  });
+
+  refreshProgress();
+
+  /* ---- кнопки «копировать» ---- */
+  Array.prototype.forEach.call(document.querySelectorAll('.code .copy'), function (btn) {
+    btn.addEventListener('click', function () {
+      var pre = btn.parentNode.querySelector('pre');
+      if (!pre) return;
+      var text = pre.innerText;
+      var done = function () {
+        var old = btn.textContent;
+        btn.textContent = 'скопировано';
+        setTimeout(function () { btn.textContent = old; }, 1400);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () {});
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) {}
+        document.body.removeChild(ta);
+      }
+    });
+  });
+
+  /* ---- подсветка текущего раздела ---- */
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        var link = toc.querySelector('a[data-sec="' + entry.target.id + '"]');
+        if (!link) return;
+        if (entry.isIntersecting) {
+          Array.prototype.forEach.call(toc.querySelectorAll('a'), function (a) { a.classList.remove('active'); });
+          link.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-10% 0px -75% 0px' });
+    sections.forEach(function (s) { obs.observe(s); });
+  }
+})();
+</script>
+
+</body>
+</html>
