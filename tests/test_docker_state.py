@@ -163,7 +163,31 @@ def test_вывод_всегда_одна_строка_json() -> None:
     json.loads(out)
 
 
-def test_список_по_умолчанию_совпадает_с_compose() -> None:
+COMPOSE_FILES = ("media/compose.yaml", "homeassistant/compose.yaml")
+
+
+def контейнеры_из_compose() -> set[str]:
+    """
+    Имена контейнеров обоих стеков — то, что реально увидит Docker.
+
+    Сверять надо именно container_name, а не ключ сервиса: docker_state.py
+    ищет контейнеры по именам из ответа Docker API, и разойдись эти две вещи —
+    скрипт молча считал бы сервис отсутствующим. Сейчас в обоих файлах они
+    совпадают, но полагаться на это нельзя: container_name можно поменять,
+    не трогая ключ.
+    """
+    import yaml
+    from conftest import ROOT
+
+    names = set()
+    for name in COMPOSE_FILES:
+        config = yaml.safe_load((ROOT / name).read_text(encoding="utf-8"))
+        for service, body in (config.get("services") or {}).items():
+            names.add((body or {}).get("container_name") or service)
+    return names
+
+
+def test_список_по_умолчанию_совпадает_с_docker_yaml() -> None:
     """
     Список WATCHED в скрипте и containers в packages/docker.yaml должны
     описывать одни и те же контейнеры: разойдутся — и часть сервисов
@@ -187,6 +211,30 @@ def test_список_по_умолчанию_совпадает_с_compose() ->
     from_package = set(package["monitor_docker"][0]["containers"])
     assert set(module.WATCHED) == from_package, (
         "WATCHED в docker_state.py разошёлся со списком containers в docker.yaml"
+    )
+
+
+def test_список_по_умолчанию_совпадает_с_compose() -> None:
+    """
+    Под надзором должны быть ровно те контейнеры, которые описаны в двух
+    compose-файлах — ни больше, ни меньше.
+
+    Без этой проверки предыдущая ничего не стоит: добавить сервис в compose
+    и забыть про WATCHED и docker.yaml сразу — самый вероятный сценарий,
+    а два согласованных между собой списка проходят её зелёными.
+    Забытый контейнер не попадёт ни в уведомление о падении, ни на дашборд,
+    и узнать об этом можно будет только когда он ляжет.
+    """
+    from conftest import load
+
+    module = load(SCRIPT)
+    из_compose = контейнеры_из_compose()
+    watched = set(module.WATCHED)
+
+    assert watched == из_compose, (
+        f"WATCHED разошёлся с compose-файлами. "
+        f"Нет под надзором: {sorted(из_compose - watched) or '—'}. "
+        f"Под надзором, но нет в compose: {sorted(watched - из_compose) or '—'}"
     )
 
 
