@@ -12,6 +12,23 @@
 #  PUID/PGID 1026:100 — пользователь DSM, владеющий /volume1/data.
 #  Проверить свои: `id ваш_логин` по SSH на NAS.
 #
+#  Пути к состоянию сервисов — ОТНОСИТЕЛЬНЫЕ (./config/<сервис>), как и
+#  ./config у Home Assistant. Compose разрешает их от каталога самого
+#  compose.yaml, поэтому весь стек переносится вместе с репозиторием:
+#  склонировали в другое место — и он поднимается там же, без правки путей.
+#  Каталоги создаются рядом с этим файлом:
+#      config/{qbittorrent,prowlarr,radarr,jellyfin,seerr}  состояние и базы
+#      cache/jellyfin                                       кэш метаданных
+#      watch/                                               .torrent на подхват
+#  Всё это в .gitignore: там базы SQLite и логи, версионировать их нечего.
+#
+#  А вот /volume1/data остаётся АБСОЛЮТНЫМ, и это не недосмотр. Это не
+#  конфигурация, а библиотека на терабайты, живущая своей жизнью; и она
+#  монтируется одним томом целиком в qBittorrent и Radarr — только так
+#  Radarr может импортировать хардлинком вместо копии. По той же причине
+#  в homeassistant/compose.yaml относителен лишь ./config, а /etc/localtime
+#  и docker.sock записаны абсолютно.
+#
 #  Логи ограничены у каждого сервиса: json-file, 10 МБ на файл, 3 файла.
 #  По умолчанию Docker не ротирует журнал вообще — файл растёт, пока не
 #  кончится место на томе, причём отнимает его у библиотеки и баз на том же
@@ -38,9 +55,9 @@ services:
       - TORRENTING_PORT=6881
       - DOCKER_MODS=ghcr.io/vuetorrent/vuetorrent-lsio-mod:latest
     volumes:
-      - /volume1/docker/qbittorrent/config:/config
+      - ./config/qbittorrent:/config
+      - ./watch:/watch
       - /volume1/data:/data
-      - /volume1/docker/qbittorrent/watch:/watch
     ports:
       - "9080:9080"
       - "6881:6881"
@@ -63,7 +80,7 @@ services:
       - UMASK=002
       - TZ=Europe/Moscow
     volumes:
-      - /volume1/docker/prowlarr/config:/config
+      - ./config/prowlarr:/config
     ports:
       - "9696:9696"
     networks:
@@ -84,7 +101,7 @@ services:
       - UMASK=002
       - TZ=Europe/Moscow
     volumes:
-      - /volume1/docker/radarr/config:/config
+      - ./config/radarr:/config
       - /volume1/data:/data
     ports:
       - "7878:7878"
@@ -124,8 +141,8 @@ services:
       - TZ=Europe/Moscow
       - JELLYFIN_PublishedServerUrl=http://192.168.3.53:8096
     volumes:
-      - /volume1/docker/jellyfin/config:/config
-      - /volume1/docker/jellyfin/cache:/cache
+      - ./config/jellyfin:/config
+      - ./cache/jellyfin:/cache
       - /volume1/data/media:/data/media:ro
     ports:
       - "8096:8096"
@@ -148,7 +165,7 @@ services:
       - LOG_LEVEL=info
       - PORT=5055
     volumes:
-      - /volume1/docker/seerr/config:/app/config
+      - ./config/seerr:/app/config
     ports:
       - "5055:5055"
     depends_on:
