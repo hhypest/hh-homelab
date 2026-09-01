@@ -18,6 +18,16 @@
 samples/radarr-*.json проверяются шаблоном radarr.liquid, и так далее.
 Файлы с префиксом любого сервиса дополнительно прогоняются через
 media-router.liquid — он должен уметь разобрать всё.
+
+Заглушки
+--------
+Синтаксически верный шаблон, который обращается не к тому полю, рендерится
+без единой ошибки: Liquid отдаёт nil, срабатывает default, и в чат уходит
+«без описания» вместо текста события. Такое однажды и случилось с Health
+у Radarr — поля искали в health.message, а они лежат в корне payload.
+
+Поэтому заглушки считаются провалом проверки. Если пример нарочно проверяет
+поведение при неполном payload, назовите его <сервис>-<событие>-fallback.json.
 """
 
 from __future__ import annotations
@@ -37,6 +47,17 @@ SAMPLES = PACHCA / "samples"
 ROUTER = PACHCA / "media-router.liquid"
 
 SERVICES = ["radarr", "prowlarr", "jellyfin", "seerr"]
+
+# Строки, которые шаблон подставляет, когда нужного поля в payload не нашлось.
+# Появление любой из них означает: либо пример неполон, либо шаблон смотрит
+# не туда, — и второе куда вероятнее.
+FALLBACKS = [
+    "без описания",
+    "без названия",
+    "неизвестное событие",
+    "Неопознанный отправитель",
+    "Причина: не указана",
+]
 
 
 def render(template_path: pathlib.Path, payload: dict) -> str:
@@ -80,6 +101,13 @@ def main() -> int:
 
             if not text:
                 problems.append(f"{template.name} на {sample.name}: пустое сообщение — Пачка такое не примет")
+            if not sample.stem.endswith("-fallback"):
+                for stub in FALLBACKS:
+                    if stub in text:
+                        problems.append(
+                            f"{template.name} на {sample.name}: в сообщении заглушка «{stub}» — "
+                            f"шаблон не нашёл поле; сверьте имена с payload"
+                        )
             if len(text.encode("utf-8")) > 40000:
                 problems.append(f"{template.name} на {sample.name}: длиннее 40 000 байт")
 

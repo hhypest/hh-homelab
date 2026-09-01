@@ -17,6 +17,9 @@
   прописано поле service — им и верим в первую очередь.
   Radarr и Prowlarr шлют фиксированный JSON, где есть instanceName;
   если и его нет, отличаем по наличию объекта movie.
+
+  У Health и HealthRestored поля level, message, type и wikiUrl лежат
+  в корне payload, а не в объекте health, — см. radarr.liquid.
 {%- endcomment -%}
 
 {%- assign svc = service | default: '' -%}
@@ -57,9 +60,10 @@
 🖐 **Radarr · нужно вмешаться: {{ named }}**
 Импорт не прошёл сам — загляните в Activity → Queue.
 {%- elsif eventType == 'Health' -%}
-{% if health.level == 'error' %}🔴{% else %}⚠️{% endif %} **Radarr · {{ health.message | default: 'проблема' }}**
+{% if level == 'error' %}🔴{% else %}⚠️{% endif %} **Radarr · {{ message | default: 'проблема' }}**
 {%- elsif eventType == 'HealthRestored' -%}
-✅ **Radarr · проблема устранена**
+✅ **Radarr · снова в порядке**
+Было: {{ message | default: '—' }}
 {%- elsif eventType == 'Test' -%}
 🧪 **Radarr · проверка связи**
 {%- else -%}
@@ -69,10 +73,11 @@
 {%- when 'prowlarr' -%}
 {%- comment -%} ---------------- Prowlarr ---------------- {%- endcomment -%}
 {%- if eventType == 'Health' -%}
-{% if health.level == 'error' %}🔴{% else %}⚠️{% endif %} **Prowlarr · {{ health.message | default: 'проблема с индексаторами' }}**
-{% if health.wikiUrl %}[Что это значит]({{ health.wikiUrl }}){% endif %}
+{% if level == 'error' %}🔴{% else %}⚠️{% endif %} **Prowlarr · {{ message | default: 'проблема с индексаторами' }}**
+{% if wikiUrl %}[Что это значит]({{ wikiUrl }}){% endif %}
 {%- elsif eventType == 'HealthRestored' -%}
-✅ **Prowlarr · индексаторы в порядке**
+✅ **Prowlarr · снова в порядке**
+Было: {{ message | default: '—' }}
 {%- elsif eventType == 'Grab' -%}
 🔎 **Prowlarr · отдал релиз**
 {{ release.releaseTitle | default: 'без названия' | truncate: 110 }}

@@ -9,6 +9,11 @@
   Поля события Grab документированы хуже остальных и в разных версиях
   отличаются, поэтому здесь всё через default — шаблон переживёт
   отсутствие любого поля.
+
+  ВНИМАНИЕ, ГРАБЛИ. Как и у Radarr, у событий Health и HealthRestored
+  поля лежат в КОРНЕ payload: level, message, type, wikiUrl.
+  Вложенного объекта health не существует — см. комментарий
+  в radarr.liquid, там разобрано подробно.
 {%- endcomment -%}
 
 {%- assign gb = '' -%}
@@ -24,15 +29,16 @@
 Индексатор: {{ release.indexer | default: indexer.name | default: '—' }}{% if gb != '' %} · {{ gb }} ГБ{% endif %}
 
 {%- when 'Health' -%}
-{%- if health.level == 'error' -%}🔴{%- else -%}⚠️{%- endif %} **Prowlarr: проблема с индексаторами**
-{{ health.message | default: 'без описания' }}
-{% if health.wikiUrl %}[Что это значит]({{ health.wikiUrl }}){% endif %}
+{%- if level == 'error' -%}🔴{%- else -%}⚠️{%- endif %} **Prowlarr: проблема со здоровьем**
+{{ message | default: 'без описания' }}
+{% if type %}Проверка: `{{ type }}`{% endif %}
+{% if wikiUrl %}[Что это значит]({{ wikiUrl }}){% endif %}
 {% comment %}Чаще всего это истёкшая сессия трекера, смена домена
-или упавший FlareSolverr.{% endcomment %}
+или упавший FlareSolverr (тип IndexerProxyStatusCheck).{% endcomment %}
 
 {%- when 'HealthRestored' -%}
-✅ **Prowlarr: индексаторы в порядке**
-{{ health.message | default: '' }}
+✅ **Prowlarr: снова в порядке**
+Было: {{ message | default: '—' }}
 
 {%- when 'ApplicationUpdate' -%}
 🆕 **Prowlarr обновлён**

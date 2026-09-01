@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 
 import pytest
 from conftest import ROOT
@@ -203,6 +204,52 @@ def test_resolution_fields_in_payload_and_template() -> None:
                            ("Video_0_Codec", "videoCodec")):
         assert source in payload, f"{source} пропал из payloads/jellyfin.handlebars"
         assert target in liquid, f"поле {target} не используется в jellyfin.liquid"
+
+
+SERVARR = ["radarr", "prowlarr"]
+
+
+@pytest.mark.parametrize("service", SERVARR)
+def test_health_fields_read_from_payload_root(service: str) -> None:
+    """
+    У Radarr и Prowlarr события Health и HealthRestored устроены не как
+    остальные: level, message, type и wikiUrl лежат в КОРНЕ payload,
+    а не во вложенном объекте. Вложенности health.* не существует —
+    в WebhookHealthPayload эти поля объявлены прямо в классе.
+
+    Обращение к health.message синтаксически безупречно, Liquid молча
+    отдаёт nil, срабатывает default, и в чат месяцами уходит заголовок
+    «проблема со здоровьем» без единой полезной строки. Именно так
+    и было, пока не пришло настоящее уведомление про отвалившийся
+    индексатор. Тест закрывает возврат к этому.
+    """
+    text = (PACHCA / f"{service}.liquid").read_text(encoding="utf-8")
+    # Комментарии как раз и рассказывают про эти грабли — из проверки их вон.
+    code = re.sub(r"\{%-?\s*comment\s*-?%\}.*?\{%-?\s*endcomment\s*-?%\}", "", text, flags=re.S)
+    assert "health." not in code, (
+        f"{service}.liquid снова читает health.* — этих полей в payload нет"
+    )
+
+
+@pytest.mark.parametrize("service", SERVARR)
+def test_health_message_reaches_the_chat(service: str) -> None:
+    """Мало не обращаться к health.* — текст события должен дойти до чата."""
+    sample = PACHCA / "samples" / f"{service}-health.json"
+    payload = json.loads(sample.read_text(encoding="utf-8"))
+    text = render(PACHCA / f"{service}.liquid", payload)
+    assert payload["message"] in text, "текст проблемы не попал в сообщение"
+    assert payload["type"] in text, "тип проверки не попал в сообщение"
+    assert "без описания" not in text
+
+
+def test_health_restored_says_what_was_wrong() -> None:
+    """
+    HealthRestored несёт описание той проверки, которая починилась.
+    Без него сообщение «снова в порядке» не говорит, что именно чинилось.
+    """
+    payload = json.loads((PACHCA / "samples/radarr-healthrestored.json").read_text(encoding="utf-8"))
+    text = render(PACHCA / "radarr.liquid", payload)
+    assert payload["message"] in text
 
 
 def test_router_recognises_every_sender() -> None:

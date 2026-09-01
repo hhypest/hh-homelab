@@ -10,6 +10,16 @@
   Все обращения к полям защищены фильтром default: если Radarr в каком-то
   событии не пришлёт поле, в чат уйдёт прочерк, а не пустая строка и не
   сломанное сообщение.
+
+  ВНИМАНИЕ, ГРАБЛИ. У событий Health и HealthRestored поля лежат
+  в КОРНЕ payload, а не во вложенном объекте health:
+      {"eventType":"Health","level":"warning","message":"…",
+       "type":"IndexerStatusCheck","wikiUrl":"…"}
+  Это видно в WebhookHealthPayload у Radarr: level, message, type
+  и wikiUrl объявлены прямо в классе. Вложенности health.* не существует
+  ни в одной версии — обращение к health.message молча даёт nil,
+  и в чат уходит заголовок без единой полезной строки.
+  Остальные события, наоборот, вложенные: movie, movieFile, release.
 {%- endcomment -%}
 
 {%- assign gb = '' -%}
@@ -66,13 +76,14 @@ Radarr начнёт искать релиз.
 Radarr не смог импортировать загрузку сам. Загляните в Activity → Queue.
 
 {%- when 'Health' -%}
-{%- if health.level == 'error' -%}🔴{%- else -%}⚠️{%- endif %} **Radarr: проблема со здоровьем**
-{{ health.message | default: 'без описания' }}
-{% if health.wikiUrl %}[Что это значит]({{ health.wikiUrl }}){% endif %}
+{%- if level == 'error' -%}🔴{%- else -%}⚠️{%- endif %} **Radarr: проблема со здоровьем**
+{{ message | default: 'без описания' }}
+{% if type %}Проверка: `{{ type }}`{% endif %}
+{% if wikiUrl %}[Что это значит]({{ wikiUrl }}){% endif %}
 
 {%- when 'HealthRestored' -%}
-✅ **Radarr: проблема устранена**
-{{ health.message | default: '' }}
+✅ **Radarr: снова в порядке**
+Было: {{ message | default: '—' }}
 
 {%- when 'ApplicationUpdate' -%}
 🆕 **Radarr обновлён**
