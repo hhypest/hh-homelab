@@ -505,19 +505,19 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <table>
       <thead><tr><th>Область</th><th>Что содержит</th><th class="num-col">Строк</th><th class="num-col">Файлов</th></tr></thead>
       <tbody>
-        <tr><td><code class="path">docs/</code></td><td>чек-листы, гайды, справочники, дорожная карта</td><td class="num-col">9098</td><td class="num-col">7</td></tr>
+        <tr><td><code class="path">docs/</code></td><td>чек-листы, гайды, справочники, дорожная карта</td><td class="num-col">9146</td><td class="num-col">7</td></tr>
         <tr><td><code class="path">homeassistant/</code></td><td>compose, пакеты, дашборд, скрипты для сенсоров</td><td class="num-col">2188</td><td class="num-col">14</td></tr>
         <tr><td><code class="path">scripts/</code></td><td>проверки конфигурации и документации</td><td class="num-col">910</td><td class="num-col">6</td></tr>
         <tr><td><code class="path">pachca/</code></td><td>Liquid-шаблоны уведомлений и примеры payload</td><td class="num-col">643</td><td class="num-col">20</td></tr>
         <tr><td><code class="path">tests/</code></td><td>pytest на скрипты, шаблоны и сам workflow</td><td class="num-col">757</td><td class="num-col">5</td></tr>
         <tr><td><code class="path">.github/</code></td><td>workflow проверок и настройка Dependabot</td><td class="num-col">201</td><td class="num-col">2</td></tr>
-        <tr><td><code class="path">media/</code></td><td>compose медиа-стека</td><td class="num-col">185</td><td class="num-col">1</td></tr>
+        <tr><td><code class="path">media/</code></td><td>compose медиа-стека и образец <code>.env</code></td><td class="num-col">220</td><td class="num-col">2</td></tr>
       </tbody>
     </table>
   </div>
 
   <div class="note why"><b>Что здесь необычного.</b> Отношение «документация и
-    проверки» к «собственно конфигурации» — 10 966 строк против 3016,
+    проверки» к «собственно конфигурации» — 11 014 строк против 3051,
     то есть примерно 3,6 к 1. Для домашнего
     сервера это выглядит перекосом, пока не вспомнить, что настраивается он
     раз в год, а разбираться в нём приходится в тот вечер, когда что-то
@@ -758,7 +758,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
 
   <h3 style="margin-top:30px;font-size:18px">Проверки репозитория — измерено</h3>
   <p style="color:var(--ink-2);max-width:70ch;margin-top:10px">
-    Лучшее из трёх прогонов, машина — 4 ядра Xeon 2,8 ГГц, 16 ГБ, Python 3.11.15.
+    Лучшее из трёх прогонов, машина — 4 ядра Xeon 2,1 ГГц, 16 ГБ, Python 3.11.15.
     Это <b>не</b> NAS: на двухъядерном R1600 числа будут заметно больше.
     Ценность не в абсолютных величинах, а в пропорции между проверками —
     она от машины почти не зависит.
@@ -768,15 +768,15 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <table>
       <thead><tr><th>Проверка</th><th>Что делает</th><th class="num-col">Время</th></tr></thead>
       <tbody>
-        <tr><td><code>pytest</code></td><td>114 тестов</td><td class="num-col">8,27 с</td></tr>
-        <tr><td><code>yamllint</code></td><td>4 каталога YAML</td><td class="num-col">0,39 с</td></tr>
-        <tr><td><code>render_pachca.py --check</code></td><td>26 пар «шаблон × payload»</td><td class="num-col">0,28 с</td></tr>
-        <tr><td><code>validate_config.py</code></td><td>12 файлов, Jinja, секреты</td><td class="num-col">0,28 с</td></tr>
-        <tr><td><code>validate_entities.py</code></td><td>сверка entity_id</td><td class="num-col">0,15 с</td></tr>
-        <tr><td><code>validate_docs.py</code></td><td>7 страниц, ссылки, 61 файл на обезличивание</td><td class="num-col">0,21 с</td></tr>
-        <tr><td><code>check_files.py</code></td><td>63 файла на переводы строк</td><td class="num-col">0,05 с</td></tr>
+        <tr><td><code>pytest</code></td><td>114 тестов</td><td class="num-col">7,52 с</td></tr>
+        <tr><td><code>yamllint</code></td><td>4 каталога YAML</td><td class="num-col">0,26 с</td></tr>
+        <tr><td><code>render_pachca.py --check</code></td><td>26 пар «шаблон × payload»</td><td class="num-col">0,20 с</td></tr>
+        <tr><td><code>validate_config.py</code></td><td>12 файлов, Jinja, секреты</td><td class="num-col">0,18 с</td></tr>
+        <tr><td><code>validate_entities.py</code></td><td>сверка entity_id</td><td class="num-col">0,09 с</td></tr>
+        <tr><td><code>validate_docs.py</code></td><td>7 страниц, ссылки, 62 файла на обезличивание</td><td class="num-col">0,12 с</td></tr>
+        <tr><td><code>check_files.py</code></td><td>64 файла на переводы строк</td><td class="num-col">0,03 с</td></tr>
         <tr><td><code>ruff check .</code></td><td>13 файлов Python</td><td class="num-col">0,01 с</td></tr>
-        <tr><td><b>Всего последовательно</b></td><td></td><td class="num-col"><b>9,64 с</b></td></tr>
+        <tr><td><b>Всего последовательно</b></td><td></td><td class="num-col"><b>8,41 с</b></td></tr>
       </tbody>
     </table>
   </div>
@@ -789,16 +789,16 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
 
   <figure>
     <svg viewBox="0 0 900 250" role="img"
-         aria-label="Стоимость одного теста по файлам: test_docker_state 448 миллисекунд, test_http_check 173, test_workflow 42, test_pachca_templates 7 миллисекунд.">
+         aria-label="Стоимость одного теста по файлам: test_docker_state 444 миллисекунды, test_http_check 161, test_workflow 37, test_pachca_templates 6 миллисекунд.">
       <text x="0" y="18" fill="currentColor" opacity=".6"
             font-family="IBM Plex Sans, sans-serif" font-size="11.5">Миллисекунд на один тест</text>
       <line x1="200" y1="34" x2="200" y2="222" stroke="currentColor" stroke-width="1" opacity=".25"></line>
 
       <g fill="var(--home)">
-        <rect x="200" y="40" width="660" height="22" rx="4"><title>test_docker_state.py — 13 тестов, 5,82 с, 448 мс на тест</title></rect>
-        <rect x="200" y="90" width="255" height="22" rx="4"><title>test_http_check.py — 9 тестов, 1,56 с, 173 мс на тест</title></rect>
-        <rect x="200" y="140" width="62" height="22" rx="4"><title>test_workflow.py — 6 тестов, 0,25 с, 42 мс на тест</title></rect>
-        <rect x="200" y="190" width="10" height="22" rx="4"><title>test_pachca_templates.py — 86 тестов, 0,60 с, 7 мс на тест</title></rect>
+        <rect x="200" y="40" width="654" height="22" rx="4"><title>test_docker_state.py — 13 тестов, 5,78 с, 444 мс на тест</title></rect>
+        <rect x="200" y="90" width="237" height="22" rx="4"><title>test_http_check.py — 9 тестов, 1,45 с, 161 мс на тест</title></rect>
+        <rect x="200" y="140" width="55" height="22" rx="4"><title>test_workflow.py — 6 тестов, 0,22 с, 37 мс на тест</title></rect>
+        <rect x="200" y="190" width="9" height="22" rx="4"><title>test_pachca_templates.py — 86 тестов, 0,48 с, 6 мс на тест</title></rect>
       </g>
 
       <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="12.5" text-anchor="end">
@@ -808,20 +808,22 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
         <text x="188" y="206">test_pachca_templates</text>
       </g>
       <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="12" opacity=".75">
-        <text x="848" y="56" text-anchor="end" fill="var(--surface)">448 мс</text>
-        <text x="467" y="106">173 мс</text>
-        <text x="274" y="156">42 мс</text>
-        <text x="222" y="206">7 мс</text>
+        <text x="842" y="56" text-anchor="end" fill="var(--surface)">444 мс</text>
+        <text x="449" y="106">161 мс</text>
+        <text x="267" y="156">37 мс</text>
+        <text x="221" y="206">6 мс</text>
       </g>
     </svg>
     <figcaption>
-      <code>test_pachca_templates</code> прогоняет 86 тестов за 0,6 секунды —
-      он рендерит шаблоны в том же процессе. <code>test_docker_state</code>
-      на 13 тестов тратит 5,8 секунды, потому что каждый поднимает подставной
-      HTTP-сервер и запускает скрипт отдельным процессом. Разница на тест —
-      шестидесятикратная. Вывод практический: покрытие здесь дёшево, дорого
-      именно порождение процессов, и оптимизировать при желании нужно
-      один файл из четырёх, а не «тесты вообще».
+      Каждый файл прогонялся отдельно, поэтому в его время входят и ~0,2 с
+      на запуск самого pytest. <code>test_pachca_templates</code> прогоняет
+      86 тестов за 0,48 секунды — он рендерит шаблоны в том же процессе.
+      <code>test_docker_state</code> на 13 тестов тратит 5,8 секунды, потому что
+      каждый поднимает подставной HTTP-сервер и запускает скрипт отдельным
+      процессом. Разница на тест — почти восьмидесятикратная. Вывод
+      практический: покрытие здесь дёшево, дорого именно порождение процессов,
+      и оптимизировать при желании нужно один файл из четырёх,
+      а не «тесты вообще».
     </figcaption>
   </figure>
 
@@ -1087,12 +1089,31 @@ ps -eo state,pid,comm | awk '$1 ~ /D/'</code></pre></div>
     <code>git checkout</code>. Это то самое свойство, ради которого проект
     отказывается от Home Assistant OS в виртуальной машине.</div>
 
-  <div class="note"><b>Абсолютным остался только <code class="path">/volume1/data</code>.</b>
-    Это не конфигурация, а библиотека на терабайты, и монтируется она одним
-    томом целиком в qBittorrent и Radarr: иначе Radarr не сможет импортировать
-    хардлинком вместо копии. По той же логике в <code>homeassistant/compose.yaml</code>
-    относителен лишь <code>./config</code>, а <code>/etc/localtime</code>
-    и docker-сокет записаны абсолютно.</div>
+  <div class="note why"><b>Снаружи репозитория осталась только библиотека.</b>
+    И причина не в хардлинках, как здесь было написано раньше. Рабочее дерево
+    git — это то, что чистят: <code>git clean -xdf</code> не щадит и
+    игнорируемое, а «снести клон и склонировать заново» — обычный способ
+    починить запутавшийся репозиторий. Медиатека такого пережить не должна.
+    Плюс разные жизненные циклы: конфигурацию заменяют целиком, библиотека
+    копится годами.</div>
+
+  <div class="note"><b>Путь к библиотеке настраивается.</b>
+    <code>${MEDIA_ROOT:-/volume1/data}</code> в <code>media/compose.yaml</code>:
+    переменная берётся из <code class="path">media/.env</code>, а без файла
+    подставляется <code class="path">/volume1/data</code> — на текущем NAS
+    создавать ничего не нужно. На другом правится одна строка в
+    <code>.env</code>, сам <code>compose.yaml</code> не трогается.
+    Внутри контейнеров пути не меняются: <code>/data</code>
+    и <code>/data/media</code> остаются на месте при любом значении.</div>
+
+  <div class="note warn"><b>Что важно для хардлинков.</b> Не абсолютность
+    пути, а то, что том монтируется <b>целиком и одинаково</b> в qBittorrent
+    и Radarr — тогда <code>/data/torrents</code> и <code>/data/media</code>
+    внутри контейнеров лежат на одной файловой системе. Меняя
+    <code>MEDIA_ROOT</code>, держите торренты и библиотеку под одним корнем.
+    По схожей логике в <code>homeassistant/compose.yaml</code> относителен
+    лишь <code>./config</code>, а <code>/etc/localtime</code> и docker-сокет
+    записаны абсолютно: они принадлежат хосту, а не проекту.</div>
 </section>
 
 <section id="s6">

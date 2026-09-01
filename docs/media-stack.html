@@ -532,6 +532,12 @@ sudo mkdir -p /volume1/data/media/movies
 <span class="c"># Те же PUID:PGID, что у контейнеров в compose.yaml</span>
 sudo chown -R 1026:100 /volume1/data
 sudo chmod -R 775 /volume1/data</code></pre></div>
+        <div class="note"><b>Если библиотека лежит не там.</b>
+          <code class="path">/volume1/data</code> — значение по умолчанию.
+          Свой путь задаётся переменной <code>MEDIA_ROOT</code>
+          в <code class="path">media/.env</code> (шаг 2.2); тогда подставьте
+          его во все команды этого раздела. Внутри контейнеров пути
+          не меняются никогда — там всегда <code>/data</code>.</div>
         <p>
           Если позже добавите сериалы и Sonarr — по той же схеме появятся
           <code>torrents/tv</code> и <code>media/tv</code>. Схема расширяется,
@@ -549,7 +555,12 @@ sudo chmod -R 775 /volume1/data</code></pre></div>
           <b>один и тот же том целиком</b>:
         </p>
         <div class="code"><pre><code>volumes:
-  - /volume1/data:/data</code></pre></div>
+  - ${MEDIA_ROOT:-/volume1/data}:/data</code></pre></div>
+        <div class="note"><b>Про переменную.</b> Корень библиотеки задаётся
+          через <code>MEDIA_ROOT</code> в <code class="path">media/.env</code>;
+          без этого файла подставляется <code class="path">/volume1/data</code>,
+          то есть на текущем NAS ничего создавать не нужно. Важно тут не имя
+          пути, а то, что том монтируется <b>целиком</b> — см. ниже.</div>
         <p>
           Внутри обоих контейнеров пути выглядят одинаково —
           <code>/data/torrents/…</code> и <code>/data/media/…</code>, — и это
@@ -597,7 +608,8 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
     <h2>Установка стека</h2>
     <p>
       Папки из раздела 1 готовы — можно поднимать контейнеры. Порядок именно
-      такой: <code class="path">/volume1/data</code> должен существовать
+      такой: корень библиотеки (<code>MEDIA_ROOT</code>, по умолчанию
+      <code class="path">/volume1/data</code>) должен существовать
       до первого запуска, иначе Docker создаст его сам и от <code>root</code>.
     </p>
   </div>
@@ -641,6 +653,18 @@ sudo chown -R 1026:100 media</code></pre></div>
           с пустыми настройками и забывает их при каждом перезапуске. Выглядит
           как сломанное приложение, а дело в правах. Лечится тем же
           <code>chown -R 1026:100</code> и пересозданием контейнера.</div>
+        <p>
+          Здесь же, если библиотека лежит не в <code class="path">/volume1/data</code>,
+          заводится <code class="path">media/.env</code> — рядом с compose-файлом,
+          образец есть в <code class="path">media/.env.example</code>:
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/media
+printf 'MEDIA_ROOT=/volume2/library\n' | sudo tee .env</code></pre></div>
+        <div class="note"><b>Файл необязателен.</b> Без него подставляется
+          <code class="path">/volume1/data</code> — на текущем NAS создавать
+          нечего. Сам <code class="path">.env</code> в git не попадает
+          (он в <code>.gitignore</code>), так что путь к библиотеке остаётся
+          свойством конкретной машины, а не репозитория.</div>
       </div>
     </li>
 
@@ -651,8 +675,8 @@ sudo chown -R 1026:100 media</code></pre></div>
         <div class="code"><button class="copy" type="button">копировать</button><pre><code>id ваш_логин</code></pre></div>
         <p>
           В <code>compose.yaml</code> прописаны <code>PUID=1026</code>
-          и <code>PGID=100</code> — это владелец
-          <code class="path">/volume1/data</code> из шага 1.1. Если у вас другие,
+          и <code>PGID=100</code> — это владелец корня библиотеки
+          из шага 1.1. Если у вас другие,
           поправьте у всех шести сервисов, иначе получите ту же историю
           с правами, что в предыдущем шаге.
         </p>
@@ -696,7 +720,7 @@ sudo docker compose up -d</code></pre></div>
         <div class="code"><pre><code>/volume1/docker/hh-homelab/media/config/radarr -&gt; /config
 /volume1/data -&gt; /data</code></pre></div>
         <p>
-          Ключевое — вторая строка: <code class="path">/volume1/data</code> смонтирован
+          Ключевое — вторая строка: корень библиотеки смонтирован
           <b>целиком</b>, одним томом. Почему это решает судьбу хардлинков,
           разобрано в шаге 1.2.
         </p>
@@ -1309,8 +1333,9 @@ cd media &amp;&amp; sudo docker compose up -d</code></pre></div>
           </table>
         </div>
         <div class="note why"><b>Библиотека смотрит только в media.</b> В
-          <code>compose.yaml</code> Jellyfin получает
-          <code>/volume1/data/media:/data/media:ro</code> — доступ только на
+          <code>compose.yaml</code> Jellyfin получает подкаталог
+          <code class="path">${MEDIA_ROOT}/media</code>, смонтированный как
+          <code>/data/media:ro</code>, — доступ только на
           чтение и только к готовой библиотеке. Папку с загрузками он не видит
           вовсе, и это правильно: недокачанные файлы в библиотеке ни к чему.</div>
       </div>
@@ -1558,7 +1583,7 @@ sudo docker logs -f --tail 80 qbittorrent</code></pre></div>
         <div class="note crit"><b>Разные inode и по единице в колонке ссылок</b>
           означают, что Radarr скопировал файл. Проверьте: включён ли
           <b>Use Hardlinks instead of Copy</b> (шаг 6.2), и смонтирован ли
-          в обоих контейнерах один том <code>/volume1/data:/data</code>,
+          в обоих контейнерах один том <code>${MEDIA_ROOT:-/volume1/data}:/data</code>,
           а не две отдельные папки (шаг 1.2). До исправления каждый фильм
           будет занимать двойное место.</div>
         <div class="code"><button class="copy" type="button">копировать</button><pre><code><span class="c"># Сколько реально занято — с учётом того, что хардлинки считаются один раз</span>
@@ -1785,9 +1810,9 @@ sudo docker image prune -f</code></pre></div>
     <table>
       <thead><tr><th>Контейнер</th><th>Монтирование</th><th>Права</th></tr></thead>
       <tbody>
-        <tr><td>qBittorrent</td><td><code>/volume1/data:/data</code></td><td>чтение и запись</td></tr>
-        <tr><td>Radarr</td><td><code>/volume1/data:/data</code></td><td>чтение и запись</td></tr>
-        <tr><td>Jellyfin</td><td><code>/volume1/data/media:/data/media:ro</code></td><td>только чтение</td></tr>
+        <tr><td>qBittorrent</td><td><code>${MEDIA_ROOT}:/data</code></td><td>чтение и запись</td></tr>
+        <tr><td>Radarr</td><td><code>${MEDIA_ROOT}:/data</code></td><td>чтение и запись</td></tr>
+        <tr><td>Jellyfin</td><td><code>${MEDIA_ROOT}/media:/data/media:ro</code></td><td>только чтение</td></tr>
         <tr><td>Prowlarr, FlareSolverr, Seerr</td><td>—</td><td>к данным не обращаются</td></tr>
       </tbody>
     </table>
@@ -1808,8 +1833,8 @@ sudo docker image prune -f</code></pre></div>
 <footer>
   <div class="wrap">
     Настройка приложений медиа-стека на Synology DS725+: qBittorrent, FlareSolverr,
-    Prowlarr, Radarr, Jellyfin, Seerr. Данные — в /volume1/data, состояние сервисов —
-    в клоне репозитория. Отметки сохраняются в этом браузере.
+    Prowlarr, Radarr, Jellyfin, Seerr. Данные — в корне библиотеки (<code>MEDIA_ROOT</code>),
+    состояние сервисов — в клоне репозитория. Отметки сохраняются в этом браузере.
   </div>
 </footer>
 
