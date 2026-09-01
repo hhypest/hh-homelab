@@ -1,10 +1,8 @@
 {
+  "level": "error",
+  "message": "Индексаторы недоступны из-за ошибок: Rutracker",
+  "type": "IndexerStatusCheck",
+  "wikiUrl": "https://wiki.servarr.com/prowlarr/system#indexers-are-unavailable-due-to-failures",
   "eventType": "Health",
-  "instanceName": "Prowlarr",
-  "health": {
-    "level": "warning",
-    "message": "Индексаторы недоступны: Rutracker",
-    "type": "IndexerStatusCheck",
-    "wikiUrl": "https://wiki.servarr.com/prowlarr/system#indexers-are-unavailable-due-to-failures"
-  }
+  "instanceName": "Prowlarr"
 }

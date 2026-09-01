@@ -1,0 +1,8 @@
+{
+  "level": "warning",
+  "message": "Прокси-серверы индексаторов недоступны из-за ошибок: FlareSolverr",
+  "type": "IndexerProxyStatusCheck",
+  "wikiUrl": "https://wiki.servarr.com/prowlarr/system#proxies-are-unavailable-due-to-failures",
+  "eventType": "Health",
+  "instanceName": "Prowlarr"
+}
