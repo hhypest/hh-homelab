@@ -22,63 +22,63 @@
    Токены. Светлая палитра — на голом :root, тёмная переопределяет только их.
    ========================================================================== */
 :root{
-  --ground:#F1F5F6;
-  --surface:#FFFFFF;
-  --surface-2:#E7EDEF;
-  --ink:#0E1A1E;
-  --ink-2:#3F5259;
-  --muted:#6A7E86;
-  --line:#D2DEE2;
-  --line-strong:#B2C3C9;
-  --home:#0D6B75;
-  --iot:#95590F;
-  --ok:#2A6B46;
-  --crit:#A22F26;
-  --code-bg:#0E1A1E;
-  --code-ink:#D6E3E7;
-  --code-dim:#7C949C;
-  --shadow:0 1px 2px rgba(14,26,30,.06), 0 8px 24px -16px rgba(14,26,30,.30);
+  --ground:#F5F1EA;
+  --surface:#FFFCF7;
+  --surface-2:#EBE4D9;
+  --ink:#241D15;
+  --ink-2:#4C4136;
+  --muted:#7A6C5D;
+  --line:#DED4C6;
+  --line-strong:#BFB09C;
+  --home:#17635C;
+  --iot:#8F6109;
+  --ok:#3F6B33;
+  --crit:#A33A28;
+  --code-bg:#241D15;
+  --code-ink:#E8DFD2;
+  --code-dim:#9C8C7A;
+  --shadow:0 1px 2px rgba(36,29,21,.07), 0 8px 24px -16px rgba(36,29,21,.34);
   --radius:10px;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --ground:#0B1214;
-    --surface:#121D21;
-    --surface-2:#19272C;
-    --ink:#E3EDF0;
-    --ink-2:#A7BBC2;
-    --muted:#7C939B;
-    --line:#22343B;
-    --line-strong:#354F59;
-    --home:#4FC2CD;
-    --iot:#DFA254;
-    --ok:#5EBD85;
-    --crit:#E8786C;
-    --code-bg:#080F11;
-    --code-ink:#CEDFE4;
-    --code-dim:#6D858D;
-    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    --ground:#17120E;
+    --surface:#201A15;
+    --surface-2:#2C241D;
+    --ink:#F0E8DC;
+    --ink-2:#C3B5A4;
+    --muted:#948674;
+    --line:#362C24;
+    --line-strong:#55473A;
+    --home:#5FC4B4;
+    --iot:#DFAC5A;
+    --ok:#8FC077;
+    --crit:#EC8A76;
+    --code-bg:#100C09;
+    --code-ink:#E3D9CB;
+    --code-dim:#8B7C6A;
+    --shadow:0 1px 2px rgba(0,0,0,.45), 0 8px 24px -16px rgba(0,0,0,.72);
     color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --ground:#0B1214;
-  --surface:#121D21;
-  --surface-2:#19272C;
-  --ink:#E3EDF0;
-  --ink-2:#A7BBC2;
-  --muted:#7C939B;
-  --line:#22343B;
-  --line-strong:#354F59;
-  --home:#4FC2CD;
-  --iot:#DFA254;
-  --ok:#5EBD85;
-  --crit:#E8786C;
-  --code-bg:#080F11;
-  --code-ink:#CEDFE4;
-  --code-dim:#6D858D;
-  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  --ground:#17120E;
+  --surface:#201A15;
+  --surface-2:#2C241D;
+  --ink:#F0E8DC;
+  --ink-2:#C3B5A4;
+  --muted:#948674;
+  --line:#362C24;
+  --line-strong:#55473A;
+  --home:#5FC4B4;
+  --iot:#DFAC5A;
+  --ok:#8FC077;
+  --crit:#EC8A76;
+  --code-bg:#100C09;
+  --code-ink:#E3D9CB;
+  --code-dim:#8B7C6A;
+  --shadow:0 1px 2px rgba(0,0,0,.45), 0 8px 24px -16px rgba(0,0,0,.72);
   color-scheme:dark;
 }
 
@@ -268,14 +268,75 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
   nav.rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px}
   main{padding-top:24px}
 }
+/* ---------- переключатель темы ---------- */
+.top .wrap{position:relative}
+.theme-switch{
+  position:absolute;top:40px;right:24px;
+  display:inline-flex;gap:2px;padding:3px;
+  border:1px solid var(--line);border-radius:100px;
+  background:var(--surface);box-shadow:var(--shadow);
+}
+.theme-switch button{
+  appearance:none;border:0;background:transparent;cursor:pointer;line-height:1;
+  font-family:"Golos Text",sans-serif;font-size:11.5px;font-weight:500;
+  color:var(--muted);padding:6px 12px;border-radius:100px;
+}
+.theme-switch button:hover{color:var(--ink)}
+.theme-switch button[aria-pressed="true"]{background:var(--surface-2);color:var(--ink)}
+.theme-switch button:focus-visible{outline:2px solid var(--home);outline-offset:2px}
+@media (max-width:760px){
+  .theme-switch{position:static;margin-bottom:18px}
+}
+
 @media (prefers-reduced-motion: reduce){
   *{transition:none !important;animation:none !important}
 }
 </style>
+<script>
+/* Тема применяется до отрисовки — иначе на светлой теме мигнёт тёмная. */
+(function () {
+  var KEY = 'hh-homelab-theme';
+  var root = document.documentElement;
+  function apply(v) {
+    if (v === 'light' || v === 'dark') root.setAttribute('data-theme', v);
+    else root.removeAttribute('data-theme');
+  }
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) {}
+  apply(saved || 'auto');
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var box = document.querySelector('.theme-switch');
+    if (!box) return;
+    var buttons = box.querySelectorAll('button[data-theme-set]');
+    function mark(v) {
+      Array.prototype.forEach.call(buttons, function (b) {
+        b.setAttribute('aria-pressed', String(b.getAttribute('data-theme-set') === v));
+      });
+    }
+    mark(saved || 'auto');
+    box.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest ? e.target.closest('button[data-theme-set]') : null;
+      if (!b) return;
+      var v = b.getAttribute('data-theme-set');
+      apply(v);
+      mark(v);
+      try {
+        if (v === 'auto') localStorage.removeItem(KEY); else localStorage.setItem(KEY, v);
+      } catch (err) {}
+    });
+  });
+})();
+</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
+    <div class="theme-switch" role="group" aria-label="Тема оформления">
+      <button type="button" data-theme-set="auto" aria-pressed="true">Авто</button>
+      <button type="button" data-theme-set="light" aria-pressed="false">Светлая</button>
+      <button type="button" data-theme-set="dark" aria-pressed="false">Тёмная</button>
+    </div>
     <div class="eyebrow">Обзор проекта · DS725+ · 31 августа 2026</div>
     <h1>Как устроен hh-homelab</h1>
     <p class="lede">
