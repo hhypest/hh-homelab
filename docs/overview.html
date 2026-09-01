@@ -380,82 +380,116 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
   </div>
 
   <figure>
-    <svg viewBox="0 0 900 420" role="img"
-         aria-label="Схема: два независимых compose-проекта на одном NAS. Медиа-стек из шести контейнеров в bridge-сети media публикует порты на хост. Home Assistant работает в сети хоста и ходит к ним по 127.0.0.1. Docker-сокет доступен только через прокси на петлевом адресе. Наружу уходят уведомления в Пачку, внутрь приходят команды от Алисы через облако.">
+    <svg viewBox="0 0 900 450" role="img"
+         aria-label="Схема: два независимых compose-проекта на одном NAS. Медиа-стек из шести контейнеров в bridge-сети media публикует порты на хост, и Home Assistant, работающий в сети хоста, ходит к ним по 127.0.0.1. Docker-сокет доступен Home Assistant только через прокси на петлевом адресе. Наружу от медиа-стека уходят уведомления в Пачку; от Home Assistant — команды Алисе через облако, управление телевизором и приставкой и метрики Synology DSM.">
       <defs>
         <marker id="oa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
         </marker>
       </defs>
 
-      <g stroke="currentColor" fill="none" stroke-width="1.3" opacity=".45" stroke-dasharray="4 4">
-        <rect x="16" y="54" width="452" height="196" rx="12"></rect>
-        <rect x="16" y="278" width="452" height="120" rx="12"></rect>
+      <!-- границы двух compose-проектов -->
+      <g stroke="currentColor" fill="none" stroke-width="1.3" opacity=".4" stroke-dasharray="4 4">
+        <rect x="14" y="34" width="430" height="168" rx="12"></rect>
+        <rect x="14" y="238" width="430" height="176" rx="12"></rect>
       </g>
       <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="11.5" opacity=".7">
-        <text x="32" y="46">Проект media · bridge-сеть</text>
-        <text x="32" y="270">Проект homeassistant · сеть хоста</text>
+        <text x="30" y="26">Проект media · bridge-сеть</text>
+        <text x="30" y="230">Проект homeassistant · сеть хоста</text>
       </g>
 
+      <!-- шесть сервисов медиа-стека -->
       <g stroke="currentColor" fill="none" stroke-width="1.3">
-        <rect x="36" y="72" width="126" height="46" rx="8"></rect>
-        <rect x="176" y="72" width="126" height="46" rx="8"></rect>
-        <rect x="316" y="72" width="132" height="46" rx="8"></rect>
-        <rect x="36" y="132" width="126" height="46" rx="8"></rect>
-        <rect x="176" y="132" width="126" height="46" rx="8"></rect>
-        <rect x="316" y="132" width="132" height="46" rx="8"></rect>
-        <rect x="36" y="296" width="196" height="46" rx="8"></rect>
-        <rect x="252" y="296" width="196" height="46" rx="8"></rect>
+        <rect x="30" y="56" width="126" height="46" rx="8"></rect>
+        <rect x="170" y="56" width="126" height="46" rx="8"></rect>
+        <rect x="310" y="56" width="126" height="46" rx="8"></rect>
+        <rect x="30" y="120" width="126" height="46" rx="8"></rect>
+        <rect x="170" y="120" width="126" height="46" rx="8"></rect>
+        <rect x="310" y="120" width="126" height="46" rx="8"></rect>
       </g>
-      <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="12.5">
-        <text x="99" y="94" text-anchor="middle">qBittorrent</text>
-        <text x="99" y="110" text-anchor="middle" font-size="10.5" opacity=".6">9080</text>
-        <text x="239" y="94" text-anchor="middle">Prowlarr</text>
-        <text x="239" y="110" text-anchor="middle" font-size="10.5" opacity=".6">9696</text>
-        <text x="382" y="94" text-anchor="middle">FlareSolverr</text>
-        <text x="382" y="110" text-anchor="middle" font-size="10.5" opacity=".6">8191</text>
-        <text x="99" y="154" text-anchor="middle">Radarr</text>
-        <text x="99" y="170" text-anchor="middle" font-size="10.5" opacity=".6">7878</text>
-        <text x="239" y="154" text-anchor="middle">Jellyfin</text>
-        <text x="239" y="170" text-anchor="middle" font-size="10.5" opacity=".6">8096</text>
-        <text x="382" y="154" text-anchor="middle">Seerr</text>
-        <text x="382" y="170" text-anchor="middle" font-size="10.5" opacity=".6">5055</text>
-        <text x="134" y="318" text-anchor="middle">Home Assistant</text>
-        <text x="134" y="334" text-anchor="middle" font-size="10.5" opacity=".6">8123 · сеть хоста</text>
-        <text x="350" y="318" text-anchor="middle">dockerproxy</text>
-        <text x="350" y="334" text-anchor="middle" font-size="10.5" opacity=".6">127.0.0.1:2375 · только чтение</text>
+      <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="12.5" text-anchor="middle">
+        <text x="93" y="75">qBittorrent</text>
+        <text x="233" y="75">Prowlarr</text>
+        <text x="373" y="75">FlareSolverr</text>
+        <text x="93" y="139">Radarr</text>
+        <text x="233" y="139">Jellyfin</text>
+        <text x="373" y="139">Seerr</text>
+      </g>
+      <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="10.5"
+         text-anchor="middle" opacity=".6">
+        <text x="93" y="91">9080</text>
+        <text x="233" y="91">9696</text>
+        <text x="373" y="91">8191</text>
+        <text x="93" y="155">7878</text>
+        <text x="233" y="155">8096</text>
+        <text x="373" y="155">5055</text>
       </g>
 
-      <text x="242" y="212" text-anchor="middle" fill="currentColor" opacity=".65"
-            font-family="IBM Plex Sans, sans-serif" font-size="11.5">порты опубликованы на хосте</text>
-      <line x1="242" y1="222" x2="242" y2="290" stroke="currentColor" stroke-width="1.3" marker-end="url(#oa)"></line>
-      <text x="262" y="262" fill="currentColor" opacity=".6"
-            font-family="IBM Plex Sans, sans-serif" font-size="11">HA ходит по 127.0.0.1</text>
+      <!-- Home Assistant и прокси: друг под другом, чтобы правый край HA был свободен -->
+      <g stroke="currentColor" fill="none" stroke-width="1.3">
+        <rect x="30" y="258" width="250" height="52" rx="8"></rect>
+        <rect x="30" y="336" width="250" height="52" rx="8"></rect>
+      </g>
+      <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="12.5" text-anchor="middle">
+        <text x="155" y="280">Home Assistant</text>
+        <text x="155" y="358">dockerproxy</text>
+      </g>
+      <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="10.5"
+         text-anchor="middle" opacity=".6">
+        <text x="155" y="296">8123 · сеть хоста</text>
+        <text x="155" y="374">127.0.0.1:2375 · только чтение</text>
+      </g>
 
-      <g stroke="currentColor" fill="none" stroke-width="1.3" opacity=".55">
-        <rect x="520" y="72" width="176" height="46" rx="8"></rect>
-        <rect x="520" y="146" width="176" height="46" rx="8"></rect>
-        <rect x="520" y="220" width="176" height="46" rx="8"></rect>
-        <rect x="520" y="296" width="176" height="46" rx="8"></rect>
+      <!-- медиа-стек -> Home Assistant -->
+      <line x1="230" y1="206" x2="230" y2="252" stroke="currentColor" stroke-width="1.3"
+            marker-end="url(#oa)"></line>
+      <text x="250" y="226" fill="currentColor" opacity=".65"
+            font-family="IBM Plex Sans, sans-serif" font-size="11">порты на хосте · HA ходит по 127.0.0.1</text>
+
+      <!-- Home Assistant -> прокси -->
+      <line x1="155" y1="314" x2="155" y2="330" stroke="currentColor" stroke-width="1.3"
+            marker-end="url(#oa)"></line>
+      <text x="172" y="327" fill="currentColor" opacity=".65"
+            font-family="IBM Plex Sans, sans-serif" font-size="11">сокет только через прокси</text>
+
+      <!-- внешние адресаты -->
+      <g stroke="currentColor" fill="none" stroke-width="1.3" opacity=".6">
+        <rect x="614" y="33" width="256" height="54" rx="8"></rect>
+        <rect x="614" y="111" width="256" height="54" rx="8"></rect>
+        <rect x="614" y="189" width="256" height="54" rx="8"></rect>
+        <rect x="614" y="267" width="256" height="54" rx="8"></rect>
       </g>
-      <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="12.5" opacity=".8">
-        <text x="608" y="94" text-anchor="middle">Пачка</text>
-        <text x="608" y="110" text-anchor="middle" font-size="10.5" opacity=".7">Кинозал · Мониторинг</text>
-        <text x="608" y="168" text-anchor="middle">Алиса</text>
-        <text x="608" y="184" text-anchor="middle" font-size="10.5" opacity=".7">через облако</text>
-        <text x="608" y="242" text-anchor="middle">Телевизор и приставка</text>
-        <text x="608" y="258" text-anchor="middle" font-size="10.5" opacity=".7">SSDP · mDNS · Wake-on-LAN</text>
-        <text x="608" y="318" text-anchor="middle">Synology DSM</text>
-        <text x="608" y="334" text-anchor="middle" font-size="10.5" opacity=".7">метрики NAS и дисков</text>
+      <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="12.5"
+         text-anchor="middle" opacity=".85">
+        <text x="742" y="56">Пачка</text>
+        <text x="742" y="134">Алиса</text>
+        <text x="742" y="212">Телевизор и приставка</text>
+        <text x="742" y="290">Synology DSM</text>
       </g>
-      <g stroke="currentColor" stroke-width="1.3" opacity=".5">
-        <line x1="470" y1="140" x2="514" y2="98" marker-end="url(#oa)"></line>
-        <line x1="238" y1="342" x2="514" y2="170" marker-end="url(#oa)"></line>
-        <line x1="238" y1="330" x2="514" y2="240" marker-end="url(#oa)"></line>
-        <line x1="238" y1="322" x2="514" y2="316" marker-end="url(#oa)"></line>
+      <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="10.5"
+         text-anchor="middle" opacity=".6">
+        <text x="742" y="74">Кинозал · Мониторинг</text>
+        <text x="742" y="152">через облако Яндекса</text>
+        <text x="742" y="230">SSDP · mDNS · Wake-on-LAN</text>
+        <text x="742" y="308">метрики NAS и дисков</text>
       </g>
-      <text x="700" y="382" text-anchor="end" fill="currentColor" opacity=".55"
-            font-family="IBM Plex Sans, sans-serif" font-size="11">Сегмент IoT изолирован: Алиса домашнюю сеть не видит</text>
+
+      <!-- шина А: медиа-стек -> Пачка -->
+      <g stroke="currentColor" fill="none" stroke-width="1.3" opacity=".75">
+        <path d="M448,111 H530 V60 H608" marker-end="url(#oa)"></path>
+      </g>
+      <text x="452" y="103" fill="currentColor" opacity=".6"
+            font-family="IBM Plex Sans, sans-serif" font-size="10.5">4 бота</text>
+
+      <!-- шина Б: Home Assistant -> Алиса, телевизор, DSM -->
+      <g stroke="currentColor" fill="none" stroke-width="1.3" opacity=".75">
+        <path d="M284,294 H568 V138 H608" marker-end="url(#oa)"></path>
+        <path d="M568,216 H608" marker-end="url(#oa)"></path>
+        <path d="M568,294 H608" marker-end="url(#oa)"></path>
+      </g>
+
+      <text x="14" y="440" fill="currentColor" opacity=".55"
+            font-family="IBM Plex Sans, sans-serif" font-size="11">Сегмент IoT изолирован: команда Алисы приходит из облака по исходящему соединению NAS, а не из домашней сети</text>
     </svg>
     <figcaption>
       Два <code>compose.yaml</code>, намеренно не слитые в один. Медиа-стек живёт
