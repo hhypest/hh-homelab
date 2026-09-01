@@ -505,7 +505,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <table>
       <thead><tr><th>Область</th><th>Что содержит</th><th class="num-col">Строк</th><th class="num-col">Файлов</th></tr></thead>
       <tbody>
-        <tr><td><code class="path">docs/</code></td><td>чек-листы, гайды, справочники, дорожная карта</td><td class="num-col">8563</td><td class="num-col">7</td></tr>
+        <tr><td><code class="path">docs/</code></td><td>чек-листы, гайды, справочники, дорожная карта</td><td class="num-col">9098</td><td class="num-col">7</td></tr>
         <tr><td><code class="path">homeassistant/</code></td><td>compose, пакеты, дашборд, скрипты для сенсоров</td><td class="num-col">2188</td><td class="num-col">14</td></tr>
         <tr><td><code class="path">scripts/</code></td><td>проверки конфигурации и документации</td><td class="num-col">910</td><td class="num-col">6</td></tr>
         <tr><td><code class="path">pachca/</code></td><td>Liquid-шаблоны уведомлений и примеры payload</td><td class="num-col">643</td><td class="num-col">20</td></tr>
@@ -517,8 +517,8 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
   </div>
 
   <div class="note why"><b>Что здесь необычного.</b> Отношение «документация и
-    проверки» к «собственно конфигурации» — 10 431 строка против 3016,
-    то есть примерно 3,5 к 1. Для домашнего
+    проверки» к «собственно конфигурации» — 10 966 строк против 3016,
+    то есть примерно 3,6 к 1. Для домашнего
     сервера это выглядит перекосом, пока не вспомнить, что настраивается он
     раз в год, а разбираться в нём приходится в тот вечер, когда что-то
     сломалось и половина деталей забыта.</div>
@@ -768,15 +768,15 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <table>
       <thead><tr><th>Проверка</th><th>Что делает</th><th class="num-col">Время</th></tr></thead>
       <tbody>
-        <tr><td><code>pytest</code></td><td>114 тестов</td><td class="num-col">7,67 с</td></tr>
-        <tr><td><code>yamllint</code></td><td>4 каталога YAML</td><td class="num-col">0,33 с</td></tr>
-        <tr><td><code>render_pachca.py --check</code></td><td>26 пар «шаблон × payload»</td><td class="num-col">0,24 с</td></tr>
-        <tr><td><code>validate_config.py</code></td><td>12 файлов, Jinja, секреты</td><td class="num-col">0,24 с</td></tr>
-        <tr><td><code>validate_entities.py</code></td><td>сверка entity_id</td><td class="num-col">0,12 с</td></tr>
-        <tr><td><code>validate_docs.py</code></td><td>7 страниц, ссылки, 61 файл на обезличивание</td><td class="num-col">0,15 с</td></tr>
-        <tr><td><code>check_files.py</code></td><td>63 файла на переводы строк</td><td class="num-col">0,04 с</td></tr>
+        <tr><td><code>pytest</code></td><td>114 тестов</td><td class="num-col">8,27 с</td></tr>
+        <tr><td><code>yamllint</code></td><td>4 каталога YAML</td><td class="num-col">0,39 с</td></tr>
+        <tr><td><code>render_pachca.py --check</code></td><td>26 пар «шаблон × payload»</td><td class="num-col">0,28 с</td></tr>
+        <tr><td><code>validate_config.py</code></td><td>12 файлов, Jinja, секреты</td><td class="num-col">0,28 с</td></tr>
+        <tr><td><code>validate_entities.py</code></td><td>сверка entity_id</td><td class="num-col">0,15 с</td></tr>
+        <tr><td><code>validate_docs.py</code></td><td>7 страниц, ссылки, 61 файл на обезличивание</td><td class="num-col">0,21 с</td></tr>
+        <tr><td><code>check_files.py</code></td><td>63 файла на переводы строк</td><td class="num-col">0,05 с</td></tr>
         <tr><td><code>ruff check .</code></td><td>13 файлов Python</td><td class="num-col">0,01 с</td></tr>
-        <tr><td><b>Всего последовательно</b></td><td></td><td class="num-col"><b>8,80 с</b></td></tr>
+        <tr><td><b>Всего последовательно</b></td><td></td><td class="num-col"><b>9,64 с</b></td></tr>
       </tbody>
     </table>
   </div>
