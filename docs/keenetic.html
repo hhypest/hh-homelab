@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Что в настройках роутера Keenetic влияет на медиа-стек и Home Assistant: два сегмента, VPN, проброс порта, KeenDNS.">
+<meta name="description" content="Что в настройках роутера Keenetic влияет на медиа-стек и Home Assistant: два сегмента, Wi-Fi против кабеля и Wake-on-LAN, VPN, проброс порта, KeenDNS.">
 <title>Роутер: что важно для этого стека</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,63 +22,63 @@
    Токены. Светлая палитра — на голом :root, тёмная переопределяет только их.
    ========================================================================== */
 :root{
-  --ground:#F1F5F6;
-  --surface:#FFFFFF;
-  --surface-2:#E7EDEF;
-  --ink:#0E1A1E;
-  --ink-2:#3F5259;
-  --muted:#6A7E86;
-  --line:#D2DEE2;
-  --line-strong:#B2C3C9;
-  --home:#0D6B75;
-  --iot:#95590F;
-  --ok:#2A6B46;
-  --crit:#A22F26;
-  --code-bg:#0E1A1E;
-  --code-ink:#D6E3E7;
-  --code-dim:#7C949C;
-  --shadow:0 1px 2px rgba(14,26,30,.06), 0 8px 24px -16px rgba(14,26,30,.30);
+  --ground:#F5F1EA;
+  --surface:#FFFCF7;
+  --surface-2:#EBE4D9;
+  --ink:#241D15;
+  --ink-2:#4C4136;
+  --muted:#7A6C5D;
+  --line:#DED4C6;
+  --line-strong:#BFB09C;
+  --home:#17635C;
+  --iot:#8F6109;
+  --ok:#3F6B33;
+  --crit:#A33A28;
+  --code-bg:#241D15;
+  --code-ink:#E8DFD2;
+  --code-dim:#9C8C7A;
+  --shadow:0 1px 2px rgba(36,29,21,.07), 0 8px 24px -16px rgba(36,29,21,.34);
   --radius:10px;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --ground:#0B1214;
-    --surface:#121D21;
-    --surface-2:#19272C;
-    --ink:#E3EDF0;
-    --ink-2:#A7BBC2;
-    --muted:#7C939B;
-    --line:#22343B;
-    --line-strong:#354F59;
-    --home:#4FC2CD;
-    --iot:#DFA254;
-    --ok:#5EBD85;
-    --crit:#E8786C;
-    --code-bg:#080F11;
-    --code-ink:#CEDFE4;
-    --code-dim:#6D858D;
-    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    --ground:#17120E;
+    --surface:#201A15;
+    --surface-2:#2C241D;
+    --ink:#F0E8DC;
+    --ink-2:#C3B5A4;
+    --muted:#948674;
+    --line:#362C24;
+    --line-strong:#55473A;
+    --home:#5FC4B4;
+    --iot:#DFAC5A;
+    --ok:#8FC077;
+    --crit:#EC8A76;
+    --code-bg:#100C09;
+    --code-ink:#E3D9CB;
+    --code-dim:#8B7C6A;
+    --shadow:0 1px 2px rgba(0,0,0,.45), 0 8px 24px -16px rgba(0,0,0,.72);
     color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --ground:#0B1214;
-  --surface:#121D21;
-  --surface-2:#19272C;
-  --ink:#E3EDF0;
-  --ink-2:#A7BBC2;
-  --muted:#7C939B;
-  --line:#22343B;
-  --line-strong:#354F59;
-  --home:#4FC2CD;
-  --iot:#DFA254;
-  --ok:#5EBD85;
-  --crit:#E8786C;
-  --code-bg:#080F11;
-  --code-ink:#CEDFE4;
-  --code-dim:#6D858D;
-  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  --ground:#17120E;
+  --surface:#201A15;
+  --surface-2:#2C241D;
+  --ink:#F0E8DC;
+  --ink-2:#C3B5A4;
+  --muted:#948674;
+  --line:#362C24;
+  --line-strong:#55473A;
+  --home:#5FC4B4;
+  --iot:#DFAC5A;
+  --ok:#8FC077;
+  --crit:#EC8A76;
+  --code-bg:#100C09;
+  --code-ink:#E3D9CB;
+  --code-dim:#8B7C6A;
+  --shadow:0 1px 2px rgba(0,0,0,.45), 0 8px 24px -16px rgba(0,0,0,.72);
   color-scheme:dark;
 }
 
@@ -268,14 +268,75 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
   nav.rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px}
   main{padding-top:24px}
 }
+/* ---------- переключатель темы ---------- */
+.top .wrap{position:relative}
+.theme-switch{
+  position:absolute;top:40px;right:24px;
+  display:inline-flex;gap:2px;padding:3px;
+  border:1px solid var(--line);border-radius:100px;
+  background:var(--surface);box-shadow:var(--shadow);
+}
+.theme-switch button{
+  appearance:none;border:0;background:transparent;cursor:pointer;line-height:1;
+  font-family:"Golos Text",sans-serif;font-size:11.5px;font-weight:500;
+  color:var(--muted);padding:6px 12px;border-radius:100px;
+}
+.theme-switch button:hover{color:var(--ink)}
+.theme-switch button[aria-pressed="true"]{background:var(--surface-2);color:var(--ink)}
+.theme-switch button:focus-visible{outline:2px solid var(--home);outline-offset:2px}
+@media (max-width:760px){
+  .theme-switch{position:static;margin-bottom:18px}
+}
+
 @media (prefers-reduced-motion: reduce){
   *{transition:none !important;animation:none !important}
 }
 </style>
+<script>
+/* Тема применяется до отрисовки — иначе на светлой теме мигнёт тёмная. */
+(function () {
+  var KEY = 'hh-homelab-theme';
+  var root = document.documentElement;
+  function apply(v) {
+    if (v === 'light' || v === 'dark') root.setAttribute('data-theme', v);
+    else root.removeAttribute('data-theme');
+  }
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) {}
+  apply(saved || 'auto');
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var box = document.querySelector('.theme-switch');
+    if (!box) return;
+    var buttons = box.querySelectorAll('button[data-theme-set]');
+    function mark(v) {
+      Array.prototype.forEach.call(buttons, function (b) {
+        b.setAttribute('aria-pressed', String(b.getAttribute('data-theme-set') === v));
+      });
+    }
+    mark(saved || 'auto');
+    box.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest ? e.target.closest('button[data-theme-set]') : null;
+      if (!b) return;
+      var v = b.getAttribute('data-theme-set');
+      apply(v);
+      mark(v);
+      try {
+        if (v === 'auto') localStorage.removeItem(KEY); else localStorage.setItem(KEY, v);
+      } catch (err) {}
+    });
+  });
+})();
+</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
+    <div class="theme-switch" role="group" aria-label="Тема оформления">
+      <button type="button" data-theme-set="auto" aria-pressed="true">Авто</button>
+      <button type="button" data-theme-set="light" aria-pressed="false">Светлая</button>
+      <button type="button" data-theme-set="dark" aria-pressed="false">Тёмная</button>
+    </div>
     <div class="eyebrow">Заметки · Keenetic Hopper SE · KN-3812</div>
     <h1>Роутер: что важно для этого стека</h1>
     <p class="lede">Шлюз сети — Keenetic. Ниже то, что влияет на работу Home Assistant и медиа-стека, без инвентаря устройств: конкретные имена, адреса и параметры туннеля живут в локальной копии этого файла, а не в публичном репозитории. &gt; Если ведёте свои заметки по сети — назовите файл <code>docs/keenetic.local.md</code>, &gt; он перечислен в <code>.gitignore</code> и в git не попадёт.</p>
@@ -309,6 +370,188 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
 <section id="s1">
   <div class="sec-head">
     <div class="kicker">Раздел 1</div>
+    <h2 id="wi-fi-или-кабель">Wi-Fi или кабель</h2>
+    <p>
+      Вопрос возвращается при каждой перестановке мебели. Ответ разный
+      для приставки и для телевизора, и разница не в скорости.
+    </p>
+  </div>
+
+  <h3 class="sub" id="приставка-можно">Приставка — можно</h3>
+  <p>
+    Она только тянет поток. Профиль качества ограничен 1080p, это
+    10–30 Мбит/с на обычном рипе — Wi-Fi 5 на 5 ГГц справляется с кратным
+    запасом. Две вещи стоит проверить:
+  </p>
+  <ul>
+    <li><b>Зафиксировать 5 ГГц.</b> На 2,4 ГГц в многоквартирном доме
+      просадки дают буферизацию в середине фильма. Если включён band steering,
+      приставку может увести на 2,4 — надёжнее развести SSID по диапазонам.</li>
+    <li><b>Изоляция клиентов на точке должна быть выключена.</b> Обнаружение
+      Android TV идёт по mDNS, а это multicast: при изоляции Home Assistant
+      приставку просто не увидит.</li>
+  </ul>
+
+  <h3 class="sub" id="телевизор-держится-на-кабеле">Телевизор держится на кабеле</h3>
+  <p>
+    Выключенный webOS не слушает сеть — включается он magic-пакетом
+    Wake-on-LAN. Автоматизация <code>tv_lg_wol</code> шлёт его широковещательно
+    на <code>192.168.3.255</code>, и на этом держится голосовое включение
+    через Алису.
+  </p>
+  <div class="note crit"><b>По Wi-Fi это, скорее всего, работать не будет.</b>
+    Wake-on-LAN по беспроводной сети — отдельная технология, <b>WoWLAN</b>,
+    и поддерживать её должен сам модуль телевизора. На бюджетных LG её обычно
+    нет. В меню бывает <i>Общие → Мобильное ТВ вкл.</i> с раздельными
+    переключателями для Wi-Fi и Ethernet; нет пункта про Wi-Fi — значит
+    ответ отрицательный.</div>
+  <div class="note warn"><b>Ломается это коварно.</b> Управление включённым
+    телевизором — громкость, каналы, выключение — продолжит работать
+    по Wi-Fi как ни в чём не бывало: включённый телевизор сеть слушает.
+    Отвалится только включение. Со стороны это выглядит как «Алиса иногда
+    не включает телевизор», и искать причину в способе подключения
+    догадаешься не сразу.</div>
+
+  <h3 class="sub" id="как-проверить-честно">Как проверить честно</h3>
+  <ol class="steps">
+    <li class="step">
+      <div class="step-body" style="grid-column:1/-1">
+        <h3><span class="num">1</span> Найти пункт в меню телевизора</h3>
+        <p><i>Настройки → Общие → Мобильное ТВ вкл.</i> либо
+        <i>Настройки → Сеть</i>. Нет упоминания включения по Wi-Fi —
+        дальше проверять нечего.</p>
+      </div>
+    </li>
+    <li class="step">
+      <div class="step-body" style="grid-column:1/-1">
+        <h3><span class="num">2</span> Выключить телевизор и подождать</h3>
+        <div class="note crit"><b>Ждать обязательно 10–15 минут.</b> Сразу после
+          выключения модуль ещё не ушёл в глубокий сон и откликается даже без
+          WoWLAN. Это самый частый ложноположительный результат: проверили
+          через минуту, всё сработало, а наутро телевизор не включается.</div>
+      </div>
+    </li>
+    <li class="step">
+      <div class="step-body" style="grid-column:1/-1">
+        <h3><span class="num">3</span> Послать пакет вручную</h3>
+        <p>
+          В Home Assistant: <i>Инструменты разработчика → Действия</i>,
+          действие <code>wake_on_lan.send_magic_packet</code>, тот же MAC
+          и broadcast, что в автоматизации.
+        </p>
+      </div>
+    </li>
+  </ol>
+
+  <h3 class="sub" id="что-ещё-сломается-при-переезде">Что ещё сломается при переезде</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Что</th><th>Почему</th><th>Что делать</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Magic-пакет уходит в пустоту</td>
+          <td>У беспроводного адаптера <b>другой MAC</b>, не тот, что у Ethernet</td>
+          <td>Обновить <code>tv_lg_mac</code> в <code>secrets.yaml</code> и резервирование в DHCP</td>
+        </tr>
+        <tr>
+          <td>Home Assistant теряет оба устройства разом</td>
+          <td>Точка раздала сеть IoT — устройства оказались в <code>10.0.50.0/24</code>, а изоляция сегментов включена и ретрансляция mDNS выключена</td>
+          <td>Убедиться, что подключаются к сети сегмента Home</td>
+        </tr>
+        <tr>
+          <td>Адрес приставки плавает</td>
+          <td>Google TV по умолчанию подставляет случайный MAC для каждой сети</td>
+          <td>В настройках Wi-Fi выбрать «Использовать MAC устройства»</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+
+  <h3 class="sub" id="как-ввести-длинный-пароль">Как ввести длинный пароль, не мучаясь с пультом</h3>
+  <p>
+    Экранная клавиатура Android TV рассчитана на короткие строки. Набирать
+    длинную парольную фразу крестовиной — верный способ ошибиться на сороковом
+    символе и не понять, где. Четыре способа этого избежать, от самого простого.
+  </p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Способ</th><th>Что нужно</th><th>Когда подходит</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>USB-клавиатура</b></td>
+          <td>любая проводная, в USB-порт приставки</td>
+          <td>всегда, включая мастер первичной настройки — ни от чего не зависит</td>
+        </tr>
+        <tr>
+          <td><b>Кабель + приложение Google TV</b></td>
+          <td>Ethernet на время настройки, телефон в той же сети</td>
+          <td>когда пароль лежит в менеджере паролей: в приложении работает вставка из буфера</td>
+        </tr>
+        <tr>
+          <td><b>ADB по сети</b></td>
+          <td>Ethernet, отладка по сети, Android 11+</td>
+          <td>когда хочется воспроизводимо и без тыканья в интерфейс</td>
+        </tr>
+        <tr>
+          <td><b>Быстрая настройка с телефона</b></td>
+          <td>приставка в состоянии «из коробки»</td>
+          <td>только в мастере первичной настройки; ради этого сбрасывать — не стоит</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note why"><b>Про порядок во втором способе.</b> Приложение-пульт
+    работает по сети, поэтому сначала Ethernet, потом пульт: приставка должна
+    оказаться в сети до того, как телефон её найдёт. Наоборот не выйдет.
+    После ввода пароля кабель можно отключить.</div>
+
+  <p>Третий способ целиком:</p>
+  <div class="code"><button class="copy" type="button">копировать</button><pre><code><span class="c"># На приставке: Настройки → Система → Для разработчиков → Отладка по сети</span>
+<span class="c"># Адрес приставки в домашнем сегменте — 192.168.3.54</span>
+adb connect 192.168.3.54:5555
+adb shell cmd wifi connect-network "ИМЯ_СЕТИ" wpa2 "ПАРОЛЬ"</code></pre></div>
+  <p>
+    <code>cmd wifi</code> есть в Android 11 и новее. Типы сети:
+    <code>open</code>, <code>owe</code>, <code>wpa2</code>, <code>wpa3</code>.
+    Профиль сохраняется так же, как при обычном подключении через интерфейс.
+  </p>
+  <div class="note warn"><b>Пароль попадёт в историю оболочки.</b>
+    Наберите команду с ведущим пробелом или почистите историю после —
+    иначе парольная фраза от домашней сети останется лежать
+    в <code class="path">~/.bash_history</code> на компьютере.</div>
+
+  <div class="note"><b>Без ввода вовсе — WPS.</b> Кнопка на Keenetic и пункт
+    «Подключиться через WPS» на приставке. Рабочий вариант для разового
+    подключения, но окно WPS стоит держать открытым только на время
+    подключения и выключать сразу после: у протокола есть известные слабости,
+    и постоянно включённым его оставлять не нужно.</div>
+
+  <div class="note why"><b>Насколько длинной вообще должна быть фраза.</b>
+    WPA2-PSK прогоняет её через PBKDF2 и получает 256-битный ключ. Случайные
+    20–24 символа — это порядка 120–140 бит энтропии, заведомо за пределами
+    любого перебора. Всё, что сверху, стойкости не добавляет, а платить
+    приходится при каждом подключении нового устройства. Менять работающий
+    пароль ради этого не стоит — переподключать придётся всё, — но при
+    следующей плановой смене есть смысл остановиться на двух десятках
+    случайных символов. Настоящая предосторожность для домашней сети другая
+    и уже принята: имя точки доступа не попадает в публичный репозиторий,
+    потому что SSID есть в открытых базах геолокации — это проверяет
+    <code>validate_docs.py</code>.</div>
+
+  <div class="note why"><b>Обходной путь, если кабель тянуть некуда.</b>
+    Телевизор по Wi-Fi, а включение — через HDMI-CEC от приставки: приставка
+    просыпается по сети и будит телевизор по HDMI, Wake-on-LAN не участвует
+    вовсе. У LG это <b>SIMPLINK</b>, включается в настройках телевизора.
+    На бюджетных моделях работает капризно, но попробовать дешевле,
+    чем тянуть витую пару.</div>
+</section>
+
+<section id="s2">
+  <div class="sec-head">
+    <div class="kicker">Раздел 2</div>
     <h2 id="если-весь-трафик-идет-через-vpn">Если весь трафик идёт через VPN</h2>
   </div>
 <p>Распространённая конфигурация: политика подключений отправляет весь исходящий трафик в WireGuard-туннель. Тогда стоит проверить, что нужные сервисы вообще отвечают — некоторые по-разному относятся к зарубежным и дата-центровым адресам.</p>
@@ -335,18 +578,18 @@ ip name-server 1.1.1.1 "" on ISP</code></pre></div>
 <p>В интерфейсе: <i>Интернет → Проводной → Настройка DNS → Добавить сервер DNS</i>.</p>
 </section>
 
-<section id="s2">
+<section id="s3">
   <div class="sec-head">
-    <div class="kicker">Раздел 2</div>
+    <div class="kicker">Раздел 3</div>
     <h2 id="проброс-порта-для-раздачи">Проброс порта для раздачи</h2>
   </div>
 <p>qBittorrent слушает <code>6881/tcp</code> и <code>6881/udp</code>. Если весь трафик NAS идёт через VPN-туннель, входящие подключения на этот порт до него не дойдут: у туннеля нет проброса, если провайдер его не даёт отдельной опцией.</p>
 <p>Практическое следствие: раздача работает только на тех пиров, к которым qBittorrent подключился сам. Рейтинг растёт медленнее, но клиент не «сломан». Если у VPN-провайдера есть port forwarding — пробросьте на нём тот же порт и укажите его в настройках соединения qBittorrent.</p>
 </section>
 
-<section id="s3">
+<section id="s4">
   <div class="sec-head">
-    <div class="kicker">Раздел 3</div>
+    <div class="kicker">Раздел 4</div>
     <h2 id="внешний-доступ-через-keendns">Внешний доступ через KeenDNS</h2>
   </div>
 <p>Keenetic умеет публиковать внутренние веб-приложения наружу через свой реверс-прокси: <i>Управление → Доменное имя → Приложения → Добавить</i>.</p>
@@ -355,9 +598,9 @@ ip name-server 1.1.1.1 "" on ISP</code></pre></div>
 <div class="note">Взвесьте, что именно публикуете. Панель управления NAS, опубликованная наружу, — это сервис аутентификации, доступный всему интернету. Для доступа к файлам и настройкам NAS безопаснее поднять VPN на самом роутере, а через KeenDNS публиковать только то, что действительно нужно снаружи.</div>
 </section>
 
-<section id="s4">
+<section id="s5">
   <div class="sec-head">
-    <div class="kicker">Раздел 4</div>
+    <div class="kicker">Раздел 5</div>
     <h2 id="диагностика">Диагностика</h2>
   </div>
 <div class="code"><button class="copy" type="button">копировать</button><pre><code><span class="c"># На роутере: кто какой адрес получил</span>
