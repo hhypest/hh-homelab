@@ -662,17 +662,27 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <div class="kicker">Раздел 8</div>
     <h2 id="репозиторий-и-процесс">Репозиторий и процесс</h2>
   </div>
-<h3 class="sub" id="версии-образов-вместо-latest">Версии образов вместо <code>:latest</code></h3>
+<h3 class="sub" id="версии-образов-вместо-latest">Версии образов вместо <code>:latest</code> <span class="tag key">сделано</span></h3>
+<p class="note why"><b>Закрыто.</b> Все девять образов — восемь контейнеров
+плюс мод VueTorrent — закреплены на конкретных версиях, а экосистема
+<code>docker-compose</code> добавлена в <code>.github/dependabot.yml</code>:
+обновления приходят пул-реквестом раз в неделю, одной группой на оба стека.
+Плавающий тег теперь не вернёшь незаметно —
+<code>tests/test_compose_images.py</code> роняет проверки и на
+<code>:latest</code>, и на образе вовсе без тега, и на каталоге, выпавшем
+из настроек Dependabot.</p>
+<p class="note warn"><b>Что осталось ручным.</b> VueTorrent подключён
+через <code>DOCKER_MODS</code>, а Dependabot разбирает только ключ
+<code>image</code> — за его релизами придётся следить самому. Зато
+плавающий тег там был опаснее прочих: моды скачиваются при каждом старте
+контейнера, так что версия менялась бы и без единого
+<code>compose pull</code>.</p>
+<p class="note"><b>Что это поменяло в обслуживании:</b> <code>docker compose
+pull</code> больше сам версию не поднимает. Порядок стал обратным
+привычному — смержить PR, затем <code>git pull</code> на NAS, и только
+потом <code>pull</code> с <code>up -d</code>. Расписано в шаге 10.2
+чек-листа медиа-стека и шаге 11.3 чек-листа Home Assistant.</p>
 <ol class="steps">
-    <li class="step" data-key="rm18">
-      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
-      <div class="step-body">
-        <h3>Закрепить версии и обновляться осознанно</h3>
-        <p>Сейчас семь контейнеров из восьми стоят на <code>:latest</code>, восьмой — Home Assistant — на <code>:stable</code>, что от плавающей версии не спасает: это «последний стабильный», а не «зафиксированный». Работает это ровно до дня, когда <code>docker compose pull</code> принесёт мажорное обновление с изменённым форматом базы, и вы узнаете об этом по нерабочему Jellyfin в девять вечера. Особенно неприятно, если обновятся сразу несколько — искать виноватого придётся среди всех.</p>
-        <p>Лечится закреплением тегов плюс Renovate или Dependabot: обновление приходит пул-реквестом, проверки прогоняются, вы читаете changelog и мержите когда готовы. Инфраструктура для этого уже есть — восемь задач проверок в CI и <code>.github/dependabot.yml</code>, туда добавляется экосистема <code>docker-compose</code>.</p>
-        <p class="note"><b>Повод:</b> есть прямо сейчас. <b>Усилия:</b> M.</p>
-      </div>
-    </li>
     <li class="step" data-key="rm19">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">

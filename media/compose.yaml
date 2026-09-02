@@ -91,7 +91,7 @@
 
 services:
   qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent:latest
+    image: lscr.io/linuxserver/qbittorrent:5.2.3_v2.0.14-ls474
     container_name: qbittorrent
     restart: unless-stopped
     environment:
@@ -101,7 +101,7 @@ services:
       - TZ=${TZ:?см. .env.example}
       - WEBUI_PORT=9080
       - TORRENTING_PORT=${QBITTORRENT_TORRENT_PORT:?см. .env.example}
-      - DOCKER_MODS=ghcr.io/vuetorrent/vuetorrent-lsio-mod:latest
+      - DOCKER_MODS=ghcr.io/vuetorrent/vuetorrent-lsio-mod:2.35.0
     volumes:
       - ./config/qbittorrent:/config
       - ./watch:/watch
@@ -119,7 +119,7 @@ services:
         max-file: "3"
 
   prowlarr:
-    image: lscr.io/linuxserver/prowlarr:latest
+    image: lscr.io/linuxserver/prowlarr:2.5.2.5491-ls158
     container_name: prowlarr
     restart: unless-stopped
     environment:
@@ -140,7 +140,7 @@ services:
         max-file: "3"
 
   radarr:
-    image: lscr.io/linuxserver/radarr:latest
+    image: lscr.io/linuxserver/radarr:6.3.0.10514-ls314
     container_name: radarr
     restart: unless-stopped
     environment:
@@ -162,7 +162,7 @@ services:
         max-file: "3"
 
   flaresolverr:
-    image: ghcr.io/flaresolverr/flaresolverr:latest
+    image: ghcr.io/flaresolverr/flaresolverr:v3.5.0
     container_name: flaresolverr
     restart: unless-stopped
     environment:
@@ -179,7 +179,7 @@ services:
         max-file: "3"
 
   jellyfin:
-    image: lscr.io/linuxserver/jellyfin:latest
+    image: lscr.io/linuxserver/jellyfin:10.11.11ubu2604-ls47
     container_name: jellyfin
     restart: unless-stopped
     environment:
@@ -204,7 +204,7 @@ services:
         max-file: "3"
 
   seerr:
-    image: ghcr.io/seerr-team/seerr:latest
+    image: ghcr.io/seerr-team/seerr:v3.4.1
     container_name: seerr
     init: true
     restart: unless-stopped

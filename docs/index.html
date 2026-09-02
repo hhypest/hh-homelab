@@ -2018,12 +2018,18 @@ system configuration save</code></pre></div>
 sudo docker compose pull
 sudo docker compose up -d
 sudo docker image prune -f</code></pre></div>
-        <div class="note crit"><b>Всегда сначала бэкап.</b> Home Assistant обновляется раз в
-          месяц и регулярно приносит breaking changes. Тег <code>stable</code> в
-          <code>compose.yaml</code> означает «последний стабильный», а не «зафиксированный»:
-          <code>docker compose pull</code> действительно поднимет версию. Если хотите
-          контролировать момент — замените <code>:stable</code> на конкретную версию,
-          например <code>:2026.8</code>.</div>
+        <div class="note crit"><b>Всегда сначала бэкап.</b> Home Assistant
+          обновляется раз в месяц и регулярно приносит breaking changes.</div>
+        <div class="note why"><b>Версия закреплена, и <code>compose pull</code>
+          сам её не поднимет.</b> В <code>compose.yaml</code> стоит конкретный
+          тег, а не <code>:stable</code>: «последний стабильный» — это
+          не «зафиксированный», и такой тег однажды принёс бы мажорное
+          обновление в тот момент, когда Docker решит перекачать образ.
+          Теперь новая версия приходит пул-реквестом от Dependabot, раз
+          в неделю. Порядок такой: прочитать release notes, смержить PR,
+          на NAS сделать <code>git pull</code> (шаг 11.4) — и только потом
+          команды выше. Смысл затеи именно в этом: момент обновления
+          выбираете вы, а не расписание сборок.</div>
       </div>
     </li>
 

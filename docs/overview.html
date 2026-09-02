@@ -348,8 +348,8 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <div class="facts">
       <span class="fact"><span class="dot home"></span>NAS <b>192.168.3.53</b></span>
       <span class="fact">контейнеров <b>8</b></span>
-      <span class="fact">файлов под версией <b>68</b></span><span class="fact">страниц документации <b>7</b></span>
-      <span class="fact">тестов <b>138</b></span>
+      <span class="fact">файлов под версией <b>69</b></span><span class="fact">страниц документации <b>7</b></span>
+      <span class="fact">тестов <b>141</b></span>
       <span class="fact">задач CI <b>8</b></span>
     </div>
 
@@ -505,19 +505,19 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <table>
       <thead><tr><th>Область</th><th>Что содержит</th><th class="num-col">Строк</th><th class="num-col">Файлов</th></tr></thead>
       <tbody>
-        <tr><td><code class="path">docs/</code></td><td>чек-листы, гайды, справочники, дорожная карта</td><td class="num-col">9705</td><td class="num-col">7</td></tr>
+        <tr><td><code class="path">docs/</code></td><td>чек-листы, гайды, справочники, дорожная карта</td><td class="num-col">9761</td><td class="num-col">7</td></tr>
         <tr><td><code class="path">homeassistant/</code></td><td>compose, образец <code>.env</code>, пакеты, дашборд, скрипты</td><td class="num-col">2239</td><td class="num-col">15</td></tr>
         <tr><td><code class="path">scripts/</code></td><td>проверки конфигурации и документации</td><td class="num-col">1009</td><td class="num-col">6</td></tr>
         <tr><td><code class="path">pachca/</code></td><td>Liquid-шаблоны уведомлений и примеры payload</td><td class="num-col">677</td><td class="num-col">22</td></tr>
-        <tr><td><code class="path">tests/</code></td><td>pytest на скрипты, шаблоны, workflow и образцы <code>.env</code></td><td class="num-col">980</td><td class="num-col">6</td></tr>
-        <tr><td><code class="path">.github/</code></td><td>workflow проверок и настройка Dependabot</td><td class="num-col">206</td><td class="num-col">2</td></tr>
+        <tr><td><code class="path">tests/</code></td><td>pytest на скрипты, шаблоны, workflow, образцы <code>.env</code> и версии образов</td><td class="num-col">1073</td><td class="num-col">7</td></tr>
+        <tr><td><code class="path">.github/</code></td><td>workflow проверок и настройка Dependabot</td><td class="num-col">230</td><td class="num-col">2</td></tr>
         <tr><td><code class="path">media/</code></td><td>compose медиа-стека и образец <code>.env</code></td><td class="num-col">325</td><td class="num-col">2</td></tr>
       </tbody>
     </table>
   </div>
 
   <div class="note why"><b>Что здесь необычного.</b> Отношение «документация и
-    проверки» к «собственно конфигурации» — 11 900 строк против 3241,
+    проверки» к «собственно конфигурации» — 12 073 строк против 3241,
     то есть примерно 3,7 к 1. Для домашнего
     сервера это выглядит перекосом, пока не вспомнить, что настраивается он
     раз в год, а разбираться в нём приходится в тот вечер, когда что-то
@@ -716,6 +716,14 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
               вынесено наружу, а забытый файл теперь роняет запуск,
               а не поднимает стек с пустыми значениями</td>
         </tr>
+        <tr>
+          <td class="num-col">02.09<br>17:20</td>
+          <td>Версии образов закреплены</td>
+          <td>Последнее место, где что-то менялось само собой: восемь
+              контейнеров стояли на плавающих тегах. Теперь обновление
+              приходит пул-реквестом — и появился смысл в разговоре
+              про релиз</td>
+        </tr>
       </tbody>
     </table>
   </div>
@@ -766,8 +774,10 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     действий — между собой. Каждая переменная из <code>compose.yaml</code> —
     с <code class="path">.env.example</code>, и порты, по которым Home
     Assistant опрашивает сервисы, — с ним же. Число шагов, обещанное
-    в README, — с самими страницами. Это не покрытие ради покрытия: каждая
-    такая проверка появилась после случая, когда что-то разошлось молча.</div>
+    в README, — с самими страницами. Каждый образ — с требованием иметь
+    закреплённую версию, а каждый каталог с compose-файлом — с настройками
+    Dependabot. Это не покрытие ради покрытия: каждая такая проверка
+    появилась после случая, когда что-то разошлось молча.</div>
 
   <div class="note warn"><b>Отказ должен называть себя по имени.</b>
     В обоих <code>compose.yaml</code> нет ни одного значения по умолчанию:
@@ -825,15 +835,15 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <table>
       <thead><tr><th>Проверка</th><th>Что делает</th><th class="num-col">Время</th></tr></thead>
       <tbody>
-        <tr><td><code>pytest</code></td><td>138 тестов</td><td class="num-col">7,70 с</td></tr>
-        <tr><td><code>yamllint</code></td><td>4 каталога YAML</td><td class="num-col">0,29 с</td></tr>
-        <tr><td><code>render_pachca.py --check</code></td><td>30 пар «шаблон × payload»</td><td class="num-col">0,22 с</td></tr>
-        <tr><td><code>validate_config.py</code></td><td>12 файлов, Jinja, секреты</td><td class="num-col">0,20 с</td></tr>
-        <tr><td><code>validate_entities.py</code></td><td>сверка entity_id</td><td class="num-col">0,10 с</td></tr>
-        <tr><td><code>validate_docs.py</code></td><td>7 страниц, ссылки на шаги, 66 файлов, сверка счётчиков</td><td class="num-col">0,14 с</td></tr>
-        <tr><td><code>check_files.py</code></td><td>68 файлов на переводы строк</td><td class="num-col">0,04 с</td></tr>
-        <tr><td><code>ruff check .</code></td><td>14 файлов Python</td><td class="num-col">0,01 с</td></tr>
-        <tr><td><b>Всего последовательно</b></td><td></td><td class="num-col"><b>8,70 с</b></td></tr>
+        <tr><td><code>pytest</code></td><td>141 тест</td><td class="num-col">7,95 с</td></tr>
+        <tr><td><code>yamllint</code></td><td>4 каталога YAML</td><td class="num-col">0,34 с</td></tr>
+        <tr><td><code>render_pachca.py --check</code></td><td>30 пар «шаблон × payload»</td><td class="num-col">0,24 с</td></tr>
+        <tr><td><code>validate_config.py</code></td><td>12 файлов, Jinja, секреты</td><td class="num-col">0,24 с</td></tr>
+        <tr><td><code>validate_entities.py</code></td><td>сверка entity_id</td><td class="num-col">0,12 с</td></tr>
+        <tr><td><code>validate_docs.py</code></td><td>7 страниц, ссылки на шаги, 67 файлов, сверка счётчиков</td><td class="num-col">0,17 с</td></tr>
+        <tr><td><code>check_files.py</code></td><td>69 файлов на переводы строк</td><td class="num-col">0,04 с</td></tr>
+        <tr><td><code>ruff check .</code></td><td>15 файлов Python</td><td class="num-col">0,01 с</td></tr>
+        <tr><td><b>Всего последовательно</b></td><td></td><td class="num-col"><b>9,11 с</b></td></tr>
       </tbody>
     </table>
   </div>
@@ -845,45 +855,50 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
   </p>
 
   <figure>
-    <svg viewBox="0 0 900 290" role="img"
-         aria-label="Стоимость одного теста по файлам: test_docker_state 449 миллисекунд, test_http_check 173, test_workflow 43, test_env_example 20, test_pachca_templates 6 миллисекунд.">
+    <svg viewBox="0 0 900 338" role="img"
+         aria-label="Стоимость одного теста по файлам: test_docker_state 452 миллисекунды, test_http_check 182, test_compose_images 81, test_workflow 44, test_env_example 20, test_pachca_templates 6 миллисекунд.">
       <text x="0" y="18" fill="currentColor" opacity=".6"
             font-family="IBM Plex Sans, sans-serif" font-size="11.5">Миллисекунд на один тест</text>
-      <line x1="200" y1="34" x2="200" y2="262" stroke="currentColor" stroke-width="1" opacity=".25"></line>
+      <line x1="200" y1="34" x2="200" y2="310" stroke="currentColor" stroke-width="1" opacity=".25"></line>
 
       <g fill="var(--home)">
-        <rect x="200" y="40" width="660" height="22" rx="4"><title>test_docker_state.py — 13 тестов, 5,83 с, 449 мс на тест</title></rect>
-        <rect x="200" y="88" width="254" height="22" rx="4"><title>test_http_check.py — 9 тестов, 1,56 с, 173 мс на тест</title></rect>
-        <rect x="200" y="136" width="63" height="22" rx="4"><title>test_workflow.py — 6 тестов, 0,26 с, 43 мс на тест</title></rect>
-        <rect x="200" y="184" width="29" height="22" rx="4"><title>test_env_example.py — 11 тестов, 0,22 с, 20 мс на тест</title></rect>
-        <rect x="200" y="232" width="9" height="22" rx="4"><title>test_pachca_templates.py — 99 тестов, 0,58 с, 6 мс на тест</title></rect>
+        <rect x="200" y="40" width="660" height="22" rx="4"><title>test_docker_state.py — 13 тестов, 5,87 с, 452 мс на тест</title></rect>
+        <rect x="200" y="88" width="266" height="22" rx="4"><title>test_http_check.py — 9 тестов, 1,64 с, 182 мс на тест</title></rect>
+        <rect x="200" y="136" width="118" height="22" rx="4"><title>test_compose_images.py — 3 теста, 0,24 с, 81 мс на тест</title></rect>
+        <rect x="200" y="184" width="64" height="22" rx="4"><title>test_workflow.py — 6 тестов, 0,26 с, 44 мс на тест</title></rect>
+        <rect x="200" y="232" width="29" height="22" rx="4"><title>test_env_example.py — 11 тестов, 0,22 с, 20 мс на тест</title></rect>
+        <rect x="200" y="280" width="9" height="22" rx="4"><title>test_pachca_templates.py — 99 тестов, 0,63 с, 6 мс на тест</title></rect>
       </g>
 
       <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="12.5" text-anchor="end">
         <text x="188" y="56">test_docker_state</text>
         <text x="188" y="104">test_http_check</text>
-        <text x="188" y="152">test_workflow</text>
-        <text x="188" y="200">test_env_example</text>
-        <text x="188" y="248">test_pachca_templates</text>
+        <text x="188" y="152">test_compose_images</text>
+        <text x="188" y="200">test_workflow</text>
+        <text x="188" y="248">test_env_example</text>
+        <text x="188" y="296">test_pachca_templates</text>
       </g>
       <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="12" opacity=".75">
-        <text x="848" y="56" text-anchor="end" fill="var(--surface)">449 мс</text>
-        <text x="466" y="104">173 мс</text>
-        <text x="275" y="152">43 мс</text>
-        <text x="241" y="200">20 мс</text>
-        <text x="221" y="248">6 мс</text>
+        <text x="848" y="56" text-anchor="end" fill="var(--surface)">452 мс</text>
+        <text x="478" y="104">182 мс</text>
+        <text x="330" y="152">81 мс</text>
+        <text x="276" y="200">44 мс</text>
+        <text x="241" y="248">20 мс</text>
+        <text x="221" y="296">6 мс</text>
       </g>
     </svg>
     <figcaption>
       Каждый файл прогонялся отдельно, поэтому в его время входят и ~0,2 с
       на запуск самого pytest. <code>test_pachca_templates</code> прогоняет
-      99 тестов за 0,58 секунды — он рендерит шаблоны в том же процессе.
-      <code>test_docker_state</code> на 13 тестов тратит 5,8 секунды, потому что
+      99 тестов за 0,63 секунды — он рендерит шаблоны в том же процессе.
+      <code>test_docker_state</code> на 13 тестов тратит 5,9 секунды, потому что
       каждый поднимает подставной HTTP-сервер и запускает скрипт отдельным
       процессом. Разница на тест — более чем семидесятикратная. Вывод
       практический: покрытие здесь дёшево, дорого именно порождение процессов,
-      и оптимизировать при желании нужно один файл из пяти,
-      а не «тесты вообще».
+      и оптимизировать при желании нужно один файл из шести,
+      а не «тесты вообще». <code>test_compose_images</code> в этой шкале
+      стоит высоко по другой причине: тестов в нём всего три, и ~0,2 с запуска
+      делятся на них, а не на сотню.
     </figcaption>
   </figure>
 
