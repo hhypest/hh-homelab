@@ -1808,40 +1808,22 @@ sudo docker compose config &gt;/dev/null &amp;&amp; sudo docker compose up -d</c
           на этом закончился, остальное вас не касается.
         </p>
 
-        <div class="note crit"><b>Разовая миграция, если стек поднят
-          до перехода на относительные пути.</b> Раньше состояние сервисов
-          монтировалось абсолютными путями вида
-          <code class="path">/volume1/docker/radarr/config</code>. Сейчас оно
-          лежит рядом с compose-файлом, в
-          <code class="path">media/config/&lt;сервис&gt;</code>. Если просто
-          сделать <code>git pull</code> и поднять стек, Docker создаст новые
-          пустые каталоги, и все шесть приложений запустятся <b>с чистого
-          листа</b> — выглядит это как «настройки пропали», хотя они целы
-          и лежат по старому пути.</div>
-        <p>Проверить, по каким путям стек работает <b>сейчас</b>:</p>
+        <div class="note crit"><b>Первое: состояние сервисов могло
+          остаться по старым путям.</b> Раньше оно монтировалось
+          абсолютными <code class="path">/volume1/docker/&lt;сервис&gt;/config</code>.
+          Сделать <code>git pull</code> и поднять стек, не перенеся его, —
+          значит получить шесть приложений, запустившихся <b>с чистого
+          листа</b>: выглядит как «настройки пропали», хотя они целы
+          и лежат по старому пути. Проверить, по каким путям стек работает
+          сейчас:</div>
         <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo docker inspect --format '{{.Name}}{{range .Mounts}} {{.Source}}{{end}}' \
   qbittorrent prowlarr radarr jellyfin seerr</code></pre></div>
         <p>
           Увидели <code class="path">/volume1/docker/&lt;сервис&gt;/config</code> —
-          нужна миграция. Она делается один раз, при остановленном стеке,
-          между <code>down</code> и <code>up -d</code>:
+          переезд описан в <a href="#s2">шаге 2.6</a>, с бэкапом и разбором,
+          почему приложения его не заметят. Делается один раз, при
+          остановленном стеке.
         </p>
-        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/media
-sudo mkdir -p config cache
-sudo mv /volume1/docker/qbittorrent/config config/qbittorrent
-sudo mv /volume1/docker/qbittorrent/watch  watch
-sudo mv /volume1/docker/prowlarr/config    config/prowlarr
-sudo mv /volume1/docker/radarr/config      config/radarr
-sudo mv /volume1/docker/jellyfin/config    config/jellyfin
-sudo mv /volume1/docker/jellyfin/cache     cache/jellyfin
-sudo mv /volume1/docker/seerr/config       config/seerr
-sudo chown -R 1026:100 config cache watch</code></pre></div>
-        <div class="note"><b><code>mv</code> здесь мгновенный.</b> Это
-          переименование в пределах одного тома, а не копирование: базы
-          и кэши никуда не едут по диску. Старые каталоги
-          <code class="path">/volume1/docker/&lt;сервис&gt;</code> останутся
-          пустыми — удалите их, когда убедитесь, что стек поднялся
-          с прежними настройками.</div>
 
         <div class="note crit"><b>И второе: без <code class="path">.env</code>
           стек теперь не поднимется.</b> Значений по умолчанию
