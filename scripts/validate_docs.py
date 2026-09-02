@@ -84,6 +84,9 @@ class Checker(HTMLParser):
             self.errors.append(f"строка {self.getpos()[0]}: закрывается </{tag}>, а открыт был [{near}]")
 
 
+STEP_COUNTS: dict[str, int] = {}
+
+
 def check_html(path: pathlib.Path, problems: list[str]) -> None:
     text = path.read_text(encoding="utf-8")
     rel = path.relative_to(ROOT)
@@ -109,9 +112,36 @@ def check_html(path: pathlib.Path, problems: list[str]) -> None:
         problems.append(f"{rel}: повторяются data-key: {', '.join(sorted(duplicates))} — "
                         f"такие отметки будут переключаться вместе")
     if keys:
+        STEP_COUNTS[path.name] = len(keys)
         print(f"  HTML   ok  {rel}  ({len(keys)} шагов)")
     else:
         print(f"  HTML   ok  {rel}")
+
+
+def check_declared_step_counts(path: pathlib.Path, problems: list[str]) -> None:
+    """
+    README обещает «43 шага с отметками» рядом со ссылкой на чек-лист.
+    Число легко разъезжается со страницей: шаг добавили, README не тронули,
+    и документ начинает врать в первой же таблице. Сверяем.
+    """
+    rel = path.relative_to(ROOT)
+    page = re.compile(r"docs/([\w.-]+\.html)")
+    count = re.compile(r"(\d+)\s+(?:шаг|шага|шагов|пункт\w*)")
+    # Число и ссылка стоят в одной строке таблицы, но порядок бывает любым,
+    # поэтому смотрим строку целиком, а не последовательность внутри неё.
+    for line in path.read_text(encoding="utf-8").splitlines():
+        names = page.findall(line)
+        declared = count.findall(line)
+        if not names or not declared:
+            continue
+        actual = STEP_COUNTS.get(names[0])
+        if actual is None:
+            continue
+        if int(declared[0]) != actual:
+            problems.append(
+                f"{rel}: обещано {declared[0]} шагов для {names[0]}, "
+                f"а на странице {actual}"
+            )
 
 
 def check_markdown_links(path: pathlib.Path, problems: list[str]) -> None:
@@ -138,6 +168,7 @@ def main() -> int:
         if ".git" in path.parts:
             continue
         check_markdown_links(path, problems)
+        check_declared_step_counts(path, problems)
 
     tracked = subprocess.run(
         ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=False,
