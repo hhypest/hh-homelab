@@ -619,6 +619,13 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
         <h3><span class="num">2.1</span> Склонировать репозиторий<span class="tag key">суть</span></h3>
+        <div class="note crit"><b>В DSM нет <code>git</code> из коробки.</b>
+          Базовая система его не содержит: <code>git clone</code> ответит
+          <code>command not found</code>, и это не поломка SSH. Ставится
+          пакетом <b>Git Server</b> — <i>Центр пакетов → поиск «Git Server»
+          → Установить</i>. Настраивать в нём ничего не нужно, он нужен
+          только ради самой команды <code>git</code>: после установки
+          переподключитесь по SSH, и она появится.</div>
         <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker
 sudo git clone https://github.com/hhypest/hh-homelab.git
 cd hh-homelab</code></pre></div>
@@ -648,6 +655,15 @@ cd hh-homelab</code></pre></div>
 sudo cp .env.example .env
 id ваш_логин          <span class="c"># отсюда PUID и PGID</span>
 sudo vi .env</code></pre></div>
+        <div class="note"><b>Если <code>vi</code> видите впервые.</b>
+          Он модальный: сразу печатать нельзя. Нажмите <code>i</code> —
+          внизу появится <code>-- INSERT --</code>, и можно править текст.
+          Закончив, нажмите <code>Esc</code> и наберите <code>:wq</code>
+          с двоеточием, затем <code>Enter</code> — это «записать и выйти».
+          Если запутались и хотите выйти, ничего не сохранив, —
+          <code>Esc</code>, затем <code>:q!</code>. Другого редактора
+          в базовой DSM нет: <code>nano</code> приезжает только
+          из сторонних репозиториев.</div>
         <p>Что обязательно выправить под себя:</p>
         <div class="tablewrap">
           <table>
