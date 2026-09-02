@@ -1522,7 +1522,68 @@ cd media &amp;&amp; sudo docker compose up -d</code></pre></div>
     <li class="step" data-key="m8-4">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">8.4</span> Уведомления в Пачку</h3>
+        <h3><span class="num">8.4</span> Проверить фильтры витрины<span class="tag key">легко промахнуться</span></h3>
+        <p>
+          <b>Settings → General</b>, две настройки подряд:
+        </p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Настройка</th><th>Что делает</th><th>Как ставить</th></tr></thead>
+            <tbody>
+              <tr><td><b>Discover Region</b></td><td>оставляет то, что вышло в прокат в выбранной стране</td><td>пусто — «все регионы»</td></tr>
+              <tr><td><b>Discover Language</b></td><td>оставляет то, что <b>снято</b> на выбранном языке</td><td>пусто — «все языки»</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note crit"><b>Discover Language — самая обидная настройка в Seerr.</b>
+          Поставьте «Русский», и витрина схлопнется до российского кино
+          и советского каталога. Выглядит это не как включённый фильтр,
+          а как «Seerr почему-то ничего не знает про Голливуд», —
+          и чинить начинают не там.</div>
+        <p>
+          <b>Не путайте с Display Language.</b> Это язык интерфейса
+          и метаданных, на состав каталога он не влияет. Русский интерфейс
+          при пустом <code>Discover Language</code> — совершенно нормальное
+          сочетание, именно так и надо.
+        </p>
+
+        <h4 style="margin-top:22px;font-size:14.5px">Те же настройки есть у каждого пользователя</h4>
+        <p>
+          <b>аватар → Profile → Settings → General</b> — там свои
+          <b>Discover Region</b> и <b>Discover Language</b>, и они
+          <b>перебивают глобальные</b>. Проверять нужно тот аккаунт,
+          под которым вы смотрите витрину: после импорта из Jellyfin
+          (шаг 8.3) у каждого пользователя набор свой.
+        </p>
+        <div class="note warn"><b>Отсюда типичная петля.</b> Человек правит
+          глобальную настройку, ничего не меняется, он решает, что дело
+          глубже, и идёт сбрасывать Seerr целиком. А фильтр всё это время
+          стоял в профиле — и сброс настроек сервера его не снимает,
+          потому что профильные значения лежат в базе, а не
+          в <code>settings.json</code>.</div>
+
+        <h4 style="margin-top:22px;font-size:14.5px">Как понять, какая из двух виновата</h4>
+        <p>
+          У <code>Discover Language</code> есть примета: TMDB не принимает
+          фильтр по языку на трендовых запросах, поэтому ряд
+          <b>Trending</b> он не трогает вовсе.
+        </p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Что видно</th><th>Кто виноват</th></tr></thead>
+            <tbody>
+              <tr><td>Trending обычный, а Popular и «Фильмы» — только русские</td><td><code>Discover Language</code></td></tr>
+              <tr><td>Русское везде, Trending тоже</td><td><code>Discover Region</code> — либо свои ряды в <b>Settings → Discover</b></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m8-5">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">8.5</span> Уведомления в Пачку</h3>
         <p>
           Заведите бота <b>Seerr</b> в чате Кинозал, шаблон —
           <code>pachca/seerr.liquid</code>. Затем в Seerr:
@@ -1762,9 +1823,52 @@ sudo docker image prune -f</code></pre></div>
           <td>права на <code>/volume1/data</code></td>
           <td><code>sudo chown -R 1026:100 /volume1/data</code></td>
         </tr>
+        <tr>
+          <td>В Seerr на витрине только кино одной страны</td>
+          <td><code>Discover Language</code> или <code>Discover Region</code>, глобально либо в профиле</td>
+          <td>шаг 8.4 — там же, как отличить одну настройку от другой</td>
+        </tr>
       </tbody>
     </table>
   </div>
+
+  <h3 class="sub" style="margin-top:34px" id="сброс-настроек-seerr">Сброс настроек Seerr — крайняя мера</h3>
+  <p>
+    Соблазн велик: настроил не так — снеси и настрой заново. С Seerr это
+    почти всегда плохой размен, и вот почему.
+  </p>
+  <p>
+    Всё состояние лежит в <code class="path">media/config/seerr</code>, и оно
+    неоднородно. В <code>settings.json</code> — настройки сервера: подключения
+    к Jellyfin и Radarr, вебхук в Пачку, глобальные фильтры витрины.
+    В базе — пользователи, их права, квоты, история запросов
+    и <b>персональные</b> настройки из профилей.
+  </p>
+  <div class="note crit"><b>Из-за этого разделения сброс чаще всего
+    не решает ту задачу, ради которой затевается.</b> Самая частая причина
+    сбросить Seerr — схлопнувшаяся витрина, а фильтр при этом стоит
+    в профиле, то есть в базе. Удаление <code>settings.json</code>
+    его не тронет: человек теряет все подключения из раздела 8
+    и остаётся с той же витриной.</div>
+  <p>Если всё же решились — сначала копия:</p>
+  <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/media
+sudo cp -a config/seerr config/seerr.backup-$(date +%F)</code></pre></div>
+  <p>Дальше две разные операции, и путать их не стоит:</p>
+  <div class="code"><button class="copy" type="button">копировать</button><pre><code><span class="c"># Только настройки сервера. Пользователи, запросы и история остаются,</span>
+<span class="c"># но подключения к Jellyfin и Radarr придётся делать заново.</span>
+sudo docker compose stop seerr
+sudo rm config/seerr/settings.json
+sudo docker compose up -d seerr</code></pre></div>
+  <div class="code"><button class="copy" type="button">копировать</button><pre><code><span class="c"># Начисто. Мастер первичной настройки пройдёте заново, весь раздел 8 — тоже.</span>
+sudo docker compose down seerr
+sudo rm -rf config/seerr
+sudo mkdir config/seerr &amp;&amp; sudo chown 1026:100 config/seerr
+sudo docker compose up -d seerr</code></pre></div>
+  <div class="note"><b>Владельца каталога задавать обязательно.</b> Создадите
+    пустой каталог и сразу поднимете контейнер — Docker сделает его сам
+    и от <code>root</code>, а Seerr с <code>PUID</code> из
+    <code class="path">.env</code> писать в него не сможет. Ровно те же
+    грабли, что в шаге 2.3.</div>
 </section>
 
 <section id="sA">
