@@ -107,3 +107,48 @@ def test_example_is_not_ignored_but_env_is(project: str) -> None:
     ).stdout.split()
     assert f"{project}/.env" in ignored, f"{project}/.env не игнорируется — утечёт в историю"
     assert f"{project}/.env.example" not in ignored, f"{project}/.env.example игнорируется"
+
+
+# --- связка с Home Assistant -------------------------------------------------
+# HA опрашивает сервисы медиа-стека по адресу 127.0.0.1:<порт хоста>, а порты
+# хоста теперь задаются в media/.env. Разъедутся — сенсор молча уйдёт
+# в «не отвечает», Пачка пришлёт тревогу, и искать причину будут в контейнере,
+# который на самом деле жив.
+
+HA_PACKAGES = "homeassistant/config/packages"
+LOOPBACK = re.compile(r"https?://127\.0\.0\.1:(\d+)")
+
+# 8123 — порт самого Home Assistant, он в host-сети и в .env не выносится.
+HA_OWN_PORTS = {"8123"}
+
+
+def ports_from_examples() -> set[str]:
+    ports = set()
+    for project in PROJECTS:
+        for name, value in (
+            line.split("=", 1)
+            for line in (ROOT / project / ".env.example").read_text(encoding="utf-8").splitlines()
+            if "=" in line and not line.lstrip().startswith("#")
+        ):
+            if "PORT" in name and value.strip().isdigit():
+                ports.add(value.strip())
+    return ports
+
+
+def test_home_assistant_polls_ports_that_exist_in_env() -> None:
+    """
+    Каждый порт, по которому Home Assistant стучится на петлю, должен быть
+    в одном из .env.example. Поменяли порт в .env и забыли про monitoring.yaml —
+    падает здесь, а не ложной тревогой в три часа ночи.
+    """
+    known = ports_from_examples() | HA_OWN_PORTS
+    strays: list[str] = []
+    for path in sorted((ROOT / HA_PACKAGES).glob("*.yaml")):
+        for port in set(LOOPBACK.findall(path.read_text(encoding="utf-8"))):
+            if port not in known:
+                strays.append(f"{path.name}: 127.0.0.1:{port}")
+    assert not strays, (
+        "Home Assistant опрашивает порты, которых нет ни в одном .env.example: "
+        + "; ".join(strays)
+        + ". Либо порт сменили только в .env, либо только здесь."
+    )

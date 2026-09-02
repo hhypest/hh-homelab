@@ -723,6 +723,20 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
           телевизора, пишет <code>secrets.yaml</code> и поднимает оба стека.
           Настройка самих приложений остаётся человеку.
         </p>
+        <p>
+          С переездом настроек в <code class="path">.env</code> задача
+          и упростилась, и подросла. Упростилась потому, что писать теперь
+          нужно не правки внутри YAML, а два плоских файла «ключ=значение»,
+          и заготовки для них уже лежат рядом —
+          <code class="path">.env.example</code>. Подросла потому, что файлов
+          стало три вместо одного: два <code class="path">.env</code>
+          и <code>secrets.yaml</code>, и часть ответов человека попадает
+          сразу в несколько (<code>TZ</code> — в оба
+          <code class="path">.env</code>, адрес NAS — в
+          <code>NAS_HOST</code>). Зато проверить результат легко:
+          <code>docker compose config</code> падает, если чего-то
+          не хватает, — скрипту есть на что опереться.
+        </p>
 
         <p class="note crit"><b>Container Manager скриптом не ставится.</b>
         DSM — не Debian: пакеты приходят из Центра пакетов, и

@@ -117,7 +117,7 @@ services:
     ports:
       # Строго петлевой адрес: снаружи NAS порт недоступен.
       # Home Assistant в host-сети достаёт его как http://127.0.0.1:2375
-      - "${DOCKERPROXY_BIND:?см. .env.example}:${DOCKERPROXY_PORT:?см. .env.example}:${DOCKERPROXY_PORT}"
+      - "${DOCKERPROXY_BIND:?см. .env.example}:${DOCKERPROXY_PORT:?см. .env.example}:2375"
 
     mem_limit: 64m
 

@@ -895,7 +895,7 @@ docker compose logs --since 24h | grep -iE 'error|fatal|exception'</code></pre><
           в Пачке или с отметкой в Home Assistant нечем.
         </p>
         <div class="note why"><b>Часовой пояс.</b> <code>-t</code> печатает UTC,
-          а контейнеры живут в <code>Europe/Moscow</code> из <code>TZ</code>.
+          а контейнеры живут в часовом поясе из <code>TZ</code> в <code class="path">.env</code> — здесь <code>Europe/Moscow</code>.
           Расхождение на три часа — это не сбой часов, а разница представления;
           собственные строки приложения при этом московские.</div>
       </div>

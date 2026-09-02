@@ -24,6 +24,25 @@
 #  to a blank string», в каком бы порядке Compose ни разбирал сервисы,
 #  и при этом строки портов остаются читаемыми.
 #
+#  ПЕРЕМЕННАЯ ПОРТА МЕНЯЕТ ТОЛЬКО ПОРТ ХОСТА. Со стороны контейнера номера
+#  записаны литералами — 9080, 9696, 7878, 8191, 8096, 5055, — потому что
+#  они часть внутреннего устройства стека: Prowlarr, Radarr и Jellyfin
+#  слушают их жёстко, а Prowlarr ходит к FlareSolverr по имени
+#  `flaresolverr:8191`, Radarr к qBittorrent — `qbittorrent:9080`.
+#  Сдвинь мы обе стороны разом — публикация указывала бы в пустоту,
+#  а настройки, сделанные по чек-листу, перестали бы совпадать.
+#  Конфликт же всегда на стороне ХОСТА, и лечится он только там.
+#
+#  Исключение — QBITTORRENT_TORRENT_PORT: он меняется с обеих сторон.
+#  qBittorrent объявляет пирам тот номер, на котором слушает, и на роутере
+#  пробрасывается он же. Разъедься эти три числа — входящих соединений
+#  не будет вовсе.
+#
+#  JELLYFIN_DISCOVERY_PORT тоже особый: 7359 — фиксированный порт протокола
+#  автопоиска, клиенты стучатся только в него. Переменная нужна, если порт
+#  занят, но со сменой номера автопоиск просто перестаёт работать —
+#  сервер придётся прописывать в приложениях руками.
+#
 #  PUID/PGID — пользователь DSM, владеющий каталогом библиотеки.
 #  Проверить свои: `id ваш_логин` по SSH на NAS.
 #
@@ -80,7 +99,7 @@ services:
       - PGID=${PGID:?см. .env.example}
       - UMASK=${UMASK:?см. .env.example}
       - TZ=${TZ:?см. .env.example}
-      - WEBUI_PORT=${QBITTORRENT_WEBUI_PORT:?см. .env.example}
+      - WEBUI_PORT=9080
       - TORRENTING_PORT=${QBITTORRENT_TORRENT_PORT:?см. .env.example}
       - DOCKER_MODS=ghcr.io/vuetorrent/vuetorrent-lsio-mod:latest
     volumes:
@@ -88,7 +107,7 @@ services:
       - ./watch:/watch
       - ${MEDIA_ROOT:?см. .env.example}:/data
     ports:
-      - "${BIND_ADDR:?см. .env.example}:${QBITTORRENT_WEBUI_PORT}:${QBITTORRENT_WEBUI_PORT}"
+      - "${BIND_ADDR:?см. .env.example}:${QBITTORRENT_WEBUI_PORT:?см. .env.example}:9080"
       - "${BIND_ADDR}:${QBITTORRENT_TORRENT_PORT}:${QBITTORRENT_TORRENT_PORT}"
       - "${BIND_ADDR}:${QBITTORRENT_TORRENT_PORT}:${QBITTORRENT_TORRENT_PORT}/udp"
     networks:
@@ -111,7 +130,7 @@ services:
     volumes:
       - ./config/prowlarr:/config
     ports:
-      - "${BIND_ADDR:?см. .env.example}:${PROWLARR_PORT:?см. .env.example}:${PROWLARR_PORT}"
+      - "${BIND_ADDR:?см. .env.example}:${PROWLARR_PORT:?см. .env.example}:9696"
     networks:
       - media
     logging:
@@ -133,7 +152,7 @@ services:
       - ./config/radarr:/config
       - ${MEDIA_ROOT:?см. .env.example}:/data
     ports:
-      - "${BIND_ADDR:?см. .env.example}:${RADARR_PORT:?см. .env.example}:${RADARR_PORT}"
+      - "${BIND_ADDR:?см. .env.example}:${RADARR_PORT:?см. .env.example}:7878"
     networks:
       - media
     logging:
@@ -150,7 +169,7 @@ services:
       - LOG_LEVEL=info
       - TZ=${TZ:?см. .env.example}
     ports:
-      - "${BIND_ADDR:?см. .env.example}:${FLARESOLVERR_PORT:?см. .env.example}:${FLARESOLVERR_PORT}"
+      - "${BIND_ADDR:?см. .env.example}:${FLARESOLVERR_PORT:?см. .env.example}:8191"
     networks:
       - media
     logging:
@@ -174,8 +193,8 @@ services:
       - ./cache/jellyfin:/cache
       - ${MEDIA_ROOT:?см. .env.example}/media:/data/media:ro
     ports:
-      - "${BIND_ADDR:?см. .env.example}:${JELLYFIN_PORT}:${JELLYFIN_PORT}"
-      - "${BIND_ADDR}:${JELLYFIN_DISCOVERY_PORT:?см. .env.example}:${JELLYFIN_DISCOVERY_PORT}/udp"
+      - "${BIND_ADDR:?см. .env.example}:${JELLYFIN_PORT:?см. .env.example}:8096"
+      - "${BIND_ADDR}:${JELLYFIN_DISCOVERY_PORT:?см. .env.example}:7359/udp"
     networks:
       - media
     logging:
@@ -192,11 +211,11 @@ services:
     environment:
       - TZ=${TZ:?см. .env.example}
       - LOG_LEVEL=info
-      - PORT=${SEERR_PORT:?см. .env.example}
+      - PORT=5055
     volumes:
       - ./config/seerr:/app/config
     ports:
-      - "${BIND_ADDR:?см. .env.example}:${SEERR_PORT}:${SEERR_PORT}"
+      - "${BIND_ADDR:?см. .env.example}:${SEERR_PORT:?см. .env.example}:5055"
     depends_on:
       - radarr
       - jellyfin
