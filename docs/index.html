@@ -649,10 +649,11 @@ sudo chmod -R 755 homeassistant</code></pre></div>
         <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/homeassistant &amp;&amp; ls -R</code></pre></div>
         <div class="code"><pre><code>/volume1/docker/hh-homelab/homeassistant/
 ├── compose.yaml
+├── .env.example                   <span class="c">← переименовать в шаге 2.2</span>
 ├── dashboard-infrastructure.yaml  <span class="c">вставляется через интерфейс, раздел 10</span>
 └── config/
     ├── configuration.yaml
-    ├── secrets.yaml.example       <span class="c">← переименовать в шаге 2.2</span>
+    ├── secrets.yaml.example       <span class="c">← переименовать в шаге 2.3</span>
     ├── automations.yaml
     ├── scripts.yaml
     ├── scenes.yaml
@@ -677,7 +678,44 @@ sudo chmod -R 755 homeassistant</code></pre></div>
     <li class="step" data-key="s2-2">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">2.2</span> Заполнить <code>secrets.yaml</code></h3>
+        <h3><span class="num">2.2</span> Заполнить <code>.env</code><span class="tag key">суть</span></h3>
+        <p>
+          В <code>compose.yaml</code> нет значений по умолчанию: часовой пояс
+          и адрес docker-socket-proxy берутся из <code class="path">.env</code>
+          рядом с ним. В репозитории лежит только образец.
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/homeassistant
+sudo cp .env.example .env</code></pre></div>
+        <p>
+          Выправить нужно ровно одно: <code>TZ</code> под свой часовой пояс.
+          <code>DOCKERPROXY_BIND=127.0.0.1</code> оставьте как есть —
+          это адрес, на котором прокси слушает Docker API, и открывать
+          его дальше петли нельзя.
+        </p>
+        <div class="note why"><b>Почему без умолчаний.</b> Забытый
+          <code class="path">.env</code> должен ронять запуск, а не подставлять
+          пустые строки. Каждая переменная записана как
+          <code>${ИМЯ:?см. .env.example}</code>, и <code>docker compose up</code>
+          скажет, чего не хватает. Голое <code>${ИМЯ}</code> так не умеет:
+          Compose подставил бы пустую строку и вернул код 0 — прокси поднялся бы
+          <b>без опубликованного порта</b>, а Home Assistant молча остался бы
+          без метрик контейнеров.</div>
+        <div class="note"><b>У каждого стека свой <code class="path">.env</code>.</b>
+          Compose читает файл из каталога рядом с <code>compose.yaml</code>
+          и в соседние не заглядывает, поэтому <code>TZ</code> указывается
+          и здесь, и в <code class="path">media/.env</code>. Это цена того,
+          что стеки остаются двумя независимыми проектами Container Manager.</div>
+        <div class="note"><b>Через интерфейс DSM файл не создать.</b>
+          Container Manager и File Station не заводят файлы, начинающиеся
+          с точки, — только по SSH. В File Station он потом виден
+          при включённом показе скрытых файлов.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s2-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.3</span> Заполнить <code>secrets.yaml</code></h3>
         <p>
           Переименуйте <code>secrets.yaml.example</code> в <code>secrets.yaml</code>.
           Сейчас достаточно координат дома и MAC телевизора — он уже подставлен из вашего
@@ -688,10 +726,10 @@ sudo chmod -R 755 homeassistant</code></pre></div>
       </div>
     </li>
 
-    <li class="step" data-key="s2-3">
+    <li class="step" data-key="s2-4">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">2.3</span> Собрать проект в Container Manager</h3>
+        <h3><span class="num">2.4</span> Собрать проект в Container Manager</h3>
         <p>
           <b>Container Manager → Проект → Создать</b>:
         </p>
@@ -708,10 +746,10 @@ sudo docker compose up -d</code></pre></div>
       </div>
     </li>
 
-    <li class="step" data-key="s2-4">
+    <li class="step" data-key="s2-5">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">2.4</span> Дождаться первого старта</h3>
+        <h3><span class="num">2.5</span> Дождаться первого старта</h3>
         <p>Первый запуск занимает 2–5 минут: контейнер разворачивает базу и ставит зависимости.</p>
         <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo docker ps --format 'table {{.Names}}\t{{.Status}}' | grep -E 'homeassistant|dockerproxy'
 sudo docker logs -f --tail 50 homeassistant</code></pre></div>
@@ -725,10 +763,10 @@ sudo docker logs -f --tail 50 homeassistant</code></pre></div>
       </div>
     </li>
 
-    <li class="step" data-key="s2-5">
+    <li class="step" data-key="s2-6">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">2.5</span> Проверить docker-socket-proxy</h3>
+        <h3><span class="num">2.6</span> Проверить docker-socket-proxy</h3>
         <div class="code"><button class="copy" type="button">копировать</button><pre><code>curl -s http://127.0.0.1:2375/version | head -c 200; echo
 <span class="c"># Должен вернуться JSON с версией Docker.</span>
 
@@ -874,11 +912,11 @@ sudo docker restart homeassistant</code></pre></div>
         <h3><span class="num">4.2</span> Поднять docker-socket-proxy<span class="tag key">безопасность</span></h3>
         <p>
           Контейнер <code>dockerproxy</code> уже описан в <code>compose.yaml</code>
-          и проверен на шаге 2.5. Здесь — про то, зачем он вообще нужен, потому что
+          и проверен на шаге 2.6. Здесь — про то, зачем он вообще нужен, потому что
           соблазн отдать сокет напрямую велик, а цена ошибки высока.
         </p>
         <p>
-          Если проверка на шаге 2.5 показала, что порт отвечает снаружи NAS —
+          Если проверка на шаге 2.6 показала, что порт отвечает снаружи NAS —
           вернитесь к секции <code>ports</code> в <code>compose.yaml</code>:
           адрес должен быть прибит к <code>127.0.0.1</code>, и контейнер не должен
           стоять в host-сети.

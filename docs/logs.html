@@ -633,7 +633,7 @@ docker compose up -d</code></pre></div>
         <div class="note why"><b>Данные при пересоздании не теряются.</b>
           Всё состояние приложений лежит в томах <code class="path">media/config/&lt;сервис&gt;</code>
           внутри клона репозитория и в корне библиотеки
-          (<code>MEDIA_ROOT</code>, по умолчанию <code class="path">/volume1/data</code>),
+          (<code>MEDIA_ROOT</code> из <code class="path">media/.env</code>),
           которые монтируются снаружи. Пересоздаётся
           только сам контейнер — оболочка вокруг процесса. Настройки Radarr,
           библиотека Jellyfin и активные раздачи qBittorrent остаются на месте.</div>

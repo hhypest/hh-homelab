@@ -95,6 +95,28 @@ def test_pip_install_targets_existing_requirements(workflow):
             )
 
 
+def join_continuations(script: str) -> list[str]:
+    """
+    Склеивает строки, перенесённые обратным слешем.
+
+    Без этого команда, разбитая на две строки, разбирается по половинке:
+    shlex спотыкается о висящий слеш, а путь к скрипту с продолжения
+    остаётся незамеченным — его `python` уехал на предыдущую строку.
+    """
+    joined: list[str] = []
+    buffer = ""
+    for line in script.splitlines():
+        stripped = line.rstrip()
+        if stripped.endswith("\\"):
+            buffer += stripped[:-1] + " "
+            continue
+        joined.append(buffer + stripped)
+        buffer = ""
+    if buffer:
+        joined.append(buffer)
+    return joined
+
+
 def test_every_invoked_script_exists(workflow):
     """
     Задача может звать скрипт, которого в репозитории нет: файл
@@ -103,7 +125,7 @@ def test_every_invoked_script_exists(workflow):
     import shlex
 
     for job_name, step in steps(workflow):
-        for line in (step.get("run") or "").splitlines():
+        for line in join_continuations(step.get("run") or ""):
             parts = shlex.split(line, comments=True)
             for index, word in enumerate(parts):
                 if word.endswith(".py") and index and parts[index - 1].startswith("python"):

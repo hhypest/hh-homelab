@@ -11,6 +11,11 @@
 про протокол. Порт 6881 в TCP и UDP — не конфликт, и по тексту файла это
 не отличить.
 
+Номера портов лежат в .env, которого в репозитории нет и не будет. Поэтому
+при его отсутствии берётся .env.example — и проверка заодно приобретает
+смысл: она гарантирует, что набор портов, который мы предлагаем чужому
+человеку, сам с собой не конфликтует.
+
 Использование:
     python3 scripts/check_ports.py media/compose.yaml homeassistant/compose.yaml
 """
@@ -19,18 +24,34 @@ from __future__ import annotations
 
 import collections
 import json
+import pathlib
 import subprocess
 import sys
 
 HOST_MODE: list[str] = []
 
 
+def env_file_for(compose_file: str) -> list[str]:
+    """Аргументы --env-file: свой .env, иначе образец, иначе ничего."""
+    project = pathlib.Path(compose_file).resolve().parent
+    for name in (".env", ".env.example"):
+        candidate = project / name
+        if candidate.exists():
+            return ["--env-file", str(candidate)]
+    return []
+
+
 def published(compose_file: str) -> list[tuple[str, str, str, str]]:
-    raw = subprocess.run(
-        ["docker", "compose", "-f", compose_file, "config", "--format", "json"],
-        capture_output=True, text=True, check=True,
-    ).stdout
-    config = json.loads(raw)
+    command = ["docker", "compose", "-f", compose_file]
+    command += env_file_for(compose_file)
+    command += ["config", "--format", "json"]
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise SystemExit(
+            f"{compose_file}: docker compose config не отработал.\n"
+            f"{result.stderr.strip()}"
+        )
+    config = json.loads(result.stdout)
 
     found = []
     for name, service in (config.get("services") or {}).items():

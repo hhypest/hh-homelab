@@ -532,12 +532,12 @@ sudo mkdir -p /volume1/data/media/movies
 <span class="c"># Те же PUID:PGID, что у контейнеров в compose.yaml</span>
 sudo chown -R 1026:100 /volume1/data
 sudo chmod -R 775 /volume1/data</code></pre></div>
-        <div class="note"><b>Если библиотека лежит не там.</b>
-          <code class="path">/volume1/data</code> — значение по умолчанию.
-          Свой путь задаётся переменной <code>MEDIA_ROOT</code>
-          в <code class="path">media/.env</code> (шаг 2.2); тогда подставьте
-          его во все команды этого раздела. Внутри контейнеров пути
-          не меняются никогда — там всегда <code>/data</code>.</div>
+        <div class="note"><b>Путь может быть любым.</b>
+          <code class="path">/volume1/data</code> — то, что стоит в образце
+          <code class="path">.env.example</code>. Свой записывается
+          в <code>MEDIA_ROOT</code> (шаг 2.2); тогда подставьте его во все
+          команды этого раздела. Внутри контейнеров пути не меняются
+          никогда — там всегда <code>/data</code>.</div>
         <p>
           Если позже добавите сериалы и Sonarr — по той же схеме появятся
           <code>torrents/tv</code> и <code>media/tv</code>. Схема расширяется,
@@ -555,12 +555,13 @@ sudo chmod -R 775 /volume1/data</code></pre></div>
           <b>один и тот же том целиком</b>:
         </p>
         <div class="code"><pre><code>volumes:
-  - ${MEDIA_ROOT:-/volume1/data}:/data</code></pre></div>
+  - ${MEDIA_ROOT:?см. .env.example}:/data</code></pre></div>
         <div class="note"><b>Про переменную.</b> Корень библиотеки задаётся
-          через <code>MEDIA_ROOT</code> в <code class="path">media/.env</code>;
-          без этого файла подставляется <code class="path">/volume1/data</code>,
-          то есть на текущем NAS ничего создавать не нужно. Важно тут не имя
-          пути, а то, что том монтируется <b>целиком</b> — см. ниже.</div>
+          через <code>MEDIA_ROOT</code> в <code class="path">media/.env</code>
+          (шаг 2.2). Значения по умолчанию нет намеренно: без файла
+          <code>docker compose up</code> не запустится и скажет, чего не хватает.
+          Важно тут не имя пути, а то, что том монтируется
+          <b>целиком</b> — см. ниже.</div>
         <p>
           Внутри обоих контейнеров пути выглядят одинаково —
           <code>/data/torrents/…</code> и <code>/data/media/…</code>, — и это
@@ -608,8 +609,7 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
     <h2>Установка стека</h2>
     <p>
       Папки из раздела 1 готовы — можно поднимать контейнеры. Порядок именно
-      такой: корень библиотеки (<code>MEDIA_ROOT</code>, по умолчанию
-      <code class="path">/volume1/data</code>) должен существовать
+      такой: корень библиотеки (<code>MEDIA_ROOT</code>) должен существовать
       до первого запуска, иначе Docker создаст его сам и от <code>root</code>.
     </p>
   </div>
@@ -637,10 +637,62 @@ cd hh-homelab</code></pre></div>
     <li class="step" data-key="m2-2">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">2.2</span> Создать каталоги состояния</h3>
+        <h3><span class="num">2.2</span> Заполнить <code>.env</code><span class="tag key">суть</span></h3>
+        <p>
+          В <code>compose.yaml</code> нет ни одного значения по умолчанию:
+          права, часовой пояс, корень библиотеки, адрес привязки, имя сети
+          и все порты берутся из <code class="path">.env</code> рядом с ним.
+          В репозитории лежит только образец.
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/media
+sudo cp .env.example .env
+id ваш_логин          <span class="c"># отсюда PUID и PGID</span>
+sudo vi .env</code></pre></div>
+        <p>Что обязательно выправить под себя:</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Переменная</th><th>Откуда взять</th></tr></thead>
+            <tbody>
+              <tr><td><code>PUID</code>, <code>PGID</code></td><td><code>id ваш_логин</code> — тот же пользователь, что владеет каталогом из шага 1.1</td></tr>
+              <tr><td><code>TZ</code></td><td>свой часовой пояс, например <code>Europe/Moscow</code></td></tr>
+              <tr><td><code>MEDIA_ROOT</code></td><td>каталог из шага 1.1</td></tr>
+              <tr><td><code>NAS_HOST</code></td><td>адрес NAS в домашней сети — Jellyfin сообщает его клиентам</td></tr>
+              <tr><td>порты</td><td>только если какой-то уже занят; DSM держит 5000 и 5001</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note why"><b>Почему без умолчаний.</b> Забытый
+          <code class="path">.env</code> должен ронять запуск, а не подставлять
+          пустые строки. Поэтому каждая переменная записана как
+          <code>${ИМЯ:?см. .env.example}</code>:</div>
+        <div class="code"><pre><code>error while interpolating services.qbittorrent.ports.[]:
+required variable BIND_ADDR is missing a value: см. .env.example</code></pre></div>
+        <p>
+          Голое <code>${ИМЯ}</code> так не умеет. Compose подставил бы пустую
+          строку, вернул код 0, и стек поднялся бы с <code>PUID=</code>
+          (то есть от <code>root</code>), с UTC вместо вашего пояса
+          и <b>без единого опубликованного порта</b> — веб-интерфейсы просто
+          не открывались бы. Снаружи это выглядит как шесть сломанных
+          приложений, а не как забытый файл.
+        </p>
+        <div class="note"><b>Через интерфейс DSM.</b> Container Manager файлы,
+          начинающиеся с точки, не создаёт — <code class="path">.env</code>
+          заводится по SSH. В File Station он виден при включённом показе
+          скрытых файлов. Сам файл в git не попадает
+          (он в <code>.gitignore</code>): настройки конкретной машины
+          не место в общей истории.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m2-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.3</span> Создать каталоги состояния</h3>
         <p>
           В git их нет — это базы SQLite, кэши и логи, версионировать нечего.
-          Но существовать они должны <b>до</b> первого запуска:
+          Но существовать они должны <b>до</b> первого запуска.
+          <code>PUID:PGID</code> берите те же, что записали в
+          <code class="path">.env</code>:
         </p>
         <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab
 sudo mkdir -p media/config/{qbittorrent,prowlarr,radarr,jellyfin,seerr} \
@@ -653,34 +705,7 @@ sudo chown -R 1026:100 media</code></pre></div>
           с пустыми настройками и забывает их при каждом перезапуске. Выглядит
           как сломанное приложение, а дело в правах. Лечится тем же
           <code>chown -R 1026:100</code> и пересозданием контейнера.</div>
-        <p>
-          Здесь же, если библиотека лежит не в <code class="path">/volume1/data</code>,
-          заводится <code class="path">media/.env</code> — рядом с compose-файлом,
-          образец есть в <code class="path">media/.env.example</code>:
-        </p>
-        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/media
-printf 'MEDIA_ROOT=/volume2/library\n' | sudo tee .env</code></pre></div>
-        <div class="note"><b>Файл необязателен.</b> Без него подставляется
-          <code class="path">/volume1/data</code> — на текущем NAS создавать
-          нечего. Сам <code class="path">.env</code> в git не попадает
-          (он в <code>.gitignore</code>), так что путь к библиотеке остаётся
-          свойством конкретной машины, а не репозитория.</div>
-      </div>
-    </li>
-
-    <li class="step" data-key="m2-3">
-      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
-      <div class="step-body">
-        <h3><span class="num">2.3</span> Сверить PUID и PGID со своими</h3>
-        <div class="code"><button class="copy" type="button">копировать</button><pre><code>id ваш_логин</code></pre></div>
-        <p>
-          В <code>compose.yaml</code> прописаны <code>PUID=1026</code>
-          и <code>PGID=100</code> — это владелец корня библиотеки
-          из шага 1.1. Если у вас другие,
-          поправьте у всех шести сервисов, иначе получите ту же историю
-          с правами, что в предыдущем шаге.
-        </p>
-        <p>Заодно проверьте, что YAML вообще разбирается:</p>
+        <p>Заодно проверьте, что всё сходится — файл разбирается и переменные на месте:</p>
         <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/media
 sudo docker compose config &gt;/dev/null &amp;&amp; echo 'файл в порядке'</code></pre></div>
       </div>
@@ -701,9 +726,10 @@ sudo docker compose up -d</code></pre></div>
         <div class="note"><b>Через интерфейс DSM.</b> <i>Container Manager →
           Проект → Создать</i>, путь
           <code class="path">/volume1/docker/hh-homelab/media</code>, источник —
-          использовать существующий <code>compose.yaml</code>. Каталоги
-          из шага 2.2 всё равно нужно создать по SSH: интерфейс этого
-          не делает.</div>
+          использовать существующий <code>compose.yaml</code>.
+          Но <code class="path">.env</code> из шага 2.2 и каталоги из шага 2.3
+          всё равно нужно завести по SSH: интерфейс не создаёт ни файлов
+          с точкой в начале, ни каталогов с нужным владельцем.</div>
       </div>
     </li>
 
@@ -1583,7 +1609,7 @@ sudo docker logs -f --tail 80 qbittorrent</code></pre></div>
         <div class="note crit"><b>Разные inode и по единице в колонке ссылок</b>
           означают, что Radarr скопировал файл. Проверьте: включён ли
           <b>Use Hardlinks instead of Copy</b> (шаг 6.2), и смонтирован ли
-          в обоих контейнерах один том <code>${MEDIA_ROOT:-/volume1/data}:/data</code>,
+          в обоих контейнерах один том <code>${MEDIA_ROOT}:/data</code>,
           а не две отдельные папки (шаг 1.2). До исправления каждый фильм
           будет занимать двойное место.</div>
         <div class="code"><button class="copy" type="button">копировать</button><pre><code><span class="c"># Сколько реально занято — с учётом того, что хардлинки считаются один раз</span>
