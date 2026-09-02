@@ -155,10 +155,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Проверить, что файлы разворачиваются
+      # Настройки лежат в .env, которого в репозитории нет: разворачиваем
+      # на образце. Заодно это проверка самого образца — если в .env.example
+      # забыли переменную, шаг упадёт здесь, а не у человека на NAS.
+      - name: Проверить, что файлы разворачиваются на .env.example
         run: |
-          docker compose -f media/compose.yaml config --quiet
-          docker compose -f homeassistant/compose.yaml config --quiet
+          docker compose -f media/compose.yaml \
+            --env-file media/.env.example config --quiet
+          docker compose -f homeassistant/compose.yaml \
+            --env-file homeassistant/.env.example config --quiet
 
       - uses: actions/setup-python@v7
         with:
