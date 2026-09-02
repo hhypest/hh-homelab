@@ -21,30 +21,48 @@ from conftest import ROOT
 
 COMPOSE = ["media/compose.yaml", "homeassistant/compose.yaml"]
 
+# Ссылки на образы прячутся не только в ключе image. У linuxserver-образов
+# есть DOCKER_MODS: перечисленные там образы init скачивает при КАЖДОМ старте
+# контейнера, а не при `compose pull`. Плавающий тег здесь опаснее обычного —
+# версия меняется от простого перезапуска, и `pull` этого даже не показывает.
+IMAGE_ENV = ("DOCKER_MODS", "UNIVERSAL_MODS")
+
 # Теги, которые указывают не на версию, а на «то, что сейчас новее всего».
 FLOATING = {"latest", "stable", "dev", "develop", "nightly", "edge", "main", "master"}
 
 
 def images(path: str) -> dict[str, str]:
+    """Все ссылки на образы: и сам image, и образы модов из окружения."""
     data = yaml.safe_load((ROOT / path).read_text(encoding="utf-8"))
-    return {
-        name: service["image"]
-        for name, service in (data.get("services") or {}).items()
-        if "image" in service
-    }
+    found: dict[str, str] = {}
+    for name, service in (data.get("services") or {}).items():
+        if "image" in service:
+            found[name] = service["image"]
+        for entry in service.get("environment") or []:
+            if not isinstance(entry, str) or "=" not in entry:
+                continue
+            key, value = entry.split("=", 1)
+            if key.strip() not in IMAGE_ENV:
+                continue
+            # В переменной может стоять список образов через |
+            for index, image in enumerate(v for v in value.split("|") if v.strip()):
+                found[f"{name} · {key.strip()}[{index}]"] = image.strip()
+    return found
 
 
 @pytest.mark.parametrize("path", COMPOSE)
 def test_every_image_is_pinned(path: str) -> None:
     """У каждого образа есть тег, и этот тег — не плавающий."""
+    assert images(path), f"{path}: не нашлось ни одного образа — проверка бесполезна"
     for name, image in images(path).items():
         # Отрезаем реестр с портом: двоеточие в нём — не разделитель тега.
         tail = image.rsplit("/", 1)[-1]
         assert ":" in tail, f"{path}: у {name} образ без тега — это тот же :latest"
         tag = tail.rsplit(":", 1)[1]
+        when = "при следующем старте контейнера" if "·" in name else "в момент очередного pull"
         assert tag.lower() not in FLOATING, (
             f"{path}: {name} стоит на плавающем теге «{tag}». "
-            f"Обновление придёт молча, в момент очередного pull"
+            f"Обновление придёт молча, {when}"
         )
         assert re.search(r"\d", tag), (
             f"{path}: тег «{tag}» у {name} не содержит ни одной цифры — "

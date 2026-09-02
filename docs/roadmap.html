@@ -663,13 +663,20 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <h2 id="репозиторий-и-процесс">Репозиторий и процесс</h2>
   </div>
 <h3 class="sub" id="версии-образов-вместо-latest">Версии образов вместо <code>:latest</code> <span class="tag key">сделано</span></h3>
-<p class="note why"><b>Закрыто.</b> Все восемь образов закреплены на конкретных
-версиях, а экосистема <code>docker-compose</code> добавлена
-в <code>.github/dependabot.yml</code>: обновления приходят пул-реквестом раз
-в неделю, одной группой на оба стека. Плавающий тег теперь не вернёшь
-незаметно — <code>tests/test_compose_images.py</code> роняет проверки
-и на <code>:latest</code>, и на образе вовсе без тега, и на каталоге,
-выпавшем из настроек Dependabot.</p>
+<p class="note why"><b>Закрыто.</b> Все девять образов — восемь контейнеров
+плюс мод VueTorrent — закреплены на конкретных версиях, а экосистема
+<code>docker-compose</code> добавлена в <code>.github/dependabot.yml</code>:
+обновления приходят пул-реквестом раз в неделю, одной группой на оба стека.
+Плавающий тег теперь не вернёшь незаметно —
+<code>tests/test_compose_images.py</code> роняет проверки и на
+<code>:latest</code>, и на образе вовсе без тега, и на каталоге, выпавшем
+из настроек Dependabot.</p>
+<p class="note warn"><b>Что осталось ручным.</b> VueTorrent подключён
+через <code>DOCKER_MODS</code>, а Dependabot разбирает только ключ
+<code>image</code> — за его релизами придётся следить самому. Зато
+плавающий тег там был опаснее прочих: моды скачиваются при каждом старте
+контейнера, так что версия менялась бы и без единого
+<code>compose pull</code>.</p>
 <p class="note"><b>Что это поменяло в обслуживании:</b> <code>docker compose
 pull</code> больше сам версию не поднимает. Порядок стал обратным
 привычному — смержить PR, затем <code>git pull</code> на NAS, и только

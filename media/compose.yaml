@@ -101,7 +101,7 @@ services:
       - TZ=${TZ:?см. .env.example}
       - WEBUI_PORT=9080
       - TORRENTING_PORT=${QBITTORRENT_TORRENT_PORT:?см. .env.example}
-      - DOCKER_MODS=ghcr.io/vuetorrent/vuetorrent-lsio-mod:latest
+      - DOCKER_MODS=ghcr.io/vuetorrent/vuetorrent-lsio-mod:2.35.0
     volumes:
       - ./config/qbittorrent:/config
       - ./watch:/watch
