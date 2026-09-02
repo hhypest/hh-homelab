@@ -598,6 +598,16 @@ git pull</code></pre></div>
           Каталог проекта — <code class="path">/volume1/docker/hh-homelab/media</code>,
           тот же, что указан в шапке <code>compose.yaml</code>.
         </p>
+        <div class="note warn"><b>Если стек поднят давно, одним
+          <code>git pull</code> дело не обойдётся.</b> С тех пор состояние
+          сервисов переехало на относительные пути, а настройки —
+          в <code class="path">.env</code>, которого без вас на NAS нет.
+          Следующая же команда, <code>docker compose config</code>, тогда
+          упадёт с <code>required variable … is missing a value</code>,
+          а поднятый без миграции стек начнёт с пустыми настройками.
+          Полный порядок обновления — в
+          <a href="media-stack.html#s10">чек-листе медиа-стека</a>, шаг 10.3.
+          Вернитесь сюда, когда конфигурация приедет.</div>
       </div>
     </li>
 

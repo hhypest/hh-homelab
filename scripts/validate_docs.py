@@ -111,10 +111,19 @@ def check_html(path: pathlib.Path, problems: list[str]) -> None:
     # а шага с таким номером больше нет.
     numbers = set(re.findall(r'<span class="num">([\d.]+)</span>', text))
     if numbers:
-        referenced = set(re.findall(r"шаг[а-яё]*\s+(\d+\.\d+)", text))
-        for missing in sorted(referenced - numbers,
-                              key=lambda v: [int(x) for x in v.split(".")]):
-            problems.append(f"{rel}: ссылка на шаг {missing}, а такого шага на странице нет")
+        other_page = re.compile(r'href="[\w.-]+\.html')
+        missing = set()
+        for match in re.finditer(r"шаг[а-яё]*\s+(\d+\.\d+)", text):
+            if match.group(1) in numbers:
+                continue
+            # Ссылка может вести на шаг соседнего документа — тогда рядом
+            # стоит ссылка на него, и сверять номер с этой страницей нечего.
+            near = text[max(0, match.start() - 400):match.end()]
+            if other_page.search(near):
+                continue
+            missing.add(match.group(1))
+        for number in sorted(missing, key=lambda v: [int(x) for x in v.split(".")]):
+            problems.append(f"{rel}: ссылка на шаг {number}, а такого шага на странице нет")
 
     keys = re.findall(r'data-key="([^"]+)"', text)
     duplicates = {k for k in keys if keys.count(k) > 1}
