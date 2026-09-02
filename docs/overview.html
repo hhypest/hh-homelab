@@ -505,9 +505,9 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <table>
       <thead><tr><th>Область</th><th>Что содержит</th><th class="num-col">Строк</th><th class="num-col">Файлов</th></tr></thead>
       <tbody>
-        <tr><td><code class="path">docs/</code></td><td>чек-листы, гайды, справочники, дорожная карта</td><td class="num-col">9493</td><td class="num-col">7</td></tr>
+        <tr><td><code class="path">docs/</code></td><td>чек-листы, гайды, справочники, дорожная карта</td><td class="num-col">9705</td><td class="num-col">7</td></tr>
         <tr><td><code class="path">homeassistant/</code></td><td>compose, образец <code>.env</code>, пакеты, дашборд, скрипты</td><td class="num-col">2239</td><td class="num-col">15</td></tr>
-        <tr><td><code class="path">scripts/</code></td><td>проверки конфигурации и документации</td><td class="num-col">1000</td><td class="num-col">6</td></tr>
+        <tr><td><code class="path">scripts/</code></td><td>проверки конфигурации и документации</td><td class="num-col">1009</td><td class="num-col">6</td></tr>
         <tr><td><code class="path">pachca/</code></td><td>Liquid-шаблоны уведомлений и примеры payload</td><td class="num-col">677</td><td class="num-col">22</td></tr>
         <tr><td><code class="path">tests/</code></td><td>pytest на скрипты, шаблоны, workflow и образцы <code>.env</code></td><td class="num-col">980</td><td class="num-col">6</td></tr>
         <tr><td><code class="path">.github/</code></td><td>workflow проверок и настройка Dependabot</td><td class="num-col">206</td><td class="num-col">2</td></tr>
@@ -517,8 +517,8 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
   </div>
 
   <div class="note why"><b>Что здесь необычного.</b> Отношение «документация и
-    проверки» к «собственно конфигурации» — 11 679 строк против 3241,
-    то есть примерно 3,6 к 1. Для домашнего
+    проверки» к «собственно конфигурации» — 11 900 строк против 3241,
+    то есть примерно 3,7 к 1. Для домашнего
     сервера это выглядит перекосом, пока не вспомнить, что настраивается он
     раз в год, а разбираться в нём приходится в тот вечер, когда что-то
     сломалось и половина деталей забыта.</div>
@@ -1145,9 +1145,21 @@ ps -eo state,pid,comm | awk '$1 ~ /D/'</code></pre></div>
     у медиа-стека Compose разрешает от каталога самого <code>compose.yaml</code>.
     Весь домашний сервер поэтому переносится вместе с репозиторием:
     склонировали в другое место — поднимается там же, без единой правки путей.
-    Обновление приходит одним <code>git pull</code>, откат — обычным
+    Обновление приходит <code>git pull</code>, откат — обычным
     <code>git checkout</code>. Это то самое свойство, ради которого проект
     отказывается от Home Assistant OS в виртуальной машине.</div>
+
+  <div class="note warn"><b>Обратная сторона: клон на NAS — это
+    развёртывание, а не мастерская.</b> Раз рабочее дерево git читают сами
+    сервисы, то и правка, сделанная прямо там, оказывается локальным
+    изменением: следующий <code>git pull</code> на ней упрётся, а откатить
+    её нельзя, не потеряв саму правку. Особенно легко нарваться в Home
+    Assistant — он <b>сам</b> дописывает
+    <code class="path">automations.yaml</code> и соседние файлы, когда
+    автоматизацию создают через интерфейс. Поэтому правки рождаются
+    на компьютере и приезжают через <code>git push</code>, а на NAS
+    делается только <code>pull</code>. Порядок целиком — в разделах
+    «Обслуживание» обоих чек-листов.</div>
 
   <div class="note why"><b>Снаружи репозитория осталась только библиотека.</b>
     И причина не в хардлинках, как здесь было написано раньше. Рабочее дерево

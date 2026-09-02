@@ -557,6 +557,13 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
           рабочая конфигурация</b>. Подключитесь по SSH под своей учётной
           записью:
         </p>
+        <div class="note crit"><b>В DSM нет <code>git</code> из коробки.</b>
+          Базовая система его не содержит: <code>git clone</code> ответит
+          <code>command not found</code>. Ставится пакетом <b>Git Server</b> —
+          <i>Центр пакетов → поиск «Git Server» → Установить</i>. Настраивать
+          в нём ничего не нужно, он нужен только ради самой команды
+          <code>git</code>; после установки переподключитесь по SSH.
+          Если медиа-стек вы уже поднимали, пакет стоит с того раза.</div>
         <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker
 sudo git clone https://github.com/hhypest/hh-homelab.git
 cd hh-homelab
@@ -685,7 +692,17 @@ sudo chmod -R 755 homeassistant</code></pre></div>
           рядом с ним. В репозитории лежит только образец.
         </p>
         <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/homeassistant
-sudo cp .env.example .env</code></pre></div>
+sudo cp .env.example .env
+sudo vi .env</code></pre></div>
+        <div class="note"><b>Если <code>vi</code> видите впервые.</b>
+          Он модальный: сразу печатать нельзя. Нажмите <code>i</code> —
+          внизу появится <code>-- INSERT --</code>, и можно править текст.
+          Закончив, нажмите <code>Esc</code> и наберите <code>:wq</code>
+          с двоеточием, затем <code>Enter</code> — это «записать и выйти».
+          Если запутались и хотите выйти, ничего не сохранив, —
+          <code>Esc</code>, затем <code>:q!</code>. Другого редактора
+          в базовой DSM нет: <code>nano</code> приезжает только
+          из сторонних репозиториев.</div>
         <p>
           Выправить нужно ровно одно: <code>TZ</code> под свой часовой пояс.
           <code>DOCKERPROXY_BIND=127.0.0.1</code> оставьте как есть —
@@ -1996,7 +2013,7 @@ system configuration save</code></pre></div>
     <li class="step" data-key="s11-3">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">11.3</span> Порядок обновления</h3>
+        <h3><span class="num">11.3</span> Порядок обновления образа</h3>
         <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/homeassistant
 sudo docker compose pull
 sudo docker compose up -d
@@ -2013,7 +2030,53 @@ sudo docker image prune -f</code></pre></div>
     <li class="step" data-key="s11-4">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">11.4</span> Следить за размером базы</h3>
+        <h3><span class="num">11.4</span> Забрать изменения конфигурации<span class="tag key">суть</span></h3>
+        <p>
+          Шаг 11.3 обновляет <b>образ</b>. Сама конфигурация приезжает
+          отдельно, обычным <code>git pull</code>: клон и есть то, что читает
+          Home Assistant.
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab
+git status
+git fetch origin
+git log --oneline HEAD..origin/main
+git pull
+
+cd homeassistant
+sudo docker compose config &gt;/dev/null &amp;&amp; sudo docker compose up -d</code></pre></div>
+        <div class="note crit"><b>Здесь <code>git status</code> нужен всерьёз,
+          а не для порядка.</b> В <code class="path">automations.yaml</code>,
+          <code>scripts.yaml</code> и <code>scenes.yaml</code> пишет
+          <b>сам Home Assistant</b> — каждый раз, когда вы создаёте
+          автоматизацию, скрипт или сцену через интерфейс. Это отслеживаемые
+          файлы, и <code>git pull</code> на них упрётся. Сохраните их
+          (<code>git stash</code> до <code>pull</code>,
+          <code>git stash pop</code> после) — иначе потеряете всё,
+          что нащёлкали в интерфейсе.</div>
+        <div class="note"><b>Не все правки требуют перезапуска.</b> Изменения
+          в <code class="path">packages/*.yaml</code> подхватываются через
+          <i>Инструменты разработчика → YAML → Перезагрузить всё</i>, без
+          пересоздания контейнера. Пересоздавать нужно после правки самого
+          <code>compose.yaml</code> или <code class="path">.env</code>:
+          тома, порты и переменные окружения применяются при <b>создании</b>
+          контейнера. Перед перезагрузкой YAML не поленитесь нажать
+          <i>Проверить конфигурацию</i> — это единственная проверка, которая
+          знает про ваши интеграции.</div>
+        <div class="note why"><b>Рабочее место — не на NAS.</b> Правка,
+          сделанная прямо в клоне на NAS, становится локальным изменением,
+          и следующий <code>git pull</code> начнёт упираться. Правьте
+          на компьютере, в своём клоне, и присылайте через
+          <code>git push</code> — подробнее в
+          <a href="media-stack.html#s10">чек-листе медиа-стека</a>,
+          шаг 10.3, там же про Remote-SSH и про то, чего
+          <code>git pull</code> не обновляет вовсе.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="s11-5">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">11.5</span> Следить за размером базы</h3>
         <div class="code"><button class="copy" type="button">копировать</button><pre><code>ls -lh /volume1/docker/hh-homelab/homeassistant/config/home-assistant_v2.db</code></pre></div>
         <p>
           В <code>configuration.yaml</code> заданы <code>purge_keep_days: 21</code> и

@@ -21,8 +21,8 @@ Home Assistant, дашборд, шаблоны уведомлений, два п
 | Документ | Отвечает на вопрос | Формат |
 |---|---|---|
 | **[Обзор проекта](https://hhypest.github.io/hh-homelab/overview.html)** | Как устроена система целиком, как складывалась, что в ней измерено и нужен ли Prometheus | обзор ([исходник](docs/overview.html)) |
-| **[Установка и настройка медиа-стека](https://hhypest.github.io/hh-homelab/media-stack.html)** | Как поднять шесть контейнеров и связать их в конвейер «запрос → фильм в библиотеке» | 44 шага с отметками ([исходник](docs/media-stack.html)) |
-| **[Развёртывание Home Assistant](https://hhypest.github.io/hh-homelab/)** | Как с нуля поднять HA на NAS, снять метрики, настроить уведомления, телевизор и Алису | 61 шаг с отметками ([исходник](docs/index.html)) |
+| **[Установка и настройка медиа-стека](https://hhypest.github.io/hh-homelab/media-stack.html)** | Как поднять шесть контейнеров и связать их в конвейер «запрос → фильм в библиотеке» | 45 шагов с отметками ([исходник](docs/media-stack.html)) |
+| **[Развёртывание Home Assistant](https://hhypest.github.io/hh-homelab/)** | Как с нуля поднять HA на NAS, снять метрики, настроить уведомления, телевизор и Алису | 62 шага с отметками ([исходник](docs/index.html)) |
 | **[Журналы контейнеров](https://hhypest.github.io/hh-homelab/logs.html)** | Почему логи Docker растут без предела, как их ограничить, убрать накопленное и читать | 23 шага с отметками ([исходник](docs/logs.html)) |
 | **[Уведомления в Пачку](https://hhypest.github.io/hh-homelab/pachca.html)** | Какой бот в каком чате, где чей шаблон, как настроить каждый сервис | справочник ([исходник](docs/pachca.html)) |
 | **[Роутер](https://hhypest.github.io/hh-homelab/keenetic.html)** | Что в настройках Keenetic влияет на этот стек и чего лучше не трогать | заметки ([исходник](docs/keenetic.html)) |
@@ -171,6 +171,7 @@ hh-homelab/
 | Медиа-стек, шесть контейнеров | [чек-лист медиа-стека](https://hhypest.github.io/hh-homelab/media-stack.html), разделы 1–2 |
 | Home Assistant и docker-socket-proxy | [чек-лист Home Assistant](https://hhypest.github.io/hh-homelab/), разделы 1–2 |
 | Переезд с прежней схемы абсолютных путей | [чек-лист медиа-стека](https://hhypest.github.io/hh-homelab/media-stack.html), шаг 2.6 |
+| Уже подняли — забрать изменения конфигурации | [медиа-стек](https://hhypest.github.io/hh-homelab/media-stack.html), шаг 10.3; [Home Assistant](https://hhypest.github.io/hh-homelab/), шаг 11.4 |
 
 Начинать с медиа-стека: он ни от чего не зависит, а Home Assistant
 подключается к уже работающим сервисам.

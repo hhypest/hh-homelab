@@ -619,6 +619,13 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
         <h3><span class="num">2.1</span> Склонировать репозиторий<span class="tag key">суть</span></h3>
+        <div class="note crit"><b>В DSM нет <code>git</code> из коробки.</b>
+          Базовая система его не содержит: <code>git clone</code> ответит
+          <code>command not found</code>, и это не поломка SSH. Ставится
+          пакетом <b>Git Server</b> — <i>Центр пакетов → поиск «Git Server»
+          → Установить</i>. Настраивать в нём ничего не нужно, он нужен
+          только ради самой команды <code>git</code>: после установки
+          переподключитесь по SSH, и она появится.</div>
         <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker
 sudo git clone https://github.com/hhypest/hh-homelab.git
 cd hh-homelab</code></pre></div>
@@ -648,6 +655,15 @@ cd hh-homelab</code></pre></div>
 sudo cp .env.example .env
 id ваш_логин          <span class="c"># отсюда PUID и PGID</span>
 sudo vi .env</code></pre></div>
+        <div class="note"><b>Если <code>vi</code> видите впервые.</b>
+          Он модальный: сразу печатать нельзя. Нажмите <code>i</code> —
+          внизу появится <code>-- INSERT --</code>, и можно править текст.
+          Закончив, нажмите <code>Esc</code> и наберите <code>:wq</code>
+          с двоеточием, затем <code>Enter</code> — это «записать и выйти».
+          Если запутались и хотите выйти, ничего не сохранив, —
+          <code>Esc</code>, затем <code>:q!</code>. Другого редактора
+          в базовой DSM нет: <code>nano</code> приезжает только
+          из сторонних репозиториев.</div>
         <p>Что обязательно выправить под себя:</p>
         <div class="tablewrap">
           <table>
@@ -1710,7 +1726,7 @@ df -h /volume1</code></pre></div>
     <li class="step" data-key="m10-2">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">10.2</span> Порядок обновления</h3>
+        <h3><span class="num">10.2</span> Порядок обновления образов</h3>
         <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/media
 sudo docker compose pull
 sudo docker compose up -d
@@ -1725,7 +1741,118 @@ sudo docker image prune -f</code></pre></div>
     <li class="step" data-key="m10-3">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">10.3</span> Следить за местом</h3>
+        <h3><span class="num">10.3</span> Забрать изменения конфигурации<span class="tag key">суть</span></h3>
+        <p>
+          Шаг 10.2 обновляет <b>образы</b>. Сама конфигурация приезжает
+          отдельно — обычным <code>git pull</code>, потому что клон и есть
+          рабочий стек. Порядок важен: сначала посмотреть, что придёт,
+          потом останавливать.
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab
+git status          <span class="c"># свои правки? см. заметку ниже</span>
+git fetch origin
+git log --oneline HEAD..origin/main
+git diff HEAD..origin/main -- media/compose.yaml homeassistant/compose.yaml</code></pre></div>
+        <p>
+          Дальше — остановить стек, забрать изменения, поднять заново.
+          Останавливать <code>down</code>, а не <code>stop</code>: настройки
+          томов и портов применяются при <b>создании</b> контейнера,
+          и перезапуск существующего их не подхватит.
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/media
+sudo docker compose down
+cd /volume1/docker/hh-homelab
+git pull
+cd media
+sudo docker compose config &gt;/dev/null &amp;&amp; sudo docker compose up -d</code></pre></div>
+        <div class="note warn"><b>Свои правки в отслеживаемых файлах.</b>
+          <code>git status</code> покажет их до того, как <code>git pull</code>
+          упрётся. Чаще всего это
+          <code class="path">homeassistant/config/automations.yaml</code>,
+          <code>scripts.yaml</code> и <code>scenes.yaml</code>: в них пишет
+          сам Home Assistant, когда вы создаёте автоматизацию через интерфейс.
+          Такие правки нужно сохранить — <code>git stash</code> перед
+          <code>pull</code> и <code>git stash pop</code> после, — а не
+          затирать. Каталоги состояния сервисов
+          (<code class="path">media/config/</code> и прочие) в git не входят
+          вовсе, их <code>pull</code> не трогает.</div>
+
+        <div class="note why"><b>Отсюда правило: рабочее место — не на NAS.</b>
+          Клон на NAS — это развёртывание, а не мастерская. Правка, сделанная
+          прямо там, становится локальным изменением, и следующий
+          <code>git pull</code> начинает упираться — при том что откатить её
+          вы уже не сможете, не потеряв саму правку. Круг, в котором этой
+          проблемы не возникает, такой: правите на компьютере, в своём клоне
+          и нормальном редакторе; <code>git push</code>; на NAS —
+          <code>git pull</code> из этого шага. Заодно правку успевают
+          посмотреть проверки в CI, а не вы на живом сервере.</div>
+        <div class="note warn"><b>Remote-SSH из VS Code на Synology лучше
+          не закладывать.</b> Его проверка окружения падает, потому что
+          в DSM нет команды <code>getconf</code>, — причём падает и там, где
+          сам glibc подходящий. Обходные пути существуют, но их приходится
+          повторять после каждого обновления DSM. Если хочется редактировать
+          файлы на NAS «как локальные», надёжнее подключить шару
+          <code class="path">docker</code> по SMB сетевым диском: серверная
+          часть на NAS тогда не нужна вовсе. Но локальными изменениями это
+          останется всё равно — см. заметку выше.</div>
+        <div class="note"><b>Исключение — <code class="path">.env</code>.</b>
+          Он в <code>.gitignore</code> и существует только на этой машине,
+          так что правится только здесь. Если не хочется
+          <code>vi</code> — та же шара по SMB либо одна команда:
+          <code>sudo sed -i 's|^TZ=.*|TZ=Europe/Moscow|' media/.env</code></div>
+
+        <p>
+          Дальше — два случая, которые встречаются <b>один раз</b>, на давно
+          поднятой установке. Если вы разворачивались недавно, по чек-листу
+          с относительными путями и <code class="path">.env</code>, — шаг
+          на этом закончился, остальное вас не касается.
+        </p>
+
+        <div class="note crit"><b>Первое: состояние сервисов могло
+          остаться по старым путям.</b> Раньше оно монтировалось
+          абсолютными <code class="path">/volume1/docker/&lt;сервис&gt;/config</code>.
+          Сделать <code>git pull</code> и поднять стек, не перенеся его, —
+          значит получить шесть приложений, запустившихся <b>с чистого
+          листа</b>: выглядит как «настройки пропали», хотя они целы
+          и лежат по старому пути. Проверить, по каким путям стек работает
+          сейчас:</div>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo docker inspect --format '{{.Name}}{{range .Mounts}} {{.Source}}{{end}}' \
+  qbittorrent prowlarr radarr jellyfin seerr</code></pre></div>
+        <p>
+          Увидели <code class="path">/volume1/docker/&lt;сервис&gt;/config</code> —
+          переезд описан в <a href="#s2">шаге 2.6</a>, с бэкапом и разбором,
+          почему приложения его не заметят. Делается один раз, при
+          остановленном стеке.
+        </p>
+
+        <div class="note crit"><b>И второе: без <code class="path">.env</code>
+          стек теперь не поднимется.</b> Значений по умолчанию
+          в <code>compose.yaml</code> нет, так что после
+          <code>git pull</code> на установке, сделанной до этого изменения,
+          <code>docker compose up</code> откажется работать и назовёт
+          недостающую переменную. Лечится копированием образцов — значения
+          в них соответствуют текущей установке, править ничего
+          не требуется:</div>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab
+sudo cp media/.env.example media/.env
+sudo cp homeassistant/.env.example homeassistant/.env</code></pre></div>
+        <div class="note why"><b>Что <code>git pull</code> не обновляет.</b>
+          Шаблоны уведомлений живут на стороне Пачки, а не на NAS: файлы
+          <code>pachca/*.liquid</code> — это исходники, которые вы один раз
+          вставили в настройки бота. Поправили шаблон в репозитории —
+          вставьте заново, иначе в чат по-прежнему будет уходить старый текст.
+          То же с дашбордом
+          (<code class="path">dashboard-infrastructure.yaml</code>)
+          и с настройками внутри самих приложений: их состояние —
+          в <code class="path">media/config/</code>, и репозиторий
+          про них ничего не знает.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m10-4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">10.4</span> Следить за местом</h3>
         <p>
           Home Assistant уже присылает в Пачку предупреждение при 85 %
           и тревогу при 93 % заполнения тома. Когда придёт первое — самое
@@ -1739,10 +1866,10 @@ sudo docker image prune -f</code></pre></div>
       </div>
     </li>
 
-    <li class="step" data-key="m10-4">
+    <li class="step" data-key="m10-5">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">10.4</span> Раз в квартал заглядывать в Prowlarr</h3>
+        <h3><span class="num">10.5</span> Раз в квартал заглядывать в Prowlarr</h3>
         <p>
           <b>Indexers</b> — проверить, что все зелёные. Трекеры меняют домены,
           закрываются и вводят новую защиту; молча переставший работать
