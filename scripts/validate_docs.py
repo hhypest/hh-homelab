@@ -106,6 +106,16 @@ def check_html(path: pathlib.Path, problems: list[str]) -> None:
     if 'lang="ru"' not in text[:400]:
         problems.append(f"{rel}: не указан язык страницы (lang)")
 
+    # Ссылки вида «см. шаг 2.3» ломаются ровно тогда, когда в раздел
+    # вставляют новый шаг и сдвигают нумерацию: текст остаётся прежним,
+    # а шага с таким номером больше нет.
+    numbers = set(re.findall(r'<span class="num">([\d.]+)</span>', text))
+    if numbers:
+        referenced = set(re.findall(r"шаг[а-яё]*\s+(\d+\.\d+)", text))
+        for missing in sorted(referenced - numbers,
+                              key=lambda v: [int(x) for x in v.split(".")]):
+            problems.append(f"{rel}: ссылка на шаг {missing}, а такого шага на странице нет")
+
     keys = re.findall(r'data-key="([^"]+)"', text)
     duplicates = {k for k in keys if keys.count(k) > 1}
     if duplicates:
