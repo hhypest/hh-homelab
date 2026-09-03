@@ -935,7 +935,7 @@ cd media &amp;&amp; sudo docker compose up -d</code></pre></div>
           </table>
         </div>
         <p>
-          Ровно это имя мы укажем в Radarr на шаге 5.4. Regex, пробелы и
+          Ровно это имя мы укажем в Radarr на шаге 6.4. Regex, пробелы и
           заглавные буквы не нужны — Radarr сравнивает строку буквально.
         </p>
       </div>
@@ -1093,7 +1093,69 @@ cd media &amp;&amp; sudo docker compose up -d</code></pre></div>
     <li class="step" data-key="m5-3">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">5.3</span> Привязать FlareSolverr</h3>
+        <h3><span class="num">5.3</span> Подложить своё определение индексатора<span class="tag opt">по необходимости</span></h3>
+        <p>
+          Список в <b>Add Indexer</b> — это определения, которые Prowlarr
+          привёз в своей сборке. Своё понадобится в двух случаях: трекера
+          в наборе нет вовсе, либо штатное определение сломалось — трекер
+          сменил домен или вёрстку, — и чинёный вариант хочется поставить
+          не дожидаясь релиза.
+        </p>
+        <div class="note"><b>Сначала проверьте, что его правда нет.</b>
+          Русских трекеров в штатном наборе больше, чем кажется: <b>RuTor</b>,
+          <b>Kinozal</b>, <b>MegaPeer</b>, <b>seleZen</b> там есть и ставятся
+          обычным <i>Add Indexer</i> из шага 5.2 — подкладывать для них ничего
+          не нужно. А вот <b>Rutracker</b>, например, в наборе Prowlarr
+          отсутствует, и он как раз тот случай, ради которого этот шаг
+          и существует.</div>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/media
+sudo mkdir -p config/prowlarr/Definitions/Custom
+sudo curl -fsSL -o config/prowlarr/Definitions/Custom/имя-трекера.yml АДРЕС_YAML_ФАЙЛА
+sudo chown -R 1026:100 config/prowlarr/Definitions
+sudo docker compose restart prowlarr</code></pre></div>
+        <p>
+          После перезапуска — <b>Indexers → Add Indexer</b>, искать по полю
+          <code>name:</code> из начала YAML. Дальше как с обычным
+          индексатором: заполнить настройки, нажать <b>Test</b>.
+        </p>
+        <div class="note crit"><b>Прочитайте YAML перед установкой.</b>
+          Определение — это не список ссылок, а сценарий: в нём описано,
+          как логиниться на трекер и куда отправлять форму. Вы отдаёте
+          чужому файлу свои учётные данные от трекера. Смотреть в первую
+          очередь секции <code>login</code> и <code>links</code>: адреса
+          должны вести на сам трекер, а не на посторонний домен.</div>
+        <div class="note warn"><b>Перекрыть штатное определение своим нельзя.</b>
+          <code>id</code> и имя файла обязаны быть уникальными: Prowlarr
+          отвергает определение, конфликтующее с существующим. Поэтому
+          для второго случая — чинёный вариант вместо сломанного штатного —
+          придётся сменить <code>id</code> внутри файла, например
+          <code>rutor</code> на <code>rutor-fix</code>, и отключить штатный
+          индексатор, чтобы результаты не задваивались.</div>
+        <div class="note crit"><b>Перезапуск обязателен.</b> Prowlarr читает
+          <code class="path">Definitions/</code> при старте. Положить файл
+          и сразу нажать <i>Add Indexer</i> — значит не увидеть его в списке
+          и решить, что определение сломано.</div>
+        <div class="note warn"><b>Схема определений версионируется.</b>
+          Сейчас Prowlarr на <code>v11</code>: штатные определения лежат
+          в <code class="path">Definitions/v11/</code>. Файл, написанный под
+          старую схему, может не загрузиться — и молча, в списке он просто
+          не появится. Если после перезапуска индексатора нет, смотреть
+          сюда:</div>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo docker compose logs prowlarr | grep -i -A2 'definition\|cardigann' | tail -20</code></pre></div>
+        <div class="note why"><b>Этот файл живёт вне репозитория.</b>
+          <code class="path">media/config/</code> в <code>.gitignore</code> —
+          там состояние сервисов, а не конфигурация. Значит,
+          <code>git clone</code> на новой машине определение не принесёт,
+          и после пересоздания каталога его придётся положить снова: адрес
+          файла стоит сохранить рядом с остальными заметками. Обновляться
+          само оно тоже не будет — это копия, а не подписка.</div>
+      </div>
+    </li>
+
+    <li class="step" data-key="m5-4">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">5.4</span> Привязать FlareSolverr</h3>
         <p>
           <b>Settings → Indexers → Indexer Proxies → «+»</b> → выбрать
           <b>FlareSolverr</b>:
@@ -1121,10 +1183,10 @@ cd media &amp;&amp; sudo docker compose up -d</code></pre></div>
       </div>
     </li>
 
-    <li class="step" data-key="m5-4">
+    <li class="step" data-key="m5-5">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">5.4</span> Связать с Radarr</h3>
+        <h3><span class="num">5.5</span> Связать с Radarr</h3>
         <p>
           Понадобится ключ API из Radarr: откройте
           <a href="http://192.168.3.53:7878">192.168.3.53:7878</a> →
@@ -1149,10 +1211,10 @@ cd media &amp;&amp; sudo docker compose up -d</code></pre></div>
       </div>
     </li>
 
-    <li class="step" data-key="m5-5">
+    <li class="step" data-key="m5-6">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">5.5</span> Убедиться, что индексаторы доехали</h3>
+        <h3><span class="num">5.6</span> Убедиться, что индексаторы доехали</h3>
         <p>
           В Radarr: <b>Settings → Indexers</b> — там должны появиться те же
           трекеры, что и в Prowlarr.
@@ -1506,7 +1568,7 @@ cd media &amp;&amp; sudo docker compose up -d</code></pre></div>
               <tr><td>Hostname</td><td><code>radarr</code></td></tr>
               <tr><td>Port</td><td><code>7878</code></td></tr>
               <tr><td>API Key</td><td>из Radarr → Settings → General</td></tr>
-              <tr><td>Quality Profile</td><td>тот, что собрали в шаге 5.3</td></tr>
+              <tr><td>Quality Profile</td><td>тот, что собрали в шаге 6.3</td></tr>
               <tr><td>Root Folder</td><td><code>/data/media/movies</code></td></tr>
               <tr><td>Minimum Availability</td><td><b>Released</b></td></tr>
             </tbody>
@@ -1933,7 +1995,7 @@ sudo cp homeassistant/.env.example homeassistant/.env</code></pre></div>
         <tr>
           <td>Индексатор красный, в ошибке Cloudflare</td>
           <td>не привязан FlareSolverr</td>
-          <td>шаг 5.3: тег <code>flaresolverr</code> на самом индексаторе, а не только на прокси</td>
+          <td>шаг 5.4: тег <code>flaresolverr</code> на самом индексаторе, а не только на прокси</td>
         </tr>
         <tr>
           <td>Radarr ничего не находит</td>
