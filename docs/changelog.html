@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="История версий hh-homelab: что вошло в 1.0, на каких версиях образов проверено, что осознанно не сделано и как обновляться дальше.">
+<title>История версий</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;font-size:14px}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+  .crosslink{margin-top:20px;font-size:13.5px;color:var(--muted)}
+  .crosslink a{color:var(--home);font-weight:500}
+</style>
+<style>
+/* ==========================================================================
+   Токены. Светлая палитра — на голом :root, тёмная переопределяет только их.
+   ========================================================================== */
+:root{
+  --ground:#F5F1EA;
+  --surface:#FFFCF7;
+  --surface-2:#EBE4D9;
+  --ink:#241D15;
+  --ink-2:#4C4136;
+  --muted:#7A6C5D;
+  --line:#DED4C6;
+  --line-strong:#BFB09C;
+  --home:#17635C;
+  --iot:#8F6109;
+  --ok:#3F6B33;
+  --crit:#A33A28;
+  --code-bg:#241D15;
+  --code-ink:#E8DFD2;
+  --code-dim:#9C8C7A;
+  --shadow:0 1px 2px rgba(36,29,21,.07), 0 8px 24px -16px rgba(36,29,21,.34);
+  --radius:10px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#17120E;
+    --surface:#201A15;
+    --surface-2:#2C241D;
+    --ink:#F0E8DC;
+    --ink-2:#C3B5A4;
+    --muted:#948674;
+    --line:#362C24;
+    --line-strong:#55473A;
+    --home:#5FC4B4;
+    --iot:#DFAC5A;
+    --ok:#8FC077;
+    --crit:#EC8A76;
+    --code-bg:#100C09;
+    --code-ink:#E3D9CB;
+    --code-dim:#8B7C6A;
+    --shadow:0 1px 2px rgba(0,0,0,.45), 0 8px 24px -16px rgba(0,0,0,.72);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#17120E;
+  --surface:#201A15;
+  --surface-2:#2C241D;
+  --ink:#F0E8DC;
+  --ink-2:#C3B5A4;
+  --muted:#948674;
+  --line:#362C24;
+  --line-strong:#55473A;
+  --home:#5FC4B4;
+  --iot:#DFAC5A;
+  --ok:#8FC077;
+  --crit:#EC8A76;
+  --code-bg:#100C09;
+  --code-ink:#E3D9CB;
+  --code-dim:#8B7C6A;
+  --shadow:0 1px 2px rgba(0,0,0,.45), 0 8px 24px -16px rgba(0,0,0,.72);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"IBM Plex Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  font-size:15.5px;
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:"Golos Text","IBM Plex Sans",system-ui,sans-serif;text-wrap:balance;margin:0}
+a{color:var(--home)}
+code,kbd,pre{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+
+/* ---------- каркас ---------- */
+.wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+.layout{display:grid;grid-template-columns:248px minmax(0,1fr);gap:48px;align-items:start}
+
+/* ---------- шапка ---------- */
+header.top{
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,var(--surface),var(--ground));
+}
+.top .wrap{padding-top:44px;padding-bottom:34px}
+.eyebrow{
+  font-family:"Golos Text",sans-serif;font-weight:600;font-size:11.5px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;
+}
+h1{font-size:clamp(30px,4.4vw,46px);font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.lede{max-width:64ch;margin-top:14px;color:var(--ink-2);font-size:17px}
+.facts{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.fact{
+  display:inline-flex;align-items:center;gap:7px;
+  border:1px solid var(--line);border-radius:100px;background:var(--surface);
+  padding:5px 13px;font-size:12.5px;color:var(--ink-2);
+}
+.fact b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+.dot.home{background:var(--home)}
+.dot.iot{background:var(--iot)}
+
+/* ---------- боковая навигация ---------- */
+nav.rail{position:sticky;top:24px;padding:24px 0 60px}
+.progress{
+  border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);
+  padding:14px;display:flex;align-items:center;gap:13px;margin-bottom:20px;box-shadow:var(--shadow);
+}
+.ring{flex:none}
+.ring circle{fill:none;stroke-width:5}
+.ring .bg{stroke:var(--line)}
+.ring .fg{stroke:var(--home);stroke-linecap:round;transition:stroke-dashoffset .35s ease}
+.progress .txt{font-size:12.5px;line-height:1.35;color:var(--muted)}
+.progress .txt b{display:block;font-family:"Golos Text",sans-serif;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+.reset{
+  appearance:none;border:1px solid var(--line);background:transparent;color:var(--muted);
+  font:inherit;font-size:11.5px;padding:2px 8px;border-radius:6px;cursor:pointer;margin-top:4px;
+}
+.reset:hover{color:var(--ink);border-color:var(--line-strong)}
+nav.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
+nav.rail a{
+  display:flex;gap:10px;align-items:baseline;
+  padding:6px 10px;border-radius:7px;text-decoration:none;color:var(--ink-2);font-size:13.5px;
+  border-left:2px solid transparent;
+}
+nav.rail a:hover{background:var(--surface-2);color:var(--ink)}
+nav.rail a.active{background:var(--surface);color:var(--ink);border-left-color:var(--home);font-weight:500}
+nav.rail a .n{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px;min-width:16px}
+nav.rail a.done .n::after{content:"✓";color:var(--ok)}
+nav.rail a.done .n{font-size:0}
+
+/* ---------- секции ---------- */
+main{padding:34px 0 120px;min-width:0}
+section{margin-bottom:56px;scroll-margin-top:20px}
+.sec-head{border-top:2px solid var(--ink);padding-top:14px;margin-bottom:22px}
+.sec-head .kicker{
+  font-family:"Golos Text",sans-serif;font-size:11.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--muted);font-weight:600;
+}
+h2{font-size:clamp(21px,2.6vw,27px);font-weight:700;letter-spacing:-.015em;margin-top:4px}
+.sec-head p{margin:10px 0 0;color:var(--ink-2);max-width:68ch}
+
+/* ---------- шаги ---------- */
+ol.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
+li.step{
+  display:grid;grid-template-columns:28px minmax(0,1fr);gap:14px;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 18px;box-shadow:var(--shadow);transition:opacity .2s ease;
+}
+li.step.checked{opacity:.55}
+li.step.checked h3{text-decoration:line-through;text-decoration-color:var(--line-strong)}
+.step-check{position:relative;display:block;width:22px;height:22px;margin-top:2px;cursor:pointer}
+.step-check input{position:absolute;opacity:0;width:22px;height:22px;margin:0;cursor:pointer}
+.step-check .box{
+  display:block;width:22px;height:22px;border:1.5px solid var(--line-strong);
+  border-radius:6px;background:var(--ground);transition:.15s ease;
+}
+.step-check input:focus-visible + .box{outline:2px solid var(--home);outline-offset:2px}
+.step-check input:checked + .box{background:var(--home);border-color:var(--home)}
+.step-check .box::after{
+  content:"";position:absolute;left:7px;top:3px;width:6px;height:11px;
+  border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(45deg) scale(0);
+  transition:transform .15s ease;
+}
+.step-check input:checked + .box::after{transform:rotate(45deg) scale(1)}
+.step-body{min-width:0}
+.step-body h3{font-size:16.5px;font-weight:600;letter-spacing:-.005em;display:flex;gap:9px;align-items:baseline}
+.step-body h3 .num{
+  font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:500;
+  color:var(--home);flex:none;padding-top:1px;
+}
+.step-body p{margin:9px 0 0;color:var(--ink-2);max-width:70ch}
+.step-body p:first-of-type{margin-top:7px}
+.step-body ul{margin:9px 0 0;padding-left:20px;color:var(--ink-2);max-width:70ch}
+.step-body li{margin:3px 0}
+.step-body b,.step-body strong{color:var(--ink);font-weight:600}
+
+/* ---------- врезки ---------- */
+.note{
+  margin-top:12px;padding:11px 14px;border-left:3px solid var(--line-strong);
+  background:var(--surface-2);border-radius:0 7px 7px 0;font-size:14px;color:var(--ink-2);
+  max-width:72ch;
+}
+.note b:first-child{color:var(--ink)}
+.note.why{border-left-color:var(--home)}
+.note.warn{border-left-color:var(--iot)}
+.note.crit{border-left-color:var(--crit)}
+.note p{margin:6px 0 0}
+.note p:first-child{margin:0}
+
+/* ---------- код ---------- */
+.code{position:relative;margin-top:12px}
+.code pre{
+  margin:0;background:var(--code-bg);color:var(--code-ink);
+  padding:14px 16px;border-radius:8px;overflow-x:auto;
+  font-size:12.8px;line-height:1.62;border:1px solid var(--line);
+}
+.code pre .c{color:var(--code-dim)}
+.code .copy{
+  position:absolute;top:8px;right:8px;appearance:none;cursor:pointer;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);
+  color:var(--code-dim);font-family:"IBM Plex Sans",sans-serif;font-size:11px;
+  padding:3px 9px;border-radius:5px;opacity:0;transition:.15s ease;
+}
+.code:hover .copy,.code .copy:focus-visible{opacity:1}
+.code .copy:hover{color:#fff;background:rgba(255,255,255,.14)}
+code:not(pre code){
+  background:var(--surface-2);border:1px solid var(--line);
+  padding:1px 5px;border-radius:4px;font-size:.88em;color:var(--ink);
+}
+.path{color:var(--home);overflow-wrap:anywhere}
+
+/* ---------- таблицы ---------- */
+.tablewrap{overflow-x:auto;margin-top:14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.8px;min-width:520px}
+th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{
+  font-family:"Golos Text",sans-serif;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);font-weight:600;background:var(--surface-2);
+}
+tbody tr:last-child td{border-bottom:none}
+td code{white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+
+/* ---------- диаграмма ---------- */
+figure{margin:0 0 26px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px 18px 16px;box-shadow:var(--shadow)}
+figure svg{display:block;width:100%;max-width:100%;height:auto;color:var(--ink-2)}
+figcaption{margin-top:14px;font-size:13.5px;color:var(--muted);max-width:74ch}
+
+/* ---------- метки ---------- */
+.tag{
+  display:inline-block;font-family:"Golos Text",sans-serif;font-size:10.5px;font-weight:600;
+  letter-spacing:.07em;text-transform:uppercase;padding:2px 7px;border-radius:4px;
+  border:1px solid currentColor;vertical-align:2px;margin-left:8px;
+}
+.tag.opt{color:var(--muted)}
+.tag.later{color:var(--iot)}
+.tag.key{color:var(--home)}
+
+footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);font-size:13px}
+
+@media (max-width:940px){
+  .layout{grid-template-columns:1fr;gap:0}
+  nav.rail{position:static;padding:18px 0 0}
+  nav.rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px}
+  main{padding-top:24px}
+}
+/* ---------- переключатель темы ---------- */
+.top .wrap{position:relative}
+.theme-switch{
+  position:absolute;top:40px;right:24px;
+  display:inline-flex;gap:2px;padding:3px;
+  border:1px solid var(--line);border-radius:100px;
+  background:var(--surface);box-shadow:var(--shadow);
+}
+.theme-switch button{
+  appearance:none;border:0;background:transparent;cursor:pointer;line-height:1;
+  font-family:"Golos Text",sans-serif;font-size:11.5px;font-weight:500;
+  color:var(--muted);padding:6px 12px;border-radius:100px;
+}
+.theme-switch button:hover{color:var(--ink)}
+.theme-switch button[aria-pressed="true"]{background:var(--surface-2);color:var(--ink)}
+.theme-switch button:focus-visible{outline:2px solid var(--home);outline-offset:2px}
+@media (max-width:760px){
+  .theme-switch{position:static;margin-bottom:18px}
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important;animation:none !important}
+}
+</style>
+<script>
+/* Тема применяется до отрисовки — иначе на светлой теме мигнёт тёмная. */
+(function () {
+  var KEY = 'hh-homelab-theme';
+  var root = document.documentElement;
+  function apply(v) {
+    if (v === 'light' || v === 'dark') root.setAttribute('data-theme', v);
+    else root.removeAttribute('data-theme');
+  }
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) {}
+  apply(saved || 'auto');
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var box = document.querySelector('.theme-switch');
+    if (!box) return;
+    var buttons = box.querySelectorAll('button[data-theme-set]');
+    function mark(v) {
+      Array.prototype.forEach.call(buttons, function (b) {
+        b.setAttribute('aria-pressed', String(b.getAttribute('data-theme-set') === v));
+      });
+    }
+    mark(saved || 'auto');
+    box.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest ? e.target.closest('button[data-theme-set]') : null;
+      if (!b) return;
+      var v = b.getAttribute('data-theme-set');
+      apply(v);
+      mark(v);
+      try {
+        if (v === 'auto') localStorage.removeItem(KEY); else localStorage.setItem(KEY, v);
+      } catch (err) {}
+    });
+  });
+})();
+</script>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="theme-switch" role="group" aria-label="Тема оформления">
+      <button type="button" data-theme-set="auto" aria-pressed="true">Авто</button>
+      <button type="button" data-theme-set="light" aria-pressed="false">Светлая</button>
+      <button type="button" data-theme-set="dark" aria-pressed="false">Тёмная</button>
+    </div>
+    <div class="eyebrow">История версий · hh-homelab</div>
+    <h1>История версий</h1>
+    <p class="lede">
+      Что вошло в каждый выпуск, на каких версиях образов он проверен
+      и что при переходе придётся сделать руками. Записи сверху вниз,
+      от свежих к старым.
+    </p>
+    <div class="facts">
+      <span class="fact">текущий выпуск <b>1.0.0</b></span>
+      <span class="fact">контейнеров <b>8</b></span>
+      <span class="fact">задач CI <b>8</b></span>
+      <span class="fact">тестов <b>141</b></span>
+    </div>
+    <p class="crosslink">Соседние документы: <a href="overview.html">обзор проекта</a>
+      — как это устроено и почему именно так;
+      <a href="roadmap.html">дорожная карта</a> — что дальше.</p>
+  </div>
+</header>
+
+<div class="wrap layout">
+
+<nav class="rail" aria-label="Разделы">
+  <ol id="toc"></ol>
+</nav>
+
+<main>
+
+<section id="v100">
+  <div class="sec-head">
+    <div class="kicker">1.0.0</div>
+    <h2 id="1-0-0">Первый выпуск</h2>
+    <p>
+      <b>2 сентября 2026.</b>
+      Домашний сервер на Synology DS725+ собран, описан и закрыт проверками.
+      Версия 1.0 фиксирует не только файлы конфигурации, но и то, что реально
+      работает: все образы закреплены на конкретных тегах, так что клон этого
+      тега поднимет ту же систему, а не «примерно такую же».
+    </p>
+  </div>
+
+  <h3 class="sub" id="что-это">Что это</h3>
+  <p>
+    Два независимых compose-проекта на одном NAS. <b>Медиа-стек</b> —
+    шесть контейнеров, превращающих запрос в Seerr в фильм в библиотеке
+    Jellyfin без единого лишнего копирования по диску. <b>Home Assistant</b>
+    — метрики NAS и контейнеров, уведомления в Пачку, управление телевизором
+    и приставкой, голосовые сценарии через Алису.
+  </p>
+  <p>
+    Клон репозитория и есть рабочая конфигурация: оба стека монтируют своё
+    состояние относительными путями, поэтому весь сервер переносится вместе
+    с репозиторием, а правки видны в <code>git status</code> сразу.
+  </p>
+
+  <h3 class="sub" id="состав-выпуска">Состав выпуска</h3>
+  <p>
+    Версии получены сверкой дайджестов: для каждого образа взят дайджест
+    плавающего тега и найден версионный тег, ведущий на тот же самый образ.
+    То есть закреплено ровно то, что работало на момент выпуска.
+  </p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Сервис</th><th>Образ</th><th>Версия</th></tr></thead>
+      <tbody>
+        <tr><td>qBittorrent</td><td><code>lscr.io/linuxserver/qbittorrent</code></td><td><code>5.2.3_v2.0.14-ls474</code></td></tr>
+        <tr><td>VueTorrent<br><span style="color:var(--muted);font-size:12.5px">мод веб-интерфейса</span></td><td><code>ghcr.io/vuetorrent/vuetorrent-lsio-mod</code></td><td><code>2.35.0</code></td></tr>
+        <tr><td>Prowlarr</td><td><code>lscr.io/linuxserver/prowlarr</code></td><td><code>2.5.2.5491-ls158</code></td></tr>
+        <tr><td>Radarr</td><td><code>lscr.io/linuxserver/radarr</code></td><td><code>6.3.0.10514-ls314</code></td></tr>
+        <tr><td>FlareSolverr</td><td><code>ghcr.io/flaresolverr/flaresolverr</code></td><td><code>v3.5.0</code></td></tr>
+        <tr><td>Jellyfin</td><td><code>lscr.io/linuxserver/jellyfin</code></td><td><code>10.11.11ubu2604-ls47</code></td></tr>
+        <tr><td>Seerr</td><td><code>ghcr.io/seerr-team/seerr</code></td><td><code>v3.4.1</code></td></tr>
+        <tr><td>Home Assistant</td><td><code>ghcr.io/home-assistant/home-assistant</code></td><td><code>2026.9.0</code></td></tr>
+        <tr><td>docker-socket-proxy</td><td><code>ghcr.io/tecnativa/docker-socket-proxy</code></td><td><code>v0.5.0</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note"><b>Проверено на</b> Synology DS725+ (AMD Ryzen R1600,
+    12 ГБ после апгрейда, два диска), DSM 7, роутер Keenetic Hopper SE,
+    телевизор LG 32LK540BPLA, приставка RockTek GX1. На другом железе
+    поднимется, но замеры и часть решений привязаны к этому.</div>
+
+  <h3 class="sub" id="что-вошло">Что вошло</h3>
+
+  <p><b>Медиа-стек.</b> Шесть контейнеров в общей bridge-сети. Импорт
+  хардлинком вместо копирования: файл в библиотеке и раздающийся торрент —
+  одни и те же данные, место занято один раз, раздача не прерывается.
+  Профиль качества под конкретный телевизор, чтобы не тащить 4K на панель
+  1366×768.</p>
+
+  <p><b>Home Assistant.</b> Метрики NAS через интеграцию Synology DSM,
+  метрики контейнеров — через docker-socket-proxy, который пропускает
+  только чтение: сам сокет в HA не пробрасывается, потому что доступ
+  к нему равносилен root на NAS. HTTP-проверки живости каждого сервиса,
+  статистика простоя, уведомления в Пачку с разделением по чатам.</p>
+
+  <p><b>Уведомления.</b> Пять ботов, два чата: в одном то, что смотреть,
+  в другом то, что чинить. Liquid-шаблоны на каждый сервис лежат
+  в репозитории и проверяются локально на сохранённых примерах payload,
+  а не «дождёмся настоящего события».</p>
+
+  <p><b>Телевизор и приставка.</b> Wake-on-LAN, сценарии просмотра,
+  голосовое управление через Алису по облачному подключению. Отдельно
+  разобрано, почему телевизор остаётся на кабеле: WoL по Wi-Fi требует
+  WoWLAN, которого у этой модели нет.</p>
+
+  <p><b>Конфигурация вынесена в <code class="path">.env</code>.</b>
+  Репозиторий публичный, и всё, что относится к конкретной машине —
+  права, часовой пояс, корень библиотеки, адрес привязки, имя сети
+  и порты, — живёт в файле рядом с compose. Значений по умолчанию нет
+  намеренно: забытый <code class="path">.env</code> роняет запуск
+  с внятным сообщением, а не поднимает стек с пустыми значениями.</p>
+
+  <p><b>Восемь задач проверок в CI</b> и 141 тест. Проверяется не только
+  синтаксис: список контейнеров под надзором сверяется с compose-файлами,
+  каждый <code>entity_id</code> — с тем, кто его создаёт, переменные —
+  с образцом <code class="path">.env.example</code>, порты, по которым
+  Home Assistant опрашивает сервисы, — с ним же, счётчики шагов в README —
+  с самими страницами, а образы — с требованием иметь закреплённую версию.
+  Каждая такая проверка появилась после случая, когда что-то разошлось
+  молча.</p>
+
+  <p><b>Восемь страниц документации</b> с отметками о прогрессе: два чек-листа
+  развёртывания, гайд по журналам, обзор проекта, справочник по уведомлениям,
+  заметки по роутеру, дорожная карта и эта страница. Обезличивание проверяется
+  автоматически — MAC-адреса, имена устройств и имя точки доступа
+  в публичный репозиторий не попадают.</p>
+
+  <h3 class="sub" id="известные-ограничения">Известные ограничения</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Что</th><th>Почему так</th></tr></thead>
+      <tbody>
+        <tr><td>Транскодирование только программное</td><td>у Ryzen R1600 нет встроенной графики, аппаратного кодировщика в DS725+ физически нет. Один поток 1080p забирает оба ядра почти целиком</td></tr>
+        <tr><td>VueTorrent обновляется руками</td><td>мод подключён через <code>DOCKER_MODS</code>, а Dependabot разбирает в compose-файле только ключ <code>image</code></td></tr>
+        <tr><td>Нет проверки конфигурации настоящим Home Assistant</td><td><code>hass --script check_config</code> требует установленных компонентов HACS; текущие проверки разбирают YAML и шаблоны, но не знают, существует ли интеграция</td></tr>
+        <tr><td>Падение самого NAS никто не заметит</td><td>всё, что шлёт уведомления, работает на нём же. Внешний пульс — третий пункт дорожной карты</td></tr>
+        <tr><td>Замеры NAS не приведены</td><td>они зависят от дисков, сети и содержимого библиотеки. В обзоре вместо чисел дан протокол, по которому вы получите свои</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub" id="как-обновляться">Как обновляться дальше</h3>
+  <p>
+    Обновления образов приходят пул-реквестом от Dependabot раз в неделю,
+    одной группой на оба стека. Порядок обратный привычному:
+    <code>docker compose pull</code> сам версию больше не поднимает.
+  </p>
+  <div class="code"><pre><code><span class="c"># 1. прочитать changelog, смержить PR от Dependabot</span>
+<span class="c"># 2. на NAS:</span>
+cd /volume1/docker/hh-homelab
+git pull
+cd media &amp;&amp; sudo docker compose pull &amp;&amp; sudo docker compose up -d</code></pre></div>
+  <p>
+    Полный порядок с проверкой локальных правок — в чек-листе медиа-стека,
+    шаги 10.2 и 10.3, и в чек-листе Home Assistant, шаги 11.3 и 11.4.
+    Откат — обычный <code>git revert</code>: версии лежат в репозитории,
+    а не в памяти.
+  </p>
+
+  <h3 class="sub" id="что-осознанно-не-сделано">Что осознанно не сделано</h3>
+  <p>
+    Kubernetes, 4K-библиотека, аппаратное транскодирование и локальный
+    доступ Алисы — с поводами и разбором в
+    <a href="roadmap.html">дорожной карте</a>, раздел «Сознательно
+    не делаем». Смысл не в том, чтобы закрыть тему, а в том, чтобы
+    через полгода не проходить те же рассуждения заново.
+  </p>
+</section>
+
+</main>
+</div>
+
+<footer>
+  <div class="wrap">hh-homelab · История версий</div>
+</footer>
+
+<script>
+(function () {
+  var toc = document.getElementById('toc');
+  var sections = Array.prototype.slice.call(document.querySelectorAll('main section'));
+
+  sections.forEach(function (sec) {
+    var h2 = sec.querySelector('h2');
+    if (!h2) return;
+    var kicker = sec.querySelector('.kicker');
+    var label = (kicker ? kicker.textContent.replace(/Раздел\s*/i, '').replace(/Приложение\s*/i, '') : '').trim();
+    var li = document.createElement('li');
+    var a = document.createElement('a');
+    a.href = '#' + sec.id;
+    a.dataset.sec = sec.id;
+    a.innerHTML = '<span class="n">' + label + '</span><span>' + h2.textContent.trim() + '</span>';
+    li.appendChild(a);
+    toc.appendChild(li);
+  });
+
+  /* ---- кнопки «копировать» ---- */
+  Array.prototype.forEach.call(document.querySelectorAll('.code .copy'), function (btn) {
+    btn.addEventListener('click', function () {
+      var pre = btn.parentNode.querySelector('pre');
+      if (!pre) return;
+      var text = pre.innerText;
+      var done = function () {
+        var old = btn.textContent;
+        btn.textContent = 'скопировано';
+        setTimeout(function () { btn.textContent = old; }, 1400);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () {});
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) {}
+        document.body.removeChild(ta);
+      }
+    });
+  });
+
+  /* ---- подсветка текущего раздела ---- */
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        var link = toc.querySelector('a[data-sec="' + entry.target.id + '"]');
+        if (!link) return;
+        if (entry.isIntersecting) {
+          Array.prototype.forEach.call(toc.querySelectorAll('a'), function (a) { a.classList.remove('active'); });
+          link.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-10% 0px -75% 0px' });
+    sections.forEach(function (s) { obs.observe(s); });
+  }
+})();
+</script>
+
+</body>
+</html>
