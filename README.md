@@ -1,6 +1,7 @@
 # hh-homelab
 
 [![Проверки](https://github.com/hhypest/hh-homelab/actions/workflows/validate.yml/badge.svg)](https://github.com/hhypest/hh-homelab/actions/workflows/validate.yml)
+[![Выпуск](https://img.shields.io/github/v/release/hhypest/hh-homelab?label=выпуск&color=0d6b75)](https://github.com/hhypest/hh-homelab/releases/latest)
 [![Лицензия MIT](https://img.shields.io/badge/лицензия-MIT-0d6b75)](LICENSE)
 
 Домашний сервер на Synology DS725+: медиа-стек, Home Assistant, уведомления
