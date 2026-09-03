@@ -1,0 +1,165 @@
+name: Выпуск
+
+# Ставит тег и создаёт релиз. Запускается только вручную: выпуск —
+# осознанное действие, а не следствие очередного push в main.
+#
+# Зачем workflow, если то же делается двумя командами в терминале.
+# Во-первых, здесь это делается одинаково каждый раз: тег с тем же
+# сообщением, тело релиза из тех же источников. Во-вторых, внутри Actions
+# работает GITHUB_TOKEN с правом contents: write, поэтому подготовить
+# выпуск может тот, у кого нет прав пушить теги напрямую.
+#
+# Таблица версий образов собирается из самих compose-файлов, а не пишется
+# руками: описание релиза физически не может разойтись с тем, что
+# закреплено в конфигурации.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Версия без префикса v, например 1.0.0"
+        required: true
+        type: string
+      dry_run:
+        description: "Только проверить, ничего не создавать"
+        required: false
+        default: false
+        type: boolean
+
+# Тег и релиз — это запись в репозиторий, обычного contents: read мало.
+permissions:
+  contents: write
+
+# Два выпуска разом — верный способ получить состояние, которого никто
+# не заказывал. Второй запуск ждёт, а не отменяет первый на полпути.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.13"
+
+jobs:
+
+  release:
+    name: Тег и релиз
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth: 0 — нужны все теги, иначе проверка «такой версии ещё
+      # нет» ничего не увидит и молча разрешит второй тег.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Проверить формат версии
+        run: |
+          version='${{ inputs.version }}'
+          if ! printf '%s' "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Версия «$version» не похожа на X.Y.Z"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "TAG=v$version" >> "$GITHUB_ENV"
+
+      - name: Убедиться, что такого тега ещё нет
+        run: |
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "::error::Тег $TAG уже существует. Выпуск не перевыпускают — заведите следующую версию"
+            exit 1
+          fi
+
+      # Тег без описания — половина выпуска. Если история версий про эту
+      # версию молчит, значит changelog забыли, и релиз выйдет пустым.
+      - name: Сверить с историей версий
+        run: |
+          page=docs/changelog.html
+          if ! grep -q "<div class=\"kicker\">$VERSION</div>" "$page"; then
+            echo "::error::В $page нет раздела с версией $VERSION"
+            exit 1
+          fi
+          if ! grep -q "текущий выпуск <b>$VERSION</b>" "$page"; then
+            echo "::error::В шапке $page текущим выпуском значится не $VERSION"
+            exit 1
+          fi
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - run: pip install -r requirements-dev.txt
+
+      # Те же проверки, что и в «Проверки». Дублирование намеренное:
+      # выпуск должен отвечать за себя сам, а не полагаться на то, что
+      # когда-то на этом коммите что-то было зелёным.
+      - name: Прогнать проверки
+        run: |
+          yamllint homeassistant media pachca .github
+          python3 scripts/validate_config.py
+          python3 scripts/validate_entities.py
+          python3 scripts/render_pachca.py --check
+          python3 scripts/validate_docs.py
+          python3 scripts/check_files.py
+          python3 scripts/check_ports.py media/compose.yaml homeassistant/compose.yaml
+          ruff check .
+          pytest -q
+
+      # Версии берутся из compose-файлов, поэтому описание релиза
+      # не может разойтись с тем, что реально закреплено.
+      - name: Собрать состав выпуска
+        run: |
+          {
+            echo '| Образ | Версия |'
+            echo '|---|---|'
+            grep -hoP '(image:|DOCKER_MODS=)\s*\K\S+' \
+              media/compose.yaml homeassistant/compose.yaml \
+              | sort -u \
+              | while IFS= read -r ref; do
+                  printf '| `%s` | `%s` |\n' "${ref%:*}" "${ref##*:}"
+                done
+          } > images.md
+          echo "Собрано строк: $(wc -l < images.md)"
+
+      - name: Составить описание релиза
+        run: |
+          {
+            printf 'Домашний сервер на Synology DS725+: медиа-стек и Home Assistant.\n\n'
+            printf 'Выпуск фиксирует не только файлы конфигурации, но и то, что реально\n'
+            printf 'работает — все образы закреплены на конкретных версиях, поэтому клон\n'
+            printf 'этого тега поднимает ту же систему, а не примерно такую же.\n\n'
+            printf '### Состав\n\n'
+            cat images.md
+            printf '\n### Подробнее\n\n'
+            printf 'Что вошло, известные ограничения и порядок обновления — '
+            printf '[история версий](https://hhypest.github.io/hh-homelab/changelog.html).\n'
+          } > notes.md
+          cat notes.md
+
+      - name: Создать тег
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git tag -a "$TAG" -m "hh-homelab $VERSION" -m "$(cat notes.md)"
+          git push origin "$TAG"
+
+      - name: Создать релиз
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$TAG" \
+            --title "$VERSION" \
+            --notes-file notes.md \
+            --verify-tag
+
+      - name: Итог
+        run: |
+          if [ '${{ inputs.dry_run }}' = 'true' ]; then
+            echo "### Проверка прошла: $TAG выпустить можно" >> "$GITHUB_STEP_SUMMARY"
+            echo "Ничего не создано — снимите галку «Только проверить»." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### Выпуск $TAG готов" >> "$GITHUB_STEP_SUMMARY"
+            echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
+          fi
