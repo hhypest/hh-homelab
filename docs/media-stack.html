@@ -630,8 +630,8 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
 sudo git clone https://github.com/hhypest/hh-homelab.git
 cd hh-homelab
 
-<span class="c"># 1026:100 — тот же PUID:PGID, что вы укажете в .env на шаге 2.2.
-# Свои узнать той же командой: id ваш_логин</span>
+<span class="c"># 1026:100 — пример, первая учётная запись DSM.
+# Свои узнать: id ваш_логин. Их же — в .env на шаге 2.2.</span>
 sudo chown -R 1026:100 .</code></pre></div>
         <div class="note crit"><b>Владельца клона выставить сразу, до всего
           остального.</b> Клонировали через <code>sudo</code> — значит
@@ -1863,8 +1863,30 @@ git diff HEAD..origin/main -- media/compose.yaml homeassistant/compose.yaml</cod
           владельца это снимет, а прав на запись не добавит, и следующий же
           <code>git fetch</code> упрётся уже в <code>Permission denied</code>.
           Чинить надо владельца.</div>
-        <div class="code"><button class="copy" type="button">копировать</button><pre><code>id          <span class="c"># uid должен совпадать с PUID из media/.env</span>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code><span class="c"># Сначала посмотреть, а потом уже назначать: числа должны сойтись.</span>
+id
+grep -E '^(PUID|PGID)=' /volume1/docker/hh-homelab/media/.env
+
 sudo chown -R 1026:100 /volume1/docker/hh-homelab</code></pre></div>
+        <div class="note warn"><b>Числа должны совпасть в трёх местах.</b>
+          <code>1026:100</code> здесь и во всём чек-листе — пример: это
+          первая учётная запись DSM, и у большинства она же и есть ваша.
+          Но подставлять надо свои, и совпасть они обязаны разом:
+          что показал <code>id</code>, кому принадлежит клон и что стоит
+          в <code>PUID</code>/<code>PGID</code>. Возьмёте только вывод
+          <code>id</code>, не заглянув в <code class="path">.env</code>, —
+          git заработает, а qBittorrent и Radarr потеряют запись
+          в библиотеку, и выглядеть это будет уже как «загрузки встали»,
+          а не как права.</div>
+        <div class="note"><b>Если числа разошлись</b> — решите, из-под какой
+          учётной записи вы ведёте стек, и приведите к ней всё сразу:
+          <code>PUID</code>/<code>PGID</code>
+          в <code class="path">media/.env</code>, владельца клона и владельца
+          корня библиотеки (<code>sudo chown -R … /volume1/data</code>
+          из <a href="#s1">шага 1.1</a>). После правки
+          <code class="path">.env</code> контейнеры надо пересоздать —
+          <code>sudo docker compose up -d</code>, потому что <code>PUID</code>
+          читается при создании, а не при запуске.</div>
         <div class="note warn"><b>И дальше — <code>git</code> без
           <code>sudo</code>.</b> Команды этого шага специально идут без него:
           <code>sudo git pull</code> создаёт новые объекты
