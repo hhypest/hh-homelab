@@ -628,7 +628,20 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
           переподключитесь по SSH, и она появится.</div>
         <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker
 sudo git clone https://github.com/hhypest/hh-homelab.git
-cd hh-homelab</code></pre></div>
+cd hh-homelab
+
+<span class="c"># 1026:100 — тот же PUID:PGID, что вы укажете в .env на шаге 2.2.
+# Свои узнать той же командой: id ваш_логин</span>
+sudo chown -R 1026:100 .</code></pre></div>
+        <div class="note crit"><b>Владельца клона выставить сразу, до всего
+          остального.</b> Клонировали через <code>sudo</code> — значит
+          владелец каталога и <code class="path">.git</code> внутри него
+          <code>root</code>, а работать с репозиторием вы будете под своей
+          учётной записью. Git такое сочетание не принимает и отвечает
+          <code>fatal: detected dubious ownership in repository</code> —
+          на <code>git status</code>, на <code>git pull</code>, вообще
+          на любой команде. Разбор и лечение, если вы уже наступили, —
+          в <a href="#s10">шаге 10.3</a>.</div>
         <div class="note why"><b>Клон и есть рабочая конфигурация.</b>
           В <code>compose.yaml</code> состояние сервисов примонтировано
           относительными путями — <code>./config/&lt;сервис&gt;</code>,
@@ -1840,6 +1853,29 @@ git status          <span class="c"># свои правки? см. заметк�
 git fetch origin
 git log --oneline HEAD..origin/main
 git diff HEAD..origin/main -- media/compose.yaml homeassistant/compose.yaml</code></pre></div>
+        <div class="note crit"><b>Если git отвечает <code>fatal: detected
+          dubious ownership in repository</code>.</b> Так проявляется
+          установка, сделанная до того, как в шаг 2.1 добавили
+          <code>chown</code>: клон делался через <code>sudo</code> и потому
+          принадлежит <code>root</code>, а команды выше вы отдаёте под своей
+          учётной записью. В тексте ошибки git предлагает внести каталог
+          в <code>safe.directory</code> — <b>не делайте этого</b>: проверку
+          владельца это снимет, а прав на запись не добавит, и следующий же
+          <code>git fetch</code> упрётся уже в <code>Permission denied</code>.
+          Чинить надо владельца.</div>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>id          <span class="c"># uid должен совпадать с PUID из media/.env</span>
+sudo chown -R 1026:100 /volume1/docker/hh-homelab</code></pre></div>
+        <div class="note warn"><b>И дальше — <code>git</code> без
+          <code>sudo</code>.</b> Команды этого шага специально идут без него:
+          <code>sudo git pull</code> создаёт новые объекты
+          в <code class="path">.git</code> от <code>root</code>, и через пару
+          обновлений ошибка вернётся.</div>
+        <div class="note"><b>Если после <code>chown</code> ничего
+          не изменилось</b> — посмотрите на <code>+</code> в конце прав
+          в выводе <code>ls -l</code>. Он означает, что на общей папке
+          <code class="path">docker</code> включены ACL DSM, а они перебивают
+          обычные права: доступ придётся выдать ещё и в <i>Панель управления
+          → Общая папка → docker → Изменить → Права доступа</i>.</div>
         <p>
           Дальше — остановить стек, забрать изменения, поднять заново.
           Останавливать <code>down</code>, а не <code>stop</code>: настройки
@@ -2036,6 +2072,11 @@ sudo cp homeassistant/.env.example homeassistant/.env</code></pre></div>
           <td>Radarr не пишет в папку</td>
           <td>права на <code>/volume1/data</code></td>
           <td><code>sudo chown -R 1026:100 /volume1/data</code></td>
+        </tr>
+        <tr>
+          <td>git: <code>detected dubious ownership</code></td>
+          <td>клон делался через <code>sudo</code> и принадлежит <code>root</code></td>
+          <td><code>sudo chown -R 1026:100 /volume1/docker/hh-homelab</code>; подробности в шаге 10.3</td>
         </tr>
         <tr>
           <td>В Seerr на витрине только кино одной страны</td>
