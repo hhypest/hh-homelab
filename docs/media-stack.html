@@ -1884,9 +1884,11 @@ sudo chown -R 1026:100 /volume1/docker/hh-homelab</code></pre></div>
           в <code class="path">media/.env</code>, владельца клона и владельца
           корня библиотеки (<code>sudo chown -R … /volume1/data</code>
           из <a href="#s1">шага 1.1</a>). После правки
-          <code class="path">.env</code> контейнеры надо пересоздать —
-          <code>sudo docker compose up -d</code>, потому что <code>PUID</code>
-          читается при создании, а не при запуске.</div>
+          <code class="path">.env</code> контейнеры надо пересоздать:
+          <code>cd /volume1/docker/hh-homelab/media</code>, затем
+          <code>sudo docker compose up -d</code>. Именно пересоздать —
+          <code>PUID</code> читается при создании контейнера,
+          а не при запуске.</div>
         <div class="note warn"><b>И дальше — <code>git</code> без
           <code>sudo</code>.</b> Команды этого шага специально идут без него:
           <code>sudo git pull</code> создаёт новые объекты
