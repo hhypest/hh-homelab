@@ -11,6 +11,16 @@
 про протокол. Порт 6881 в TCP и UDP — не конфликт, и по тексту файла это
 не отличить.
 
+Адреса сравниваются по ПЕРЕКРЫТИЮ, а не по равенству. Раньше здесь было
+равенство и комментарий, что 127.0.0.1:2375 не спорит с 0.0.0.0:2375, —
+это неверно: wildcard занимает порт на всех адресах своего семейства,
+и второй bind получает EADDRINUSE независимо от порядка. Проверка молча
+пропускала ровно тот случай, ради которого писалась.
+
+Чего проверка НЕ умеет: сервисы в сети хоста занимают порты напрямую,
+минуя публикацию, поэтому их конфликты отсюда не видны — они просто
+перечисляются в конце.
+
 Номера портов лежат в .env, которого в репозитории нет и не будет. Поэтому
 при его отсутствии берётся .env.example — и проверка заодно приобретает
 смысл: она гарантирует, что набор портов, который мы предлагаем чужому
@@ -29,6 +39,69 @@ import subprocess
 import sys
 
 HOST_MODE: list[str] = []
+
+# Пустая строка — это тоже «слушать везде»: так compose пишет порт без адреса.
+IPV4_ANY = frozenset({"", "0.0.0.0"})
+IPV6_ANY = frozenset({"::", "[::]"})
+
+
+def family(host_ip: str) -> str:
+    """Семейство адреса. Двоеточие бывает только в IPv6."""
+    return "v6" if ":" in host_ip.strip("[]") else "v4"
+
+
+def is_any(host_ip: str) -> bool:
+    return host_ip in IPV4_ANY or host_ip in IPV6_ANY
+
+
+def overlaps(a: str, b: str) -> bool:
+    """
+    Займут ли два bind-адреса один и тот же порт.
+
+    Два конкретных адреса мешают друг другу только если совпадают.
+    Wildcard перекрывает любой адрес своего семейства.
+
+    Отдельный случай — `::` против IPv4. На Linux при штатном
+    net.ipv6.bindv6only=0 сокет на `::` принимает и IPv4-соединения, то есть
+    занимает порт в обоих семействах. Считаем это конфликтом: ложная тревога
+    в предполётной проверке стоит минуты, пропущенный конфликт — вечера.
+    """
+    if a == b:
+        return True
+
+    a_any, b_any = is_any(a), is_any(b)
+    if not a_any and not b_any:
+        return False
+    if a_any and b_any:
+        return True
+
+    wide, narrow = (a, b) if a_any else (b, a)
+    return family(wide) == family(narrow) or family(wide) == "v6"
+
+
+def find_conflicts(
+    entries: list[tuple[str, str, str, str]],
+) -> list[tuple[str, str, tuple[str, str], tuple[str, str]]]:
+    """Перекрывающиеся пары среди (порт, протокол, адрес, владелец)."""
+    grouped: dict[tuple[str, str], list[tuple[str, str]]] = collections.defaultdict(list)
+    for port, proto, host_ip, owner in entries:
+        grouped[(port, proto)].append((host_ip, owner))
+
+    found = []
+    for (port, proto), items in grouped.items():
+        for i in range(len(items)):
+            for j in range(i + 1, len(items)):
+                if overlaps(items[i][0], items[j][0]):
+                    found.append((port, proto, items[i], items[j]))
+    return found
+
+
+def where(host_ip: str) -> str:
+    if host_ip in IPV4_ANY:
+        return "везде"
+    if host_ip in IPV6_ANY:
+        return "везде (IPv6)"
+    return host_ip
 
 
 def env_file_for(compose_file: str) -> list[str]:
@@ -82,27 +155,22 @@ def main() -> int:
     for path in files:
         everything.extend(published(path))
 
-    # Ключ — порт, протокол и адрес: 6881/tcp и 6881/udp живут мирно,
-    # а 127.0.0.1:2375 не спорит с 0.0.0.0:2375 из другого проекта.
-    seen = collections.defaultdict(list)
-    for port, proto, host_ip, owner in everything:
-        seen[(port, proto, host_ip)].append(owner)
+    for port, proto, host_ip, owner in sorted(everything, key=lambda e: (int(e[0]), e[1])):
+        print(f"  {port:>6}/{proto:<3} {where(host_ip):<12} {owner}")
 
-    conflicts = {key: owners for key, owners in seen.items() if len(owners) > 1}
-
-    for (port, proto, host_ip), owners in sorted(seen.items(), key=lambda kv: int(kv[0][0])):
-        where = "везде" if host_ip in ("", "0.0.0.0") else host_ip
-        print(f"  {port:>6}/{proto:<3} {where:<12} {owners[0]}")
-
+    conflicts = find_conflicts(everything)
     if conflicts:
         print(f"\nНайдено конфликтов: {len(conflicts)}\n")
-        for (port, proto, host_ip), owners in conflicts.items():
-            print(f"  ✗ {port}/{proto} на {host_ip or 'всех адресах'} занят дважды: {', '.join(owners)}")
+        for port, proto, (ip_a, owner_a), (ip_b, owner_b) in conflicts:
+            print(
+                f"  ✗ {port}/{proto}: {where(ip_a)} ({owner_a}) "
+                f"перекрывается с {where(ip_b)} ({owner_b})"
+            )
         return 1
 
-    print(f"\nПортов опубликовано: {len(everything)}. Пересечений нет.")
+    print(f"\nПроверено опубликованных портов: {len(everything)}. Перекрытий нет.")
     if HOST_MODE:
-        print("\nВ сети хоста (порты занимают напрямую, этой проверкой не покрыты):")
+        print("\nЭтой проверкой НЕ покрыты — занимают порты напрямую, минуя публикацию:")
         for owner in HOST_MODE:
             print(f"  · {owner}")
     return 0
