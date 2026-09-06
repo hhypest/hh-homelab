@@ -632,8 +632,9 @@ docker compose version</code></pre></div>
     <p>
       Home Assistant ставят четырьмя способами, и конфигурация из этого
       репозитория переносится во все, а compose-файл — только в один.
-      Но переносится не дословно: в <code class="path">config/</code> есть
-      адреса, верные лишь пока Home Assistant делит петлю с медиа-стеком.
+      Но переносится не дословно: в <code class="path">config/</code>
+      зашиты адреса, верные лишь пока Home Assistant работает на одной
+      машине с медиа-стеком.
     </p>
   </div>
 
@@ -648,19 +649,30 @@ docker compose version</code></pre></div>
         </tr>
         <tr>
           <td>HA OS, Supervised, Core</td>
-          <td>только <code class="path">config/</code> — пакеты, автоматизации,
-              шаблоны, дашборд, <code class="path">secrets.yaml</code></td>
+          <td><code class="path">config/</code> — пакеты, автоматизации,
+              шаблоны, <code class="path">secrets.yaml</code> —
+              <b>и отдельно</b> <code class="path">dashboard-infrastructure.yaml</code></td>
         </tr>
       </tbody>
     </table>
   </div>
 
-  <div class="note crit"><b>Адресов восемь, и подстановки переменных
-    в них нет.</b> Это YAML и Python Home Assistant, а не compose: значения
-    из <code class="path">.env</code> в них не попадают. Все восемь написаны
+  <div class="note warn"><b>Дашборд лежит не в <code class="path">config/</code>.</b>
+    <code class="path">dashboard-infrastructure.yaml</code> — сосед этого
+    каталога, а не файл внутри него, и переносится он не копированием:
+    содержимое вставляется через интерфейс: карандаш → «⋮» →
+    <i>Редактировать в YAML</i>, как описано в разделе 10
+    <a href="index.html">чек-листа Home Assistant</a>. Возьмёте буквально
+    «только <code class="path">config/</code>» — дашборд не приедет, причём
+    молча.</div>
+
+  <h3 class="sub">Адреса, зашитые в конфигурацию</h3>
+  <div class="note crit"><b>Их десять, и подстановки переменных в них нет.</b>
+    Это YAML и Python Home Assistant, а не compose: значения
+    из <code class="path">.env</code> в них не попадают. Девять написаны
     как <code>127.0.0.1</code> и верны ровно до тех пор, пока Home Assistant
-    работает в host-сети на той же машине, что и медиа-стек. Перенесёте
-    HA — каждый будет указывать на чужую петлю.</div>
+    работает в host-сети на той же машине, что и медиа-стек. Десятый —
+    не петля, а адрес самой машины, и его легко упустить именно поэтому.</div>
   <div class="tablewrap">
     <table>
       <thead><tr><th>Где</th><th>Сколько</th><th>Куда указывает</th></tr></thead>
@@ -684,21 +696,105 @@ docker compose version</code></pre></div>
         </tr>
         <tr>
           <td><code class="path">bin/docker_state.py</code></td>
-          <td>значение по умолчанию</td>
-          <td>2375, но переопределяется переменной окружения
-              <code>DOCKER_PROXY_URL</code> — единственное место,
-              где правка файла не нужна</td>
+          <td>один</td>
+          <td>2375 как значение по умолчанию — см. следующую заметку,
+              просто так его не переопределить</td>
+        </tr>
+        <tr>
+          <td><code class="path">configuration.yaml</code></td>
+          <td>один</td>
+          <td><code>internal_url</code> — <b>адрес самой машины</b>, а не петля.
+              По нему Home Assistant строит локальные ссылки и обратные
+              вызовы</td>
         </tr>
       </tbody>
     </table>
   </div>
-  <p>Найти их все на своей копии:</p>
-  <div class="code"><button class="copy" type="button">копировать</button><pre><code>grep -rn '127\.0\.0\.1' homeassistant/config --include='*.yaml' --include='*.py'</code></pre></div>
-  <div class="note warn"><b>Чем это проявится, если забыть.</b> Сенсоры уйдут
-    в «недоступно», а Пачка исправно пришлёт тревогу про живые контейнеры —
-    то есть выглядеть будет как поломка медиа-стека, хотя сломан только
-    адрес в конфигурации Home Assistant. Это тот случай, когда тревога
-    хуже молчания: она уводит от причины.</div>
+  <p>Найти их все на своей копии — поиском по литеральному адресу в URL,
+    а не по одной лишь петле:</p>
+  <div class="code"><button class="copy" type="button">копировать</button><pre><code>grep -rnE 'https?://[0-9]{1,3}(\.[0-9]{1,3}){3}' \
+  --include='*.yaml' --include='*.py' \
+  homeassistant/config homeassistant/dashboard-infrastructure.yaml</code></pre></div>
+  <div class="note"><b>Часть находок будет из комментариев и docstring.</b>
+    Живых адресов десять, всего совпадений четырнадцать: остальные —
+    примеры в пояснениях к <code class="path">http_check.py</code>
+    и в комментариях пакетов. Править их не нужно, но и вычёркивать
+    из вывода незачем — глазами они отличаются сразу.</div>
+  <div class="note why"><b>Зачем здесь фильтры по расширению.</b> Без них
+    поиск цепляет скомпилированный <code class="path">.pyc</code>
+    в <code class="path">__pycache__</code> — он появляется на любой
+    установке, где Home Assistant уже запускался, и добавляет к выводу
+    строку про совпадение в двоичном файле. Совпадений тогда пятнадцать,
+    и лишнее из них — ровно оно.</div>
+
+  <h3 class="sub">Если Home Assistant переезжает на другую машину</h3>
+  <div class="note crit"><b>Одних адресов мало: прокси до вас не достучится.</b>
+    В <code class="path">homeassistant/.env.example</code> стоит
+    <code>DOCKERPROXY_BIND=127.0.0.1</code>, и
+    <code class="path">compose.yaml</code> публикует прокси только на петле
+    медиа-хоста. Поправите все десять адресов — и всё равно получите пустые
+    сенсоры, потому что соединяться не с чем. Это первое, что нужно решить,
+    и решать его правкой адресов бесполезно.</div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Как поступить</th><th>Чем платите</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Поднять свой экземпляр прокси рядом с Home Assistant</b>
+              и смотреть им в локальный Docker</td>
+          <td>ничем: поверхность не расширяется, петля остаётся петлёй.
+              Работает, если на машине с HA вообще есть Docker</td>
+        </tr>
+        <tr>
+          <td>Привязать прокси медиа-хоста к адресу в локальной сети</td>
+          <td>Docker API становится доступен по сети. Обязательно закрыть
+              правилом межсетевого экрана на единственный адрес — тот,
+              где живёт Home Assistant</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note why"><b>Почему первый вариант предпочтительнее.</b>
+    <code>DOCKERPROXY_BIND=127.0.0.1</code> стоит в образце не случайно:
+    доступ к Docker API равносилен root на хосте, и прокси ограничивает
+    не столько его самого, сколько набор методов. Открывать этот порт
+    в сеть — ослаблять именно ту границу, ради которой прокси и заводился.
+    Отдельный экземпляр обходится без этого размена.</div>
+
+  <div class="note crit"><b><code>DOCKER_PROXY_URL</code> задать нечем.</b>
+    <code class="path">bin/docker_state.py</code> читает эту переменную
+    окружения и падает на значение по умолчанию, если её нет. А её нет:
+    <code class="path">packages/docker.yaml</code> запускает скрипт командой
+    без окружения, и ничто в переносимой конфигурации её не выставляет.
+    Значит:</div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Установка</th><th>Что делать с этой переменной</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Контейнер</td>
+          <td>добавить в <code>environment:</code> сервиса
+              <code>homeassistant</code> в <code class="path">compose.yaml</code></td>
+        </tr>
+        <tr>
+          <td>HA OS, Supervised, Core</td>
+          <td>простого способа выставить переменную окружения процессу HA нет —
+              честнее прямо поправить адрес в самом
+              <code class="path">bin/docker_state.py</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note crit"><b>Список наблюдаемых контейнеров тоже станет
+    неверным.</b> И это ломается наоборот: когда всё остальное уже починено.
+    <code class="path">bin/docker_state.py</code> и
+    <code class="path">packages/docker.yaml</code> перечисляют среди
+    наблюдаемых контейнер <code>homeassistant</code>. Если прокси смотрит
+    в Docker другой машины, такого контейнера там нет — и он будет считаться
+    упавшим постоянно. Пачка начнёт слать тревогу о поломке, которой
+    не существует. Уберите <code>homeassistant</code> из обоих списков,
+    когда HA живёт отдельно от медиа-стека.</div>
 
   <div class="note why"><b>Почему сокет всё равно не пробрасывается напрямую.</b>
     Довод не зависит от платформы: доступ к <code class="path">docker.sock</code>
