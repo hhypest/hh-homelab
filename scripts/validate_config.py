@@ -9,6 +9,15 @@
 2. Все Jinja-шаблоны внутри значений компилируются. Это ловит незакрытые
    {% if %}, опечатки в фильтрах и потерянные кавычки — самую частую
    причину того, что пакет молча не загружается.
+
+   Раньше здесь вызывался Environment.parse(), и обещание было шире
+   проверки: parse разбирает синтаксис, но не разрешает имена. Шаблон
+   с опечаткой в фильтре проходил её и падал уже у Home Assistant.
+   Теперь вызывается from_string(), то есть шаблон компилируется.
+
+   Одного from_string мало: он разрешает имена фильтров, но не тестов.
+   Запись `x is nope` компилируется молча и падает только при выполнении.
+   Поэтому имена тестов сверяются отдельно, по разобранному дереву.
 3. secrets.yaml не попал под контроль версий.
 4. В файлах нет очевидных секретов: токенов Пачки, ключей Jellyfin,
    реальных MAC-адресов.
@@ -36,7 +45,7 @@ except ImportError:
     sys.exit("Нужен PyYAML: pip install pyyaml")
 
 try:
-    from jinja2 import Environment
+    from jinja2 import Environment, nodes
 except ImportError:
     sys.exit("Нужен Jinja2: pip install jinja2")
 
@@ -88,9 +97,70 @@ def iter_strings(node):
         yield node
 
 
+# Home Assistant добавляет к Jinja свои фильтры и тесты. Обычный Environment
+# о них не знает и на компиляции скажет «No filter named». Поэтому имена
+# регистрируются заглушками: здесь важно, что имя существует, а не что оно
+# делает — шаблон компилируется, но не выполняется.
+#
+# Список НАМЕРЕННО не повторяет весь Home Assistant: в нём то, что
+# используется в этом репозитории, плюс несколько частых имён. Так проверка
+# честно говорит, что знает. Понадобился ещё один фильтр — добавьте его сюда,
+# скрипт подскажет это прямым текстом в сообщении об ошибке.
+HA_FILTERS = (
+    "to_json", "from_json",
+    "regex_match", "regex_search", "regex_replace", "regex_findall",
+    "as_timestamp", "as_datetime", "as_local",
+    "timestamp_custom", "timestamp_local", "relative_time",
+    "average", "median", "multiply", "ordinal", "slugify",
+    "is_defined", "has_value", "iif",
+)
+
+HA_TESTS = (
+    "match", "search", "contains", "is_defined", "has_value",
+)
+
+HINT = (
+    "\n         Если это имя Home Assistant, а не опечатка — "
+    "добавьте его в HA_FILTERS или HA_TESTS в этом скрипте"
+)
+
+
+def _stub(*_args, **_kwargs) -> str:
+    """Заглушка: имя фильтра должно существовать, вызывать его мы не будем."""
+    return ""
+
+
+def unknown_tests(env: Environment, text: str) -> list[str]:
+    """
+    Имена тестов, которых окружение не знает.
+
+    from_string ловит неизвестные фильтры, но не тесты: конструкция
+    `x is nope_test` компилируется без единого возражения и падает только
+    при выполнении, то есть уже внутри Home Assistant. Поэтому имена тестов
+    приходится сверять по дереву разбора.
+    """
+    return sorted(
+        {
+            node.name
+            for node in env.parse(text).find_all(nodes.Test)
+            if node.name not in env.tests
+        }
+    )
+
+
+def ha_environment() -> Environment:
+    """Environment, знающий имена Home Assistant, но не его поведение."""
+    env = Environment()
+    for name in HA_FILTERS:
+        env.filters.setdefault(name, _stub)
+    for name in HA_TESTS:
+        env.tests.setdefault(name, _stub)
+    return env
+
+
 def main() -> int:
     problems: list[str] = []
-    env = Environment()
+    env = ha_environment()
 
     files: list[pathlib.Path] = []
     for pattern in YAML_GLOBS:
@@ -111,11 +181,22 @@ def main() -> int:
 
         for text in iter_strings(data):
             if "{{" in text or "{%" in text:
+                snippet = " ".join(text.split())[:90]
                 try:
-                    env.parse(text)
+                    env.from_string(text)
                 except Exception as err:
-                    snippet = " ".join(text.split())[:90]
-                    problems.append(f"{rel}: шаблон не компилируется — {err}\n         {snippet}")
+                    problems.append(
+                        f"{rel}: шаблон не компилируется — {err}"
+                        f"\n         {snippet}{HINT}"
+                    )
+                    continue
+
+                for name in unknown_tests(env, text):
+                    problems.append(
+                        f"{rel}: неизвестный тест «{name}» — "
+                        f"падёт при выполнении, а не при загрузке"
+                        f"\n         {snippet}{HINT}"
+                    )
 
     # --- секреты в рабочем дереве ---
     tracked = subprocess.run(
