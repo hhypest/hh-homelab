@@ -27,6 +27,7 @@ Home Assistant, дашборд, шаблоны уведомлений, два п
 | **[Журналы контейнеров](https://hhypest.github.io/hh-homelab/logs.html)** | Почему логи Docker растут без предела, как их ограничить, убрать накопленное и читать | 23 шага с отметками ([исходник](docs/logs.html)) |
 | **[Уведомления в Пачку](https://hhypest.github.io/hh-homelab/pachca.html)** | Какой бот в каком чате, где чей шаблон, как настроить каждый сервис | справочник ([исходник](docs/pachca.html)) |
 | **[Роутер](https://hhypest.github.io/hh-homelab/keenetic.html)** | Что в настройках Keenetic влияет на этот стек и чего лучше не трогать | заметки ([исходник](docs/keenetic.html)) |
+| **[Другие платформы](https://hhypest.github.io/hh-homelab/portability.html)** | Как поднять оба стека не на Synology: что переносится, что переписать в `.env`, где место Terraform и Ansible | советы ([исходник](docs/portability.html)) |
 | **[Дорожная карта](https://hhypest.github.io/hh-homelab/roadmap.html)** | Куда это может расти дальше, в каком порядке и чего решено не делать | 21 пункт с отметками ([исходник](docs/roadmap.html)) |
 | **[История версий](https://hhypest.github.io/hh-homelab/changelog.html)** | Что вошло в выпуск, на каких версиях образов проверено, как обновляться | changelog ([исходник](docs/changelog.html)) |
 

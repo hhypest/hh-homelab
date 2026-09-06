@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Как перенести этот стек не на Synology: что переносится без правок, что переписывается в .env, чем заменить механизмы DSM и почему compose остаётся источником истины при Terraform и Ansible.">
+<title>Другие платформы</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;font-size:14px}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+  .crosslink{margin-top:20px;font-size:13.5px;color:var(--muted)}
+  .crosslink a{color:var(--home);font-weight:500}
+</style>
+<style>
+/* ==========================================================================
+   Токены. Светлая палитра — на голом :root, тёмная переопределяет только их.
+   ========================================================================== */
+:root{
+  --ground:#F5F1EA;
+  --surface:#FFFCF7;
+  --surface-2:#EBE4D9;
+  --ink:#241D15;
+  --ink-2:#4C4136;
+  --muted:#7A6C5D;
+  --line:#DED4C6;
+  --line-strong:#BFB09C;
+  --home:#17635C;
+  --iot:#8F6109;
+  --ok:#3F6B33;
+  --crit:#A33A28;
+  --code-bg:#241D15;
+  --code-ink:#E8DFD2;
+  --code-dim:#9C8C7A;
+  --shadow:0 1px 2px rgba(36,29,21,.07), 0 8px 24px -16px rgba(36,29,21,.34);
+  --radius:10px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#17120E;
+    --surface:#201A15;
+    --surface-2:#2C241D;
+    --ink:#F0E8DC;
+    --ink-2:#C3B5A4;
+    --muted:#948674;
+    --line:#362C24;
+    --line-strong:#55473A;
+    --home:#5FC4B4;
+    --iot:#DFAC5A;
+    --ok:#8FC077;
+    --crit:#EC8A76;
+    --code-bg:#100C09;
+    --code-ink:#E3D9CB;
+    --code-dim:#8B7C6A;
+    --shadow:0 1px 2px rgba(0,0,0,.45), 0 8px 24px -16px rgba(0,0,0,.72);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#17120E;
+  --surface:#201A15;
+  --surface-2:#2C241D;
+  --ink:#F0E8DC;
+  --ink-2:#C3B5A4;
+  --muted:#948674;
+  --line:#362C24;
+  --line-strong:#55473A;
+  --home:#5FC4B4;
+  --iot:#DFAC5A;
+  --ok:#8FC077;
+  --crit:#EC8A76;
+  --code-bg:#100C09;
+  --code-ink:#E3D9CB;
+  --code-dim:#8B7C6A;
+  --shadow:0 1px 2px rgba(0,0,0,.45), 0 8px 24px -16px rgba(0,0,0,.72);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"IBM Plex Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  font-size:15.5px;
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:"Golos Text","IBM Plex Sans",system-ui,sans-serif;text-wrap:balance;margin:0}
+a{color:var(--home)}
+code,kbd,pre{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+
+/* ---------- каркас ---------- */
+.wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+.layout{display:grid;grid-template-columns:248px minmax(0,1fr);gap:48px;align-items:start}
+
+/* ---------- шапка ---------- */
+header.top{
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,var(--surface),var(--ground));
+}
+.top .wrap{padding-top:44px;padding-bottom:34px}
+.eyebrow{
+  font-family:"Golos Text",sans-serif;font-weight:600;font-size:11.5px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;
+}
+h1{font-size:clamp(30px,4.4vw,46px);font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.lede{max-width:64ch;margin-top:14px;color:var(--ink-2);font-size:17px}
+.facts{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.fact{
+  display:inline-flex;align-items:center;gap:7px;
+  border:1px solid var(--line);border-radius:100px;background:var(--surface);
+  padding:5px 13px;font-size:12.5px;color:var(--ink-2);
+}
+.fact b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+.dot.home{background:var(--home)}
+.dot.iot{background:var(--iot)}
+
+/* ---------- боковая навигация ---------- */
+nav.rail{position:sticky;top:24px;padding:24px 0 60px}
+.progress{
+  border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);
+  padding:14px;display:flex;align-items:center;gap:13px;margin-bottom:20px;box-shadow:var(--shadow);
+}
+.ring{flex:none}
+.ring circle{fill:none;stroke-width:5}
+.ring .bg{stroke:var(--line)}
+.ring .fg{stroke:var(--home);stroke-linecap:round;transition:stroke-dashoffset .35s ease}
+.progress .txt{font-size:12.5px;line-height:1.35;color:var(--muted)}
+.progress .txt b{display:block;font-family:"Golos Text",sans-serif;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+.reset{
+  appearance:none;border:1px solid var(--line);background:transparent;color:var(--muted);
+  font:inherit;font-size:11.5px;padding:2px 8px;border-radius:6px;cursor:pointer;margin-top:4px;
+}
+.reset:hover{color:var(--ink);border-color:var(--line-strong)}
+nav.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
+nav.rail a{
+  display:flex;gap:10px;align-items:baseline;
+  padding:6px 10px;border-radius:7px;text-decoration:none;color:var(--ink-2);font-size:13.5px;
+  border-left:2px solid transparent;
+}
+nav.rail a:hover{background:var(--surface-2);color:var(--ink)}
+nav.rail a.active{background:var(--surface);color:var(--ink);border-left-color:var(--home);font-weight:500}
+nav.rail a .n{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px;min-width:16px}
+nav.rail a.done .n::after{content:"✓";color:var(--ok)}
+nav.rail a.done .n{font-size:0}
+
+/* ---------- секции ---------- */
+main{padding:34px 0 120px;min-width:0}
+section{margin-bottom:56px;scroll-margin-top:20px}
+.sec-head{border-top:2px solid var(--ink);padding-top:14px;margin-bottom:22px}
+.sec-head .kicker{
+  font-family:"Golos Text",sans-serif;font-size:11.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--muted);font-weight:600;
+}
+h2{font-size:clamp(21px,2.6vw,27px);font-weight:700;letter-spacing:-.015em;margin-top:4px}
+.sec-head p{margin:10px 0 0;color:var(--ink-2);max-width:68ch}
+
+/* ---------- шаги ---------- */
+ol.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
+li.step{
+  display:grid;grid-template-columns:28px minmax(0,1fr);gap:14px;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 18px;box-shadow:var(--shadow);transition:opacity .2s ease;
+}
+li.step.checked{opacity:.55}
+li.step.checked h3{text-decoration:line-through;text-decoration-color:var(--line-strong)}
+.step-check{position:relative;display:block;width:22px;height:22px;margin-top:2px;cursor:pointer}
+.step-check input{position:absolute;opacity:0;width:22px;height:22px;margin:0;cursor:pointer}
+.step-check .box{
+  display:block;width:22px;height:22px;border:1.5px solid var(--line-strong);
+  border-radius:6px;background:var(--ground);transition:.15s ease;
+}
+.step-check input:focus-visible + .box{outline:2px solid var(--home);outline-offset:2px}
+.step-check input:checked + .box{background:var(--home);border-color:var(--home)}
+.step-check .box::after{
+  content:"";position:absolute;left:7px;top:3px;width:6px;height:11px;
+  border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(45deg) scale(0);
+  transition:transform .15s ease;
+}
+.step-check input:checked + .box::after{transform:rotate(45deg) scale(1)}
+.step-body{min-width:0}
+.step-body h3{font-size:16.5px;font-weight:600;letter-spacing:-.005em;display:flex;gap:9px;align-items:baseline}
+.step-body h3 .num{
+  font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:500;
+  color:var(--home);flex:none;padding-top:1px;
+}
+.step-body p{margin:9px 0 0;color:var(--ink-2);max-width:70ch}
+.step-body p:first-of-type{margin-top:7px}
+.step-body ul{margin:9px 0 0;padding-left:20px;color:var(--ink-2);max-width:70ch}
+.step-body li{margin:3px 0}
+.step-body b,.step-body strong{color:var(--ink);font-weight:600}
+
+/* ---------- врезки ---------- */
+.note{
+  margin-top:12px;padding:11px 14px;border-left:3px solid var(--line-strong);
+  background:var(--surface-2);border-radius:0 7px 7px 0;font-size:14px;color:var(--ink-2);
+  max-width:72ch;
+}
+.note b:first-child{color:var(--ink)}
+.note.why{border-left-color:var(--home)}
+.note.warn{border-left-color:var(--iot)}
+.note.crit{border-left-color:var(--crit)}
+.note p{margin:6px 0 0}
+.note p:first-child{margin:0}
+
+/* ---------- код ---------- */
+.code{position:relative;margin-top:12px}
+.code pre{
+  margin:0;background:var(--code-bg);color:var(--code-ink);
+  padding:14px 16px;border-radius:8px;overflow-x:auto;
+  font-size:12.8px;line-height:1.62;border:1px solid var(--line);
+}
+.code pre .c{color:var(--code-dim)}
+.code .copy{
+  position:absolute;top:8px;right:8px;appearance:none;cursor:pointer;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);
+  color:var(--code-dim);font-family:"IBM Plex Sans",sans-serif;font-size:11px;
+  padding:3px 9px;border-radius:5px;opacity:0;transition:.15s ease;
+}
+.code:hover .copy,.code .copy:focus-visible{opacity:1}
+.code .copy:hover{color:#fff;background:rgba(255,255,255,.14)}
+code:not(pre code){
+  background:var(--surface-2);border:1px solid var(--line);
+  padding:1px 5px;border-radius:4px;font-size:.88em;color:var(--ink);
+}
+.path{color:var(--home);overflow-wrap:anywhere}
+
+/* ---------- таблицы ---------- */
+.tablewrap{overflow-x:auto;margin-top:14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.8px;min-width:520px}
+th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{
+  font-family:"Golos Text",sans-serif;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);font-weight:600;background:var(--surface-2);
+}
+tbody tr:last-child td{border-bottom:none}
+td code{white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+
+/* ---------- диаграмма ---------- */
+figure{margin:0 0 26px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px 18px 16px;box-shadow:var(--shadow)}
+figure svg{display:block;width:100%;max-width:100%;height:auto;color:var(--ink-2)}
+figcaption{margin-top:14px;font-size:13.5px;color:var(--muted);max-width:74ch}
+
+/* ---------- метки ---------- */
+.tag{
+  display:inline-block;font-family:"Golos Text",sans-serif;font-size:10.5px;font-weight:600;
+  letter-spacing:.07em;text-transform:uppercase;padding:2px 7px;border-radius:4px;
+  border:1px solid currentColor;vertical-align:2px;margin-left:8px;
+}
+.tag.opt{color:var(--muted)}
+.tag.later{color:var(--iot)}
+.tag.key{color:var(--home)}
+
+footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);font-size:13px}
+
+@media (max-width:940px){
+  .layout{grid-template-columns:1fr;gap:0}
+  nav.rail{position:static;padding:18px 0 0}
+  nav.rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px}
+  main{padding-top:24px}
+}
+/* ---------- переключатель темы ---------- */
+.top .wrap{position:relative}
+.theme-switch{
+  position:absolute;top:40px;right:24px;
+  display:inline-flex;gap:2px;padding:3px;
+  border:1px solid var(--line);border-radius:100px;
+  background:var(--surface);box-shadow:var(--shadow);
+}
+.theme-switch button{
+  appearance:none;border:0;background:transparent;cursor:pointer;line-height:1;
+  font-family:"Golos Text",sans-serif;font-size:11.5px;font-weight:500;
+  color:var(--muted);padding:6px 12px;border-radius:100px;
+}
+.theme-switch button:hover{color:var(--ink)}
+.theme-switch button[aria-pressed="true"]{background:var(--surface-2);color:var(--ink)}
+.theme-switch button:focus-visible{outline:2px solid var(--home);outline-offset:2px}
+@media (max-width:760px){
+  .theme-switch{position:static;margin-bottom:18px}
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important;animation:none !important}
+}
+</style>
+<script>
+/* Тема применяется до отрисовки — иначе на светлой теме мигнёт тёмная. */
+(function () {
+  var KEY = 'hh-homelab-theme';
+  var root = document.documentElement;
+  function apply(v) {
+    if (v === 'light' || v === 'dark') root.setAttribute('data-theme', v);
+    else root.removeAttribute('data-theme');
+  }
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) {}
+  apply(saved || 'auto');
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var box = document.querySelector('.theme-switch');
+    if (!box) return;
+    var buttons = box.querySelectorAll('button[data-theme-set]');
+    function mark(v) {
+      Array.prototype.forEach.call(buttons, function (b) {
+        b.setAttribute('aria-pressed', String(b.getAttribute('data-theme-set') === v));
+      });
+    }
+    mark(saved || 'auto');
+    box.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest ? e.target.closest('button[data-theme-set]') : null;
+      if (!b) return;
+      var v = b.getAttribute('data-theme-set');
+      apply(v);
+      mark(v);
+      try {
+        if (v === 'auto') localStorage.removeItem(KEY); else localStorage.setItem(KEY, v);
+      } catch (err) {}
+    });
+  });
+})();
+</script>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="theme-switch" role="group" aria-label="Тема оформления">
+      <button type="button" data-theme-set="auto" aria-pressed="true">Авто</button>
+      <button type="button" data-theme-set="light" aria-pressed="false">Светлая</button>
+      <button type="button" data-theme-set="dark" aria-pressed="false">Тёмная</button>
+    </div>
+    <div class="eyebrow">Советы · перенос стека на другое железо</div>
+    <h1>Другие платформы</h1>
+    <p class="lede">
+      Чек-листы написаны под Synology DS725+, но привязано к нему меньше,
+      чем кажется. Ниже — что переносится без правок, что переписывается
+      в <code>.env</code>, и чего в вашей системе не окажется вовсе.
+      Отдельно — почему compose остаётся источником истины, даже если
+      разворачивать вы будете через Terraform или Ansible.
+    </p>
+    <div class="facts">
+      <span class="fact">меняется <b>.env</b></span>
+      <span class="fact">переносится <b>всё остальное</b></span>
+      <span class="fact">пути в compose <b>относительные</b></span>
+    </div>
+    <p class="crosslink">Соседние документы: <a href="media-stack.html">медиа-стек</a>
+      · <a href="index.html">развёртывание Home Assistant</a>
+      · <a href="overview.html">обзор проекта</a>.</p>
+  </div>
+</header>
+
+<div class="wrap layout">
+
+<nav class="rail" aria-label="Разделы">
+  <ol id="toc"></ol>
+</nav>
+
+<main>
+
+<section id="s0">
+  <div class="sec-head">
+    <div class="kicker">Раздел 0</div>
+    <h2 id="что-переносится">Что переносится, а что нет</h2>
+    <p>
+      К Synology привязана документация, а не конфигурация. В обоих
+      <code>compose.yaml</code> нет ни одного абсолютного пути к состоянию
+      сервисов — только относительные <code>./config/&lt;сервис&gt;</code>,
+      которые Compose разрешает от каталога самого файла. Поэтому клон
+      переносится куда угодно и поднимается там же, без правки путей.
+    </p>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Что</th><th>Переносится</th><th>Почему</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code class="path">media/compose.yaml</code>,
+              <code class="path">homeassistant/compose.yaml</code></td>
+          <td>да, без правок</td>
+          <td>всё машинозависимое вынесено в <code class="path">.env</code>,
+              значений по умолчанию нет намеренно</td>
+        </tr>
+        <tr>
+          <td><code class="path">.env</code></td>
+          <td>переписывается</td>
+          <td>это и есть тот файл, ради которого затевалась вся параметризация</td>
+        </tr>
+        <tr>
+          <td><code class="path">homeassistant/config/</code></td>
+          <td>да, в любую установку Home Assistant</td>
+          <td>пакеты, автоматизации, шаблоны и дашборд не знают, в чём запущен HA</td>
+        </tr>
+        <tr>
+          <td><code class="path">pachca/*.liquid</code></td>
+          <td>да</td>
+          <td>шаблоны живут на стороне Пачки и от платформы не зависят вовсе</td>
+        </tr>
+        <tr>
+          <td><code class="path">scripts/</code>, <code class="path">tests/</code>,
+              CI</td>
+          <td>да</td>
+          <td>проверяют содержимое репозитория, а не хост</td>
+        </tr>
+        <tr>
+          <td>Пути вида <code class="path">/volume1/…</code> в тексте</td>
+          <td>нет</td>
+          <td>это раскладка томов DSM</td>
+        </tr>
+        <tr>
+          <td><code>PUID=1026</code>, <code>PGID=100</code></td>
+          <td>нет</td>
+          <td>1026 — первая учётная запись DSM, на других системах номер другой</td>
+        </tr>
+        <tr>
+          <td>Container Manager, Git Server, Hyper Backup, Планировщик задач</td>
+          <td>нет</td>
+          <td>пакеты DSM; замены — в <a href="#чему-нужна-замена">разделе 5</a></td>
+        </tr>
+        <tr>
+          <td><code>sudo</code> перед каждым <code>docker</code></td>
+          <td>нет</td>
+          <td>в DSM иначе нельзя; на обычном Linux решается членством в группе
+              <code>docker</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note why"><b>Почему это вообще получилось.</b> Ровно из-за двух
+    решений, принятых по другим причинам: состояние сервисов монтируется
+    относительными путями, а машинозависимые значения живут
+    в <code class="path">.env</code> без значений по умолчанию. Первое делает
+    клон самодостаточным, второе — заставляет <code>docker compose up</code>
+    упасть с именем недостающей переменной вместо тихого запуска
+    с чужими настройками.</div>
+</section>
+
+<section id="s1">
+  <div class="sec-head">
+    <div class="kicker">Раздел 1</div>
+    <h2 id="минимум-правок">Минимум, который надо переписать</h2>
+    <p>
+      Пять величин. Всё остальное в образцах
+      <code class="path">.env.example</code> платформенно-нейтрально.
+    </p>
+  </div>
+
+  <h3 class="sub">PUID и PGID</h3>
+  <p>
+    Узнаются одной командой — от того пользователя, под которым вы ведёте стек:
+  </p>
+  <div class="code"><button class="copy" type="button">копировать</button><pre><code>id</code></pre></div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Система</th><th>Что обычно</th></tr></thead>
+      <tbody>
+        <tr><td>Synology DSM</td><td><code>1026:100</code> — первая учётная запись и группа <code>users</code></td></tr>
+        <tr><td>Обычный Linux</td><td><code>1000:1000</code> — первый созданный пользователь</td></tr>
+        <tr><td>Unraid</td><td>в шаблонах принято <code>99:100</code> (<code>nobody:users</code>)</td></tr>
+        <tr><td>QNAP, TrueNAS и прочие</td><td>смотрите <code>id</code> на месте, единого значения нет</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note crit"><b>Эти же числа должны владеть каталогами.</b>
+    Корень библиотеки, каталоги состояния и сам клон — всё принадлежит
+    <code>PUID:PGID</code>. Разъедутся — контейнеры молча потеряют запись,
+    и выглядеть это будет как «загрузки встали», а не как проблема
+    с правами.</div>
+
+  <h3 class="sub">MEDIA_ROOT</h3>
+  <p>
+    Единственное требование к нему платформенно-независимо: <b>торренты
+    и библиотека должны лежать на одной файловой системе</b>, иначе Radarr
+    не сможет импортировать хардлинком и начнёт копировать файлы. Проверяется
+    сравнением номера устройства:
+  </p>
+  <div class="code"><button class="copy" type="button">копировать</button><pre><code>stat -c '%d %n' /путь/torrents /путь/media</code></pre></div>
+  <p>Первое число совпало — одна файловая система, хардлинки будут.</p>
+  <div class="note warn"><b>Классическая ловушка Unraid.</b> Пользовательские
+    шары (<code class="path">/mnt/user/…</code>) и диски напрямую
+    (<code class="path">/mnt/disk1/…</code>) — это разные пути к одним файлам.
+    Смонтируете загрузки одним способом, а библиотеку другим — <code>stat</code>
+    покажет разные устройства, и импорт пойдёт копированием. Оба каталога
+    должны быть под одним и тем же префиксом.</div>
+
+  <h3 class="sub">Порты, BIND_ADDR и TZ</h3>
+  <p>
+    DSM занимает 5000 и 5001, поэтому в образце их нет. У вашей платформы
+    заняты другие: у Unraid — 80, у Container Station и многих панелей — 8080.
+    Проверьте до первого запуска:
+  </p>
+  <div class="code"><button class="copy" type="button">копировать</button><pre><code>ss -tulpn | grep -E ':(9080|9696|7878|8191|8096|5055|8123|2375)\s'</code></pre></div>
+  <div class="note"><b><code>check_ports.py</code> ловит не это.</b> Он сверяет
+    порты между сервисами внутри compose-файлов и найдёт, если вы назначили
+    один номер дважды. Занят ли порт на вашем хосте — он не знает
+    и знать не может. Это остаётся за командой выше.</div>
+  <p>
+    <code>BIND_ADDR=0.0.0.0</code> публикует порты во всю локальную сеть,
+    <code>127.0.0.1</code> — только на самом хосте, если впереди стоит обратный
+    прокси. <code>TZ</code> указывается дважды, в обоих
+    <code class="path">.env</code>: это отдельные compose-проекты,
+    и в соседний каталог Compose не заглядывает.
+  </p>
+</section>
+
+<section id="s2">
+  <div class="sec-head">
+    <div class="kicker">Раздел 2</div>
+    <h2 id="платформы">Платформы по отдельности</h2>
+  </div>
+
+  <h3 class="sub">Обычный Linux с Docker Engine</h3>
+  <p>
+    Самый простой случай: чек-листы применимы дословно, кроме
+    <code>sudo</code> и путей. Добавьте себя в группу <code>docker</code> —
+    и <code>sudo</code> из всех команд уходит:
+  </p>
+  <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo usermod -aG docker "$USER"
+<span class="c"># перелогиниться, иначе членство не подхватится</span>
+docker compose version</code></pre></div>
+  <div class="note warn"><b>Compose должен быть второй версии.</b> В командах
+    везде <code>docker compose</code> (плагин), а не <code>docker-compose</code>
+    (отдельный скрипт первой версии). На первой версии часть синтаксиса
+    в файлах не разберётся.</div>
+
+  <h3 class="sub">Xpenology</h3>
+  <p>
+    Это тот же DSM, поэтому оба чек-листа применимы <b>дословно</b>, включая
+    номера учётных записей и раскладку <code class="path">/volume1</code>.
+    Два отличия стоит держать в голове.
+  </p>
+  <div class="note why"><b>Аппаратное транскодирование, скорее всего, появится.</b>
+    У «плюсовых» Synology на AMD Ryzen нет встроенного видеоядра, поэтому
+    в <code class="path">media/compose.yaml</code> не проброшен
+    <code class="path">/dev/dri</code>. На типичном железе Xpenology процессор
+    Intel со встроенной графикой, и устройство есть. Проверить и включить:</div>
+  <div class="code"><button class="copy" type="button">копировать</button><pre><code>ls -l /dev/dri</code></pre></div>
+  <p>Есть вывод — добавьте в сервис <code>jellyfin</code>:</p>
+  <div class="code"><button class="copy" type="button">копировать</button><pre><code>    devices:
+      - /dev/dri:/dev/dri</code></pre></div>
+  <div class="note crit"><b>Обновления DSM на неоригинальном железе — отдельный
+    риск.</b> Загрузчик и драйверы сетевых карт переживают не каждое
+    обновление, а перезагрузка после неудачного обновления может не подняться
+    вовсе. Резервная копия конфигурации до обновления здесь не
+    формальность.</div>
+
+  <h3 class="sub">QNAP и другие NAS с оболочкой над Docker</h3>
+  <p>
+    Container Station умеет разворачивать compose-файлы, но у оболочек
+    есть общая черта: они хранят свою копию настроек и способны переписать
+    контейнер мимо ваших файлов. Надёжнее поднимать стек из командной строки —
+    ровно как в чек-листах, — а оболочку использовать только для просмотра.
+  </p>
+  <div class="note"><b>Пути и номера смотрите на месте.</b> Раскладка томов
+    у QNAP другая (<code class="path">/share/…</code>), номера учётных записей
+    тоже. Оба значения — это две строки в <code class="path">.env</code>
+    и ни одной правки в compose.</div>
+
+  <h3 class="sub">Docker Desktop на macOS и Windows</h3>
+  <div class="note crit"><b>Годится проверить конфигурацию, но не для боевой
+    установки.</b> Home Assistant запущен с <code>network_mode: host</code>,
+    и на не-Linux Docker Desktop это ведёт себя иначе: контейнеры работают
+    в виртуальной машине, поэтому обнаружение устройств по mDNS и SSDP
+    в домашней сети не работает так, как в чек-листе. Заодно теряет смысл
+    <code>NAS_HOST</code>: адрес, который Jellyfin сообщает клиентам,
+    указывает внутрь виртуальной машины, и приложения на телевизоре
+    по нему не придут.</div>
+</section>
+
+<section id="s3">
+  <div class="sec-head">
+    <div class="kicker">Раздел 3</div>
+    <h2 id="home-assistant-в-другом-виде">Home Assistant: контейнер или HA OS</h2>
+    <p>
+      Home Assistant ставят четырьмя способами, и конфигурация из этого
+      репозитория переносится во все, а вот compose-файл — только в один.
+    </p>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Как поставлен HA</th><th>Что берём из репозитория</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Контейнер (как здесь)</td>
+          <td>всё: <code class="path">compose.yaml</code>,
+              <code class="path">.env</code>, <code class="path">config/</code></td>
+        </tr>
+        <tr>
+          <td>HA OS, Supervised, Core</td>
+          <td>только <code class="path">config/</code> — пакеты, автоматизации,
+              шаблоны, дашборд, <code class="path">secrets.yaml</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note crit"><b>Один адрес придётся поправить.</b>
+    <code class="path">config/packages/docker.yaml</code> ходит за метриками
+    контейнеров по <code>http://127.0.0.1:&lt;DOCKERPROXY_PORT&gt;</code>,
+    и этот адрес верен только тогда, когда HA работает в host-сети рядом
+    с docker-socket-proxy. В HA OS прокси — это отдельная сущность, живущая
+    в другом месте: адрес в пакете надо привести к фактическому, иначе
+    все сенсоры контейнеров уйдут в «недоступно», а Пачка исправно пришлёт
+    об этом тревогу.</div>
+
+  <div class="note why"><b>Почему сокет всё равно не пробрасывается напрямую.</b>
+    Довод не зависит от платформы: доступ к <code class="path">docker.sock</code>
+    равносилен root на хосте. Прокси отдаёт только те методы API, которые нужны
+    для чтения состояния контейнеров. При переносе на другую систему это
+    свойство стоит сохранить, каким бы способом вы прокси ни запустили.</div>
+</section>
+
+<section id="s4">
+  <div class="sec-head">
+    <div class="kicker">Раздел 4</div>
+    <h2 id="terraform-и-ansible">Terraform, Ansible и почему compose остаётся источником истины</h2>
+  </div>
+
+  <div class="note crit"><b>Не переписывайте compose в ресурсы Terraform.</b>
+    Соблазн понятен, но обмен неудачный. Вы потеряете порядок запуска,
+    подстановку из <code class="path">.env</code> и общую сеть — а главное,
+    все проверки репозитория станут декоративными: CI разворачивает
+    <code>docker compose config</code> на образцах
+    <code class="path">.env.example</code> и сверяет порты именно
+    в compose-файлах. Разворачиваться при этом будет что-то другое,
+    и расхождение вы заметите не в CI, а на живом сервисе.</div>
+
+  <p>Разделение, которое работает:</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Инструмент</th><th>Его зона</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Terraform</b></td>
+          <td>хост целиком: машина, диски, сеть, правила межсетевого экрана,
+              DNS-запись. Стек на готовый хост приезжает через cloud-init
+              или provisioner — тем же <code>git clone</code>
+              и <code>docker compose up -d</code></td>
+        </tr>
+        <tr>
+          <td><b>Ansible</b></td>
+          <td>ближе по задаче: роль ставит Docker, клонирует репозиторий,
+              кладёт <code class="path">.env</code> из хранилища и вызывает
+              <code>docker compose up -d</code>. Между хостами различается
+              ровно один файл — тот самый <code class="path">.env</code></td>
+        </tr>
+        <tr>
+          <td><b>Compose</b></td>
+          <td>что именно запущено и как связано. Остаётся здесь и остаётся
+              единственным описанием</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note warn"><b>Секреты берите из хранилища своего инструмента.</b>
+    <code class="path">.env</code> перечислен в <code class="path">.gitignore</code>
+    и не должен появиться ни в репозитории, ни в state-файле Terraform,
+    который тоже хранит значения открытым текстом. Ansible Vault, SOPS,
+    переменные окружения CI — годится любое, кроме коммита.</div>
+
+  <div class="note why"><b>Проверки репозитория остаются полезными и у вас.</b>
+    <code>validate_config.py</code>, <code>validate_entities.py</code>,
+    <code>check_ports.py</code> и тесты читают файлы, а не хост, — значит
+    работают в вашем CI без единой правки. Если вы форкнули репозиторий
+    и меняете конфигурацию под себя, это единственное, что подскажет
+    про сломанную ссылку на сущность или разъехавшийся порт до того,
+    как это увидит Home Assistant.</div>
+</section>
+
+<section id="s5">
+  <div class="sec-head">
+    <div class="kicker">Раздел 5</div>
+    <h2 id="чему-нужна-замена">Чему нужна замена</h2>
+    <p>
+      Механизмы DSM, на которые чек-листы ссылаются между делом, и чем они
+      закрываются на обычной системе.
+    </p>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>В DSM</th><th>Чем заменить</th><th>Замечание</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Container Manager</td>
+          <td><code>docker compose</code> из командной строки</td>
+          <td>в чек-листах это и так основной путь, оболочка нигде не обязательна</td>
+        </tr>
+        <tr>
+          <td>Пакет Git Server ради команды <code>git</code></td>
+          <td>пакетный менеджер системы</td>
+          <td>странность только DSM: там базовой команды <code>git</code> нет</td>
+        </tr>
+        <tr>
+          <td>Hyper Backup</td>
+          <td><code>restic</code>, <code>borg</code>, <code>rsync</code></td>
+          <td>копировать нужно <code class="path">config/</code> обоих стеков
+              и оба <code class="path">.env</code>; библиотека
+              восстанавливается скачиванием, настройки — нет</td>
+        </tr>
+        <tr>
+          <td>Планировщик задач DSM</td>
+          <td><code>cron</code> или таймеры <code>systemd</code></td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Индексатор Synology</td>
+          <td>ничего</td>
+          <td>каталоги <code class="path">@eaDir</code> не появятся; строка
+              в <code class="path">.gitignore</code> просто не понадобится</td>
+        </tr>
+        <tr>
+          <td><code>sudo</code> перед <code>docker</code></td>
+          <td>группа <code>docker</code></td>
+          <td>см. раздел 2</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note"><b>Чего в этом документе намеренно нет.</b> Пошаговых
+    инструкций под каждую платформу: они устареют быстрее, чем их успеют
+    прочитать, и проверить их на живом железе я не могу. Здесь только то,
+    что следует из устройства самого репозитория, — а дальше работают оба
+    основных чек-листа, с поправкой на пять величин из
+    <a href="#минимум-правок">раздела 1</a>.</div>
+</section>
+</main>
+</div>
+
+<footer>
+  <div class="wrap">hh-homelab · Другие платформы</div>
+</footer>
+
+<script>
+(function () {
+  var toc = document.getElementById('toc');
+  var sections = Array.prototype.slice.call(document.querySelectorAll('main section'));
+
+  sections.forEach(function (sec) {
+    var h2 = sec.querySelector('h2');
+    if (!h2) return;
+    var kicker = sec.querySelector('.kicker');
+    var label = (kicker ? kicker.textContent.replace(/Раздел\s*/i, '').replace(/Приложение\s*/i, '') : '').trim();
+    var li = document.createElement('li');
+    var a = document.createElement('a');
+    a.href = '#' + sec.id;
+    a.dataset.sec = sec.id;
+    a.innerHTML = '<span class="n">' + label + '</span><span>' + h2.textContent.trim() + '</span>';
+    li.appendChild(a);
+    toc.appendChild(li);
+  });
+
+  /* ---- кнопки «копировать» ---- */
+  Array.prototype.forEach.call(document.querySelectorAll('.code .copy'), function (btn) {
+    btn.addEventListener('click', function () {
+      var pre = btn.parentNode.querySelector('pre');
+      if (!pre) return;
+      var text = pre.innerText;
+      var done = function () {
+        var old = btn.textContent;
+        btn.textContent = 'скопировано';
+        setTimeout(function () { btn.textContent = old; }, 1400);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () {});
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) {}
+        document.body.removeChild(ta);
+      }
+    });
+  });
+
+  /* ---- подсветка текущего раздела ---- */
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        var link = toc.querySelector('a[data-sec="' + entry.target.id + '"]');
+        if (!link) return;
+        if (entry.isIntersecting) {
+          Array.prototype.forEach.call(toc.querySelectorAll('a'), function (a) { a.classList.remove('active'); });
+          link.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-10% 0px -75% 0px' });
+    sections.forEach(function (s) { obs.observe(s); });
+  }
+})();
+</script>
+
+</body>
+</html>
