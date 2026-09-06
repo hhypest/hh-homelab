@@ -152,3 +152,88 @@ def test_home_assistant_polls_ports_that_exist_in_env() -> None:
         + "; ".join(strays)
         + ". Либо порт сменили только в .env, либо только здесь."
     )
+
+
+# --- BIND_ADDR и петлевой путь -----------------------------------------------
+# Замечание R-03 независимого аудита предлагало развести BIND_ADDR на несколько
+# переменных: отдельно админки, отдельно то, что смотрит наружу. Политика
+# оказалась одна на весь стек — «внутри локальной сети видно всё, снаружи
+# ничего», — поэтому переменная осталась одна.
+#
+# Но у сужения адреса есть последствие, которое не видно из media/: публикация
+# на конкретном адресе убирает петлевой путь. Сокет, привязанный к 192.168.3.53,
+# на 127.0.0.1 не отвечает вовсе — connection refused. А Home Assistant
+# опрашивает медиа-стек именно по петле: он работает в host-сети на том же NAS.
+#
+# То есть BIND_ADDR и адреса опросов связаны и обязаны меняться вместе.
+# Сужение только здесь выглядит как отказ шести сервисов сразу, причём
+# контейнеры при этом живы — искать причину будут в них.
+
+LOOPBACK_ADDRESSES = {"0.0.0.0", "127.0.0.1", "::", "[::]", "localhost", ""}
+
+
+def bind_addr() -> str:
+    for line in (ROOT / "media" / ".env.example").read_text(encoding="utf-8").splitlines():
+        if line.startswith("BIND_ADDR="):
+            return line.split("=", 1)[1].strip()
+    raise AssertionError("в media/.env.example нет BIND_ADDR")
+
+
+def media_ports() -> set[str]:
+    """Порты хоста, которые публикует медиа-стек, — только они зависят от BIND_ADDR."""
+    ports = set()
+    for name, value in (
+        line.split("=", 1)
+        for line in (ROOT / "media" / ".env.example").read_text(encoding="utf-8").splitlines()
+        if "=" in line and not line.lstrip().startswith("#")
+    ):
+        if "PORT" in name and value.strip().isdigit():
+            ports.add(value.strip())
+    return ports
+
+
+def polls_broken_by(address: str) -> list[str]:
+    """
+    Опросы Home Assistant, которые перестанут отвечать при такой привязке.
+
+    Порты самого проекта homeassistant (8123 и dockerproxy) сюда не входят:
+    они публикуются своим compose-файлом и от BIND_ADDR не зависят.
+    """
+    if address in LOOPBACK_ADDRESSES:
+        return []
+    ours = media_ports()
+    broken: list[str] = []
+    for path in sorted((ROOT / HA_PACKAGES).glob("*.yaml")):
+        for port in sorted(set(LOOPBACK.findall(path.read_text(encoding="utf-8")))):
+            if port in ours:
+                broken.append(f"{path.name}: 127.0.0.1:{port}")
+    return broken
+
+
+def test_narrowing_bind_addr_moves_home_assistant_polls() -> None:
+    """Настоящая проверка: то, что записано в образце, согласовано с опросами."""
+    address = bind_addr()
+    broken = polls_broken_by(address)
+    assert not broken, (
+        f"BIND_ADDR={address} — порты публикуются только на этом адресе, "
+        f"и на 127.0.0.1 отвечать некому. Home Assistant всё ещё стучится по петле: "
+        + "; ".join(broken)
+        + f". Замените адрес в этих опросах на {address} (или на NAS_HOST) — "
+        f"иначе сенсоры уйдут в «не отвечает» при живых контейнерах."
+    )
+
+
+def test_the_check_above_actually_finds_something() -> None:
+    """
+    Проверка выше при нынешнем BIND_ADDR=0.0.0.0 не находит ничего — и не должна.
+    Но тест, который молчит всегда, молчал бы и на поломке. Поэтому здесь тот же
+    поиск запускается с суженным адресом: связка обязана обнаружиться.
+    """
+    broken = polls_broken_by("192.168.3.53")
+    assert broken, (
+        "поиск ничего не нашёл даже с суженным адресом — значит, он смотрит "
+        "не туда: проверьте HA_PACKAGES, LOOPBACK и имена портов в media/.env.example"
+    )
+    assert any("monitoring.yaml" in item for item in broken), (
+        f"ожидались опросы из monitoring.yaml, а найдено: {broken}"
+    )

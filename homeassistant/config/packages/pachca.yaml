@@ -125,12 +125,12 @@ script:
           # --- собираем факты ---
           svc_down: >-
             {{ states.binary_sensor
-               | selectattr('entity_id', 'search', '^binary_sensor\.svc_')
+               | selectattr('entity_id', 'search', '^binary_sensor\\.svc_')
                | selectattr('state', 'eq', 'off')
                | map(attribute='name') | map('replace', 'svc ', '') | list }}
           svc_total: >-
             {{ states.binary_sensor
-               | selectattr('entity_id', 'search', '^binary_sensor\.svc_')
+               | selectattr('entity_id', 'search', '^binary_sensor\\.svc_')
                | list | count }}
           cont_down: "{{ states('sensor.docker_down') | int(0) }}"
           cont_detail: "{{ state_attr('sensor.docker_down', 'down_detail') | default([], true) }}"

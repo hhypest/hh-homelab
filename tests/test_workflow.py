@@ -53,6 +53,12 @@ def test_at_least_one_workflow_exists():
 
 
 def test_pip_cache_knows_dependency_path(workflow):
+    """
+    Путь может быть многострочным: с появлением constraints.txt ключ кэша
+    обязан зависеть от обоих файлов. Иначе правка ограничений достанет
+    из кэша прежний набор пакетов — и проверка пройдёт не на том, что
+    записано в репозитории.
+    """
     for job_name, step in steps(workflow):
         with_ = step.get("with") or {}
         if not with_.get("cache"):
@@ -62,9 +68,15 @@ def test_pip_cache_knows_dependency_path(workflow):
             f"задача «{job_name}»: включён cache без cache-dependency-path — "
             f"действие не найдёт requirements-dev.txt и упадёт"
         )
-        assert (ROOT / path).is_file(), (
-            f"задача «{job_name}»: cache-dependency-path указывает на {path}, "
-            f"а такого файла в репозитории нет"
+        listed = [line.strip() for line in str(path).splitlines() if line.strip()]
+        for item in listed:
+            assert (ROOT / item).is_file(), (
+                f"задача «{job_name}»: cache-dependency-path указывает на {item}, "
+                f"а такого файла в репозитории нет"
+            )
+        assert "constraints.txt" in listed, (
+            f"задача «{job_name}»: в ключе кэша нет constraints.txt — "
+            f"правка версий не сбросит кэш, и проверки пойдут на старом наборе"
         )
 
 
@@ -232,4 +244,105 @@ def test_release_only_from_main():
     ]
     assert any("refs/heads/main" in run for run in scripts), (
         "нет проверки, что выпуск идёт из main"
+    )
+
+
+# -----------------------------------------------------------------------------
+# Воспроизводимость и закрепление действий
+# -----------------------------------------------------------------------------
+# Замечание R-06 независимого аудита, две половины.
+#
+# Первая: действия стояли под изменяемым тегом (@v7). Тег можно переставить,
+# и в задаче с правом ставить теги выполнился бы чужой коммит. SHA неизменяем.
+#
+# Вторая: requirements-dev.txt задаёт только нижние границы, поэтому CI ставил
+# то, что вышло сегодня. Один и тот же коммит мог быть зелёным вчера и красным
+# сегодня — без единой правки в репозитории, и локально это не воспроизводится.
+
+SHA = re.compile(r"^[0-9a-f]{40}$")
+
+
+def test_actions_pinned_by_commit_sha(workflow):
+    for job_name, step in steps(workflow):
+        uses = step.get("uses")
+        if not uses or "@" not in uses:
+            continue
+        action, ref = uses.rsplit("@", 1)
+        assert SHA.match(ref), (
+            f"задача «{job_name}»: {action} закреплено по «{ref}» — это изменяемая "
+            f"ссылка. Нужен полный SHA коммита, а версия — комментарием рядом"
+        )
+
+
+def test_pinned_actions_keep_a_readable_version_comment():
+    """
+    Голый SHA нечитаем: по нему не видно ни версии, ни того, насколько
+    закрепление устарело. Комментарий рядом Dependabot обновляет сам.
+    """
+    for path in WORKFLOWS:
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if "uses:" not in line or "@" not in line:
+                continue
+            ref = line.split("@", 1)[1]
+            if not SHA.match(ref.split()[0] if ref.split() else ""):
+                continue
+            assert "#" in ref, (
+                f"{path.name}:{number}: закрепление по SHA без комментария с версией"
+            )
+
+
+def test_installs_are_constrained(workflow):
+    """
+    Каждая установка зависимостей обязана идти с файлом ограничений.
+    Забытый -c в новой задаче возвращает ровно ту неопределённость,
+    ради которой файл и заведён.
+    """
+    checked = 0
+    for job_name, step in steps(workflow):
+        run = step.get("run") or ""
+        if "pip install" not in run:
+            continue
+        checked += 1
+        assert "-c constraints.txt" in run, (
+            f"задача «{job_name}»: pip install без -c constraints.txt — "
+            f"поставится то, что вышло сегодня"
+        )
+    if checked:
+        assert (ROOT / "constraints.txt").is_file(), "constraints.txt нет в репозитории"
+
+
+def test_constraints_pin_exact_versions():
+    """
+    Файл ограничений с «>=» бесполезен: он ничего не закрепляет.
+    Проверяется каждая содержательная строка, а не только несколько.
+    """
+    lines = [
+        line.strip()
+        for line in (ROOT / "constraints.txt").read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
+    assert lines, "constraints.txt пуст — закреплять нечего"
+    loose = [line for line in lines if "==" not in line]
+    assert not loose, (
+        f"в constraints.txt строки без точной версии: {', '.join(loose)}"
+    )
+
+
+def test_constraints_cover_every_direct_dependency():
+    """
+    Прямая зависимость, не попавшая в ограничения, обновится молча —
+    то есть дыра останется ровно там, где её проще всего не заметить.
+    """
+    def names(path: str) -> set[str]:
+        found = set()
+        for line in (ROOT / path).read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            found.add(re.split(r"[<>=!~\[]", line, maxsplit=1)[0].strip().lower().replace("_", "-"))
+        return found
+
+    missing = names("requirements-dev.txt") - names("constraints.txt")
+    assert not missing, (
+        f"в constraints.txt нет прямых зависимостей: {', '.join(sorted(missing))}"
     )

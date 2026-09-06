@@ -1995,6 +1995,47 @@ system configuration save</code></pre></div>
     <p>Скучный раздел, из-за которого потом не приходится собирать всё заново.</p>
   </div>
 
+  <div class="note crit"><b>Граница проходит здесь: из git восстанавливается
+    конфигурация, и только она.</b> Клон репозитория плюс два
+    <code class="path">.env</code> и
+    <code class="path">secrets.yaml</code> дают рабочие compose-файлы, пакеты
+    Home Assistant, дашборды, шаблоны Пачки и проверки — то есть <b>как всё
+    настроено</b>. Состояние сервисов из git не восстанавливается ниоткуда,
+    потому что его там нет и не будет: это не забывчивость, а
+    <code class="path">.gitignore</code>.</div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Что</th><th>Где живёт</th><th>Чем спасается</th></tr></thead>
+      <tbody>
+        <tr><td>секреты: <code class="path">.env</code> обоих стеков,
+          <code class="path">secrets.yaml</code></td>
+          <td>рядом с клоном</td><td>только вашей копией</td></tr>
+        <tr><td>пользователи, интеграции, добавленные через интерфейс,
+          реестры сущностей и устройств</td>
+          <td><code class="path">config/.storage/</code></td><td>шаг 11.1</td></tr>
+        <tr><td>история и статистика</td>
+          <td><code class="path">home-assistant_v2.db</code></td><td>шаг 11.1</td></tr>
+        <tr><td>сторонние компоненты</td>
+          <td><code class="path">config/custom_components/</code></td>
+          <td>ставит заново HACS</td></tr>
+        <tr><td>настройки qBittorrent, базы Radarr и Prowlarr, метаданные
+          и история просмотров Jellyfin</td>
+          <td><code class="path">media/config/</code></td>
+          <td>собственные бэкапы сервисов + шаг 11.2</td></tr>
+        <tr><td>сама медиатека</td>
+          <td><code class="path">media/data/</code></td>
+          <td>шаг 11.2, если объём позволяет</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note why"><b>Почему это стоит прочитать до того, как понадобится.</b>
+    <code>git clone</code> возвращает то, как всё настроено, но не то, что
+    накопилось. Восстановление из чистого клона — это работающий стек
+    с пустыми базами: Radarr не помнит подключённых индексаторов, Jellyfin —
+    просмотренных серий, Home Assistant — ни одного пользователя. Всё это
+    закрывается шагами 11.1 и 11.2, и ответственность за них лежит
+    на владельце NAS, а не на репозитории.</div>
+
   <ol class="steps">
     <li class="step" data-key="s11-1">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
@@ -2013,8 +2054,11 @@ system configuration save</code></pre></div>
       <div class="step-body">
         <h3><span class="num">11.2</span> Добавить папку в Hyper Backup</h3>
         <p>
-          Включите <code class="path">/volume1/docker/hh-homelab/homeassistant</code> в существующее
-          задание Hyper Backup.
+          Включите <code class="path">/volume1/docker/hh-homelab</code> — весь клон,
+          а не только каталог Home Assistant — в существующее задание Hyper Backup.
+          В соседнем <code class="path">media/config</code> лежат базы Radarr
+          и Prowlarr и настройки qBittorrent; задание, суженное до
+          <code class="path">homeassistant</code>, их не заберёт.
         </p>
         <div class="note why"><b>Зачем и то, и другое.</b> Встроенный бэкап Home Assistant
           восстанавливает конфигурацию и историю одним нажатием, но лежит на том же диске.

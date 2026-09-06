@@ -110,3 +110,55 @@ def test_все_шаблоны_репозитория_компилируются
                 pytest.fail(f"{path.relative_to(ROOT)}: {err}\n  {snippet}")
 
     assert checked > 0, "ни одного шаблона не нашлось — проверка прошла вхолостую"
+
+
+# --- недопустимые escape-последовательности ----------------------------------
+# Jinja пропускает содержимое кавычек через unicode-escape, а '\.' там
+# последовательностью не является. Python отвечает DeprecationWarning
+# и оставляет строку как есть — регулярка работает, и никто ничего
+# не замечает. В одной из следующих версий это станет SyntaxError,
+# и десять шаблонов перестанут компилироваться разом.
+
+ESCAPE_BAD = r"""{{ states.sensor | selectattr('entity_id', 'search', '^sensor\.x_') | list }}"""
+ESCAPE_OK = r"""{{ states.sensor | selectattr('entity_id', 'search', '^sensor\\.x_') | list }}"""
+
+
+def test_invalid_escape_is_reported() -> None:
+    env = vc.ha_environment()
+    found = vc.invalid_escapes(env, ESCAPE_BAD)
+    assert found, "недопустимая последовательность '\\.' не замечена"
+    assert any("escape" in message for message in found), found
+
+
+def test_doubled_escape_is_clean() -> None:
+    env = vc.ha_environment()
+    assert vc.invalid_escapes(env, ESCAPE_OK) == []
+
+
+def test_doubling_the_slash_does_not_change_the_string() -> None:
+    """
+    Смысл правки в том, что она ничего не меняет: обе записи дают одну и ту же
+    строку, а значит и одну и ту же регулярку. Если бы меняла — сломались бы
+    все сенсоры, считающие контейнеры, и заметили бы это далеко не сразу.
+    """
+    import warnings
+
+    env = vc.ha_environment()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)  # он тут ожидаем
+        was = env.from_string(r"{{ '^sensor\.x_' }}").render()
+    became = env.from_string(r"{{ '^sensor\\.x_' }}").render()
+    assert was == became == r"^sensor\.x_"
+
+
+def test_repository_templates_have_no_invalid_escapes() -> None:
+    """Регрессия: в самих пакетах таких последовательностей больше нет."""
+    env = vc.ha_environment()
+    problems: list[str] = []
+    for path in sorted((ROOT / "homeassistant" / "config" / "packages").glob("*.yaml")):
+        data = yaml.load(path.read_text(encoding="utf-8"), Loader=vc.HALoader)
+        for text in vc.iter_strings(data):
+            if "{{" in text or "{%" in text:
+                for message in vc.invalid_escapes(env, text):
+                    problems.append(f"{path.name}: {message}")
+    assert not problems, problems

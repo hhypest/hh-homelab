@@ -38,6 +38,7 @@ import pathlib
 import re
 import subprocess
 import sys
+import warnings
 
 try:
     import yaml
@@ -148,6 +149,25 @@ def unknown_tests(env: Environment, text: str) -> list[str]:
     )
 
 
+def invalid_escapes(env: Environment, text: str) -> list[str]:
+    """
+    Недопустимые escape-последовательности в строковых литералах шаблона.
+
+    Jinja пропускает содержимое кавычек через unicode-escape, а там `\\.`
+    последовательностью не является. Сейчас Python отвечает на это
+    DeprecationWarning и оставляет строку как есть, поэтому регулярка
+    работает и никто ничего не замечает. В одной из следующих версий
+    это станет SyntaxError — и шаблон перестанет компилироваться разом
+    во всех пакетах.
+
+    Лечится удвоением слеша: '\\\\.' даёт ту же строку без предупреждения.
+    """
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", DeprecationWarning)
+        env.parse(text)
+    return sorted({str(item.message) for item in caught if "escape" in str(item.message)})
+
+
 def ha_environment() -> Environment:
     """Environment, знающий имена Home Assistant, но не его поведение."""
     env = Environment()
@@ -190,6 +210,14 @@ def main() -> int:
                         f"\n         {snippet}{HINT}"
                     )
                     continue
+
+                for message in invalid_escapes(env, text):
+                    problems.append(
+                        f"{rel}: {message} — сейчас предупреждение, "
+                        f"в следующих версиях Python синтаксическая ошибка"
+                        f"\n         {snippet}"
+                        f"\n         Удвойте слеш: '\\\\.' вместо '\\.'"
+                    )
 
                 for name in unknown_tests(env, text):
                     problems.append(
