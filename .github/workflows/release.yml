@@ -12,6 +12,11 @@ name: Выпуск
 # Таблица версий образов собирается из самих compose-файлов, а не пишется
 # руками: описание релиза физически не может разойтись с тем, что
 # закреплено в конфигурации.
+#
+# Разделение на две задачи намеренное. Проверки ставят зависимости
+# из сети и запускают их код — делать это в задаче, у которой есть право
+# ставить теги, незачем. Право на запись выдано только второй задаче,
+# и она не устанавливает ничего.
 
 on:
   workflow_dispatch:
@@ -26,9 +31,9 @@ on:
         default: false
         type: boolean
 
-# Тег и релиз — это запись в репозиторий, обычного contents: read мало.
+# По умолчанию — только чтение. Запись включена ровно в одной задаче.
 permissions:
-  contents: write
+  contents: read
 
 # Два выпуска разом — верный способ получить состояние, которого никто
 # не заказывал. Второй запуск ждёт, а не отменяет первый на полпути.
@@ -41,31 +46,65 @@ env:
 
 jobs:
 
-  release:
-    name: Тег и релиз
+  checks:
+    name: Проверки выпуска
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
     steps:
+      # Раньше этой проверки не было, и тег можно было поставить с любой
+      # ветки: workflow_dispatch запускается на выбранном ref.
+      - name: Выпускать только из main
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Выпуск идёт только из main, а выбрано: $GITHUB_REF"
+            exit 1
+          fi
+
       # fetch-depth: 0 — нужны все теги, иначе проверка «такой версии ещё
       # нет» ничего не увидит и молча разрешит второй тег.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
+      # Значение приходит через окружение, а не подстановкой в текст
+      # скрипта. Подстановка выполнялась ДО проверки формата, поэтому
+      # одинарная кавычка во вводе обрывала строку и остаток попадал
+      # в оболочку — в задаче с правом записи в репозиторий.
       - name: Проверить формат версии
+        id: version
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
         run: |
-          version='${{ inputs.version }}'
-          if ! printf '%s' "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error::Версия «$version» не похожа на X.Y.Z"
+          if ! printf '%s' "$VERSION_INPUT" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Версия «$VERSION_INPUT» не похожа на X.Y.Z"
             exit 1
           fi
-          echo "VERSION=$version" >> "$GITHUB_ENV"
-          echo "TAG=v$version" >> "$GITHUB_ENV"
+          {
+            echo "version=$VERSION_INPUT"
+            echo "tag=v$VERSION_INPUT"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "VERSION=$VERSION_INPUT"
+            echo "TAG=v$VERSION_INPUT"
+          } >> "$GITHUB_ENV"
 
-      - name: Убедиться, что такого тега ещё нет
+      # Тег на этом же коммите — не ошибка, а незаконченный прошлый запуск:
+      # тег ушёл, а релиз создать не успели. Такой случай надо доводить
+      # до конца, а не запрещать. Тег на другом коммите — настоящий конфликт.
+      - name: Убедиться, что выпуск возможен
         run: |
           if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
-            echo "::error::Тег $TAG уже существует. Выпуск не перевыпускают — заведите следующую версию"
-            exit 1
+            on_tag="$(git rev-list -n 1 "refs/tags/$TAG")"
+            head="$(git rev-parse HEAD)"
+            if [ "$on_tag" != "$head" ]; then
+              echo "::error::Тег $TAG уже указывает на $on_tag, а выпуск готовится из $head"
+              exit 1
+            fi
+            echo "::notice::Тег $TAG уже есть на этом коммите — повторный запуск завершит начатое"
           fi
 
       # Тег без описания — половина выпуска. Если история версий про эту
@@ -105,9 +144,37 @@ jobs:
           ruff check .
           pytest -q
 
+      - name: Итог проверки
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then
+            {
+              echo "### Проверка прошла: $TAG выпустить можно"
+              echo "Ничего не создано — снимите галку «Только проверить»."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  release:
+    name: Тег и релиз
+    needs: checks
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    # Единственное место с правом записи. Здесь ничего не устанавливается
+    # из сети: описание собирается тем, что есть в образе runner.
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.checks.outputs.version }}
+      TAG: ${{ needs.checks.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
       # Версии берутся из compose-файлов, поэтому описание релиза
       # не может разойтись с тем, что реально закреплено.
-      - name: Собрать состав выпуска
+      - name: Составить описание релиза
         run: |
           {
             echo '| Образ | Версия |'
@@ -119,15 +186,12 @@ jobs:
                   printf '| `%s` | `%s` |\n' "${ref%:*}" "${ref##*:}"
                 done
           } > images.md
-          echo "Собрано строк: $(wc -l < images.md)"
-
-      - name: Составить описание релиза
-        run: |
           {
             printf 'Домашний сервер на Synology DS725+: медиа-стек и Home Assistant.\n\n'
-            printf 'Выпуск фиксирует не только файлы конфигурации, но и то, что реально\n'
-            printf 'работает — все образы закреплены на конкретных версиях, поэтому клон\n'
-            printf 'этого тега поднимает ту же систему, а не примерно такую же.\n\n'
+            printf 'Выпуск фиксирует состав конфигурации и версии образов: клон этого\n'
+            printf 'тега поднимает тот же набор сервисов тех же версий. Прикладное\n'
+            printf 'состояние — базы сервисов, реестр Home Assistant, секреты — в тег\n'
+            printf 'не входит и восстанавливается из резервной копии отдельно.\n\n'
             printf '### Состав\n\n'
             cat images.md
             printf '\n### Подробнее\n\n'
@@ -136,19 +200,25 @@ jobs:
           } > notes.md
           cat notes.md
 
-      - name: Создать тег
-        if: ${{ !inputs.dry_run }}
+      - name: Создать тег, если его ещё нет
         run: |
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "Тег $TAG уже на месте — остаётся создать релиз"
+            exit 0
+          fi
           git config user.name  'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           git tag -a "$TAG" -m "hh-homelab $VERSION" -m "$(cat notes.md)"
           git push origin "$TAG"
 
-      - name: Создать релиз
-        if: ${{ !inputs.dry_run }}
+      - name: Создать релиз, если его ещё нет
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Релиз $TAG уже существует — ничего не меняю"
+            exit 0
+          fi
           gh release create "$TAG" \
             --title "$VERSION" \
             --notes-file notes.md \
@@ -156,10 +226,7 @@ jobs:
 
       - name: Итог
         run: |
-          if [ '${{ inputs.dry_run }}' = 'true' ]; then
-            echo "### Проверка прошла: $TAG выпустить можно" >> "$GITHUB_STEP_SUMMARY"
-            echo "Ничего не создано — снимите галку «Только проверить»." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "### Выпуск $TAG готов" >> "$GITHUB_STEP_SUMMARY"
-            echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
-          fi
+          {
+            echo "### Выпуск $TAG готов"
+            echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG"
+          } >> "$GITHUB_STEP_SUMMARY"
