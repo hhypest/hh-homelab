@@ -33,6 +33,7 @@ import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 WORKFLOWS = sorted((ROOT / ".github" / "workflows").glob("*.yml"))
+RELEASE = ROOT / ".github" / "workflows" / "release.yml"
 
 
 def steps(workflow: dict):
@@ -142,3 +143,93 @@ def test_every_job_has_checkout(workflow):
             f"задача «{job_name}» работает без actions/checkout — "
             f"проверять ей будет нечего"
         )
+
+
+# -----------------------------------------------------------------------------
+# Безопасность выпуска
+# -----------------------------------------------------------------------------
+# Замечание R-02 независимого аудита. В шаге проверки формата версии стояло
+#
+#     version='${{ inputs.version }}'
+#
+# и подстановка выполнялась ДО регулярного выражения: одинарная кавычка
+# во вводе обрывала строку, а остаток доставался оболочке — в задаче,
+# у которой было право ставить теги. Проверки формата это не спасало,
+# потому что она шла уже после.
+
+
+def test_no_expression_interpolation_in_run(workflow):
+    """
+    Значения из ввода и контекста передаются через env, а не подставляются
+    в текст скрипта. Подстановка происходит до запуска оболочки, поэтому
+    любая проверка внутри скрипта заведомо опаздывает.
+    """
+    for job_name, step in steps(workflow):
+        run = step.get("run") or ""
+        assert "${{" not in run, (
+            f"задача «{job_name}», шаг «{step.get('name', 'без имени')}»: "
+            f"выражение подставляется прямо в скрипт — передайте значение через env"
+        )
+
+
+def release() -> dict:
+    return yaml.safe_load(RELEASE.read_text(encoding="utf-8"))
+
+
+def test_release_write_permission_is_isolated():
+    """
+    Право записи — ровно у одной задачи. Проверки ставят зависимости из сети
+    и запускают их код; делать это там, где можно поставить тег, незачем.
+    """
+    doc = release()
+    assert (doc.get("permissions") or {}).get("contents") == "read", (
+        "у workflow по умолчанию должно быть только чтение"
+    )
+    writers = [
+        name
+        for name, job in (doc.get("jobs") or {}).items()
+        if ((job.get("permissions") or {}).get("contents") == "write")
+    ]
+    assert len(writers) == 1, (
+        f"право записи должно быть ровно у одной задачи, а оно у: {writers or 'ни одной'}"
+    )
+
+
+def test_release_write_job_installs_nothing():
+    """
+    В задаче с правом записи нечего ставить из сети — описание собирается
+    тем, что уже есть в образе runner.
+
+    Счётчик здесь не для красоты. Пока права выдавались всему workflow,
+    а не задаче, цикл не находил ни одной подходящей задачи и тест
+    проходил вхолостую — то есть молчал бы и на настоящей поломке.
+    """
+    doc = release()
+    checked = 0
+    for name, job in (doc.get("jobs") or {}).items():
+        if (job.get("permissions") or {}).get("contents") != "write":
+            continue
+        checked += 1
+        for step in job.get("steps") or []:
+            run = step.get("run") or ""
+            assert "pip install" not in run, (
+                f"задача «{name}» имеет право записи и ставит зависимости — разделите их"
+            )
+    assert checked == 1, (
+        f"проверять было нечего: задач с правом записи найдено {checked}. "
+        f"Права должны стоять на задаче, а не на всём workflow"
+    )
+
+
+def test_release_only_from_main():
+    """workflow_dispatch запускается на выбранном ref, поэтому без явной
+    проверки тег можно поставить с любой ветки."""
+    doc = release()
+    scripts = [
+        step.get("run") or ""
+        for job in (doc.get("jobs") or {}).values()
+        for step in job.get("steps") or []
+    ]
+    assert any("refs/heads/main" in run for run in scripts), (
+        "нет проверки, что выпуск идёт из main"
+    )
