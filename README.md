@@ -151,7 +151,9 @@ hh-homelab/
 │   ├── logs.html                    гайд: журналы контейнеров
 │   ├── pachca.html                  справочник: боты, чаты, шаблоны
 │   ├── keenetic.html                что важно знать про роутер
-│   └── roadmap.html                 дорожная карта и точки роста
+│   ├── portability.html             перенос стека не на Synology
+│   ├── roadmap.html                 дорожная карта и точки роста
+│   └── changelog.html               история версий и порядок обновления
 ├── scripts/
 │   ├── validate_config.py           YAML, Jinja-шаблоны, поиск секретов
 │   ├── validate_entities.py         ссылки на сущности и дубликаты

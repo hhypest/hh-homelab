@@ -442,6 +442,32 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     клон самодостаточным, второе — заставляет <code>docker compose up</code>
     упасть с именем недостающей переменной вместо тихого запуска
     с чужими настройками.</div>
+
+  <div class="note crit"><b>Два абсолютных пути всё же есть — и оба
+    в <code class="path">homeassistant/compose.yaml</code>.</b> Это не состояние
+    сервисов, а ресурсы хоста, но именно они ломаются на чужой системе
+    первыми:</div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Монтируется</th><th>Зачем</th><th>Когда сломается</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code class="path">/etc/localtime</code></td>
+          <td>время хоста внутрь контейнера</td>
+          <td>на системах, где этого файла нет. Строку можно просто убрать:
+              часовой пояс и так задан через <code>TZ</code></td>
+        </tr>
+        <tr>
+          <td><code class="path">/var/run/docker.sock</code></td>
+          <td>прокси читает через него Docker API</td>
+          <td>в rootless-режиме сокет лежит
+              в <code class="path">$XDG_RUNTIME_DIR/docker.sock</code>,
+              у Podman — свой путь. Проверьте
+              <code>docker context inspect</code> и подставьте фактический</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </section>
 
 <section id="s1">
@@ -494,8 +520,9 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
 
   <h3 class="sub">Порты, BIND_ADDR и TZ</h3>
   <p>
-    DSM занимает 5000 и 5001, поэтому в образце их нет. У вашей платформы
-    заняты другие: у Unraid — 80, у Container Station и многих панелей — 8080.
+    DSM занимает 5000 и 5001, поэтому ни один сервис в образце на них
+    не назначен. У вашей платформы заняты другие: у Unraid — 80,
+    у Container Station и многих панелей — 8080.
     Проверьте до первого запуска:
   </p>
   <div class="code"><button class="copy" type="button">копировать</button><pre><code>ss -tulpn | grep -E ':(9080|9696|7878|8191|8096|5055|8123|2375)\s'</code></pre></div>
@@ -604,14 +631,16 @@ docker compose version</code></pre></div>
     </table>
   </div>
 
-  <div class="note crit"><b>Один адрес придётся поправить.</b>
-    <code class="path">config/packages/docker.yaml</code> ходит за метриками
-    контейнеров по <code>http://127.0.0.1:&lt;DOCKERPROXY_PORT&gt;</code>,
-    и этот адрес верен только тогда, когда HA работает в host-сети рядом
-    с docker-socket-proxy. В HA OS прокси — это отдельная сущность, живущая
-    в другом месте: адрес в пакете надо привести к фактическому, иначе
-    все сенсоры контейнеров уйдут в «недоступно», а Пачка исправно пришлёт
-    об этом тревогу.</div>
+  <div class="note crit"><b>Один адрес придётся поправить, и подстановки
+    там нет.</b> В <code class="path">config/packages/docker.yaml</code> адрес
+    прокси записан числом — <code>http://127.0.0.1:2375</code>. Это YAML
+    Home Assistant, а не compose: переменные из
+    <code class="path">.env</code> в него не подставляются, и
+    <code>DOCKERPROXY_PORT</code> держит тот же номер отдельно. Меняете порт
+    или переносите HA — правьте оба места руками. Верен этот адрес только
+    тогда, когда HA работает в host-сети рядом с прокси; в HA OS прокси живёт
+    в другом месте, и без правки все сенсоры контейнеров уйдут
+    в «недоступно», а Пачка исправно пришлёт об этом тревогу.</div>
 
   <div class="note why"><b>Почему сокет всё равно не пробрасывается напрямую.</b>
     Довод не зависит от платформы: доступ к <code class="path">docker.sock</code>
