@@ -27,6 +27,7 @@ Home Assistant, дашборд, шаблоны уведомлений, два п
 | **[Журналы контейнеров](https://hhypest.github.io/hh-homelab/logs.html)** | Почему логи Docker растут без предела, как их ограничить, убрать накопленное и читать | 23 шага с отметками ([исходник](docs/logs.html)) |
 | **[Уведомления в Пачку](https://hhypest.github.io/hh-homelab/pachca.html)** | Какой бот в каком чате, где чей шаблон, как настроить каждый сервис | справочник ([исходник](docs/pachca.html)) |
 | **[Роутер](https://hhypest.github.io/hh-homelab/keenetic.html)** | Что в настройках Keenetic влияет на этот стек и чего лучше не трогать | заметки ([исходник](docs/keenetic.html)) |
+| **[Другие платформы](https://hhypest.github.io/hh-homelab/portability.html)** | Как поднять оба стека не на Synology: что переносится, что переписать в `.env`, где место Terraform и Ansible | советы ([исходник](docs/portability.html)) |
 | **[Дорожная карта](https://hhypest.github.io/hh-homelab/roadmap.html)** | Куда это может расти дальше, в каком порядке и чего решено не делать | 21 пункт с отметками ([исходник](docs/roadmap.html)) |
 | **[История версий](https://hhypest.github.io/hh-homelab/changelog.html)** | Что вошло в выпуск, на каких версиях образов проверено, как обновляться | changelog ([исходник](docs/changelog.html)) |
 
@@ -150,7 +151,9 @@ hh-homelab/
 │   ├── logs.html                    гайд: журналы контейнеров
 │   ├── pachca.html                  справочник: боты, чаты, шаблоны
 │   ├── keenetic.html                что важно знать про роутер
-│   └── roadmap.html                 дорожная карта и точки роста
+│   ├── portability.html             перенос стека не на Synology
+│   ├── roadmap.html                 дорожная карта и точки роста
+│   └── changelog.html               история версий и порядок обновления
 ├── scripts/
 │   ├── validate_config.py           YAML, Jinja-шаблоны, поиск секретов
 │   ├── validate_entities.py         ссылки на сущности и дубликаты
