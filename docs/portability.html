@@ -475,7 +475,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <div class="kicker">Раздел 1</div>
     <h2 id="минимум-правок">Минимум, который надо переписать</h2>
     <p>
-      Пять величин. Всё остальное в образцах
+      Шесть величин. Всё остальное в образцах
       <code class="path">.env.example</code> платформенно-нейтрально.
     </p>
   </div>
@@ -518,6 +518,20 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     покажет разные устройства, и импорт пойдёт копированием. Оба каталога
     должны быть под одним и тем же префиксом.</div>
 
+  <h3 class="sub">NAS_HOST</h3>
+  <p>
+    Адрес машины в домашней сети. Из него собирается
+    <code>JELLYFIN_PublishedServerUrl</code> — тот адрес, который Jellyfin
+    сообщает клиентам, чтобы приложения на телевизоре и приставке находили
+    сервер сами.
+  </p>
+  <div class="note crit"><b>Ломается тихо и не там, где ищут.</b> Оставите
+    чужой адрес из образца — Jellyfin поднимется, веб-интерфейс откроется,
+    и всё будет выглядеть рабочим. Не заработает только автообнаружение:
+    приложение на телевизоре получит адрес, по которому никого нет.
+    Адрес должен быть постоянным — закрепите его за машиной в DHCP
+    роутера.</div>
+
   <h3 class="sub">Порты, BIND_ADDR и TZ</h3>
   <p>
     DSM занимает 5000 и 5001, поэтому ни один сервис в образце на них
@@ -525,7 +539,15 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     у Container Station и многих панелей — 8080.
     Проверьте до первого запуска:
   </p>
-  <div class="code"><button class="copy" type="button">копировать</button><pre><code>ss -tulpn | grep -E ':(9080|9696|7878|8191|8096|5055|8123|2375)\s'</code></pre></div>
+  <div class="code"><button class="copy" type="button">копировать</button><pre><code>ss -tulpn | grep -E ':(9080|9696|7878|8191|8096|5055|6881|7359|8123|2375)\s'</code></pre></div>
+  <div class="note warn"><b>Два номера из этого списка легко упустить.</b>
+    <code>6881</code> — порт раздачи qBittorrent, публикуется сразу
+    в TCP и UDP. <code>7359</code> — автообнаружение Jellyfin, только UDP.
+    Оба задаются в <code class="path">.env</code>
+    (<code>QBITTORRENT_TORRENT_PORT</code>
+    и <code>JELLYFIN_DISCOVERY_PORT</code>), и если проверять только
+    веб-интерфейсы, конфликт вскроется уже при
+    <code>docker compose up</code>.</div>
   <div class="note"><b><code>check_ports.py</code> ловит не это.</b> Он сверяет
     порты между сервисами внутри compose-файлов и найдёт, если вы назначили
     один номер дважды. Занят ли порт на вашем хосте — он не знает
@@ -609,7 +631,9 @@ docker compose version</code></pre></div>
     <h2 id="home-assistant-в-другом-виде">Home Assistant: контейнер или HA OS</h2>
     <p>
       Home Assistant ставят четырьмя способами, и конфигурация из этого
-      репозитория переносится во все, а вот compose-файл — только в один.
+      репозитория переносится во все, а compose-файл — только в один.
+      Но переносится не дословно: в <code class="path">config/</code> есть
+      адреса, верные лишь пока Home Assistant делит петлю с медиа-стеком.
     </p>
   </div>
 
@@ -631,16 +655,50 @@ docker compose version</code></pre></div>
     </table>
   </div>
 
-  <div class="note crit"><b>Один адрес придётся поправить, и подстановки
-    там нет.</b> В <code class="path">config/packages/docker.yaml</code> адрес
-    прокси записан числом — <code>http://127.0.0.1:2375</code>. Это YAML
-    Home Assistant, а не compose: переменные из
-    <code class="path">.env</code> в него не подставляются, и
-    <code>DOCKERPROXY_PORT</code> держит тот же номер отдельно. Меняете порт
-    или переносите HA — правьте оба места руками. Верен этот адрес только
-    тогда, когда HA работает в host-сети рядом с прокси; в HA OS прокси живёт
-    в другом месте, и без правки все сенсоры контейнеров уйдут
-    в «недоступно», а Пачка исправно пришлёт об этом тревогу.</div>
+  <div class="note crit"><b>Адресов восемь, и подстановки переменных
+    в них нет.</b> Это YAML и Python Home Assistant, а не compose: значения
+    из <code class="path">.env</code> в них не попадают. Все восемь написаны
+    как <code>127.0.0.1</code> и верны ровно до тех пор, пока Home Assistant
+    работает в host-сети на той же машине, что и медиа-стек. Перенесёте
+    HA — каждый будет указывать на чужую петлю.</div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Где</th><th>Сколько</th><th>Куда указывает</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code class="path">packages/monitoring.yaml</code></td>
+          <td>шесть</td>
+          <td>по одной проверке на сервис медиа-стека: 9080, 9696, 7878,
+              8191, 8096, 5055</td>
+        </tr>
+        <tr>
+          <td><code class="path">packages/docker.yaml</code></td>
+          <td>один</td>
+          <td>docker-socket-proxy, 2375. Тот же номер отдельно лежит
+              в <code>DOCKERPROXY_PORT</code> — правятся оба</td>
+        </tr>
+        <tr>
+          <td><code class="path">packages/media_tv.yaml</code></td>
+          <td>один</td>
+          <td>Jellyfin, 8096 — сенсор «продолжить просмотр»</td>
+        </tr>
+        <tr>
+          <td><code class="path">bin/docker_state.py</code></td>
+          <td>значение по умолчанию</td>
+          <td>2375, но переопределяется переменной окружения
+              <code>DOCKER_PROXY_URL</code> — единственное место,
+              где правка файла не нужна</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Найти их все на своей копии:</p>
+  <div class="code"><button class="copy" type="button">копировать</button><pre><code>grep -rn '127\.0\.0\.1' homeassistant/config --include='*.yaml' --include='*.py'</code></pre></div>
+  <div class="note warn"><b>Чем это проявится, если забыть.</b> Сенсоры уйдут
+    в «недоступно», а Пачка исправно пришлёт тревогу про живые контейнеры —
+    то есть выглядеть будет как поломка медиа-стека, хотя сломан только
+    адрес в конфигурации Home Assistant. Это тот случай, когда тревога
+    хуже молчания: она уводит от причины.</div>
 
   <div class="note why"><b>Почему сокет всё равно не пробрасывается напрямую.</b>
     Довод не зависит от платформы: доступ к <code class="path">docker.sock</code>
