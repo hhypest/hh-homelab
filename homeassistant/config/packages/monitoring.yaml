@@ -82,18 +82,18 @@ template:
         icon: mdi:alert-circle-outline
         state: >-
           {{ states.binary_sensor
-             | selectattr('entity_id', 'search', '^binary_sensor\.svc_')
+             | selectattr('entity_id', 'search', '^binary_sensor\\.svc_')
              | selectattr('state', 'eq', 'off') | list | count }}
         attributes:
           # Список имён — им пользуется сообщение в Пачку
           services: >-
             {{ states.binary_sensor
-               | selectattr('entity_id', 'search', '^binary_sensor\.svc_')
+               | selectattr('entity_id', 'search', '^binary_sensor\\.svc_')
                | selectattr('state', 'eq', 'off')
                | map(attribute='name') | map('replace', 'svc ', '') | list }}
           total: >-
             {{ states.binary_sensor
-               | selectattr('entity_id', 'search', '^binary_sensor\.svc_')
+               | selectattr('entity_id', 'search', '^binary_sensor\\.svc_')
                | list | count }}
 
   - binary_sensor:
@@ -106,7 +106,7 @@ template:
         # device_class: problem → "on" означает ПРОБЛЕМУ
         state: >-
           {{ states.binary_sensor
-             | selectattr('entity_id', 'search', '^binary_sensor\.svc_')
+             | selectattr('entity_id', 'search', '^binary_sensor\\.svc_')
              | selectattr('state', 'eq', 'off') | list | count > 0 }}
         delay_on: "00:03:00"
         delay_off: "00:01:00"

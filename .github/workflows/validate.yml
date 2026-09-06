@@ -32,16 +32,18 @@ jobs:
     name: YAML · форматирование
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
           # Без этой строки actions/setup-python ищет только
           # **/requirements.txt и **/pyproject.toml, не находит их
           # и падает — а вместе с ним и вся задача.
-          cache-dependency-path: requirements-dev.txt
-      - run: pip install -r requirements-dev.txt
+          cache-dependency-path: |
+            requirements-dev.txt
+            constraints.txt
+      - run: pip install -r requirements-dev.txt -c constraints.txt
       - name: yamllint
         run: yamllint -c .yamllint media homeassistant pachca .github
 
@@ -49,16 +51,18 @@ jobs:
     name: Конфигурация · YAML, Jinja, секреты
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
           # Без этой строки actions/setup-python ищет только
           # **/requirements.txt и **/pyproject.toml, не находит их
           # и падает — а вместе с ним и вся задача.
-          cache-dependency-path: requirements-dev.txt
-      - run: pip install -r requirements-dev.txt
+          cache-dependency-path: |
+            requirements-dev.txt
+            constraints.txt
+      - run: pip install -r requirements-dev.txt -c constraints.txt
       - name: Разбор YAML и компиляция шаблонов
         run: python3 scripts/validate_config.py
 
@@ -66,16 +70,18 @@ jobs:
     name: Конфигурация · ссылки на сущности
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
           # Без этой строки actions/setup-python ищет только
           # **/requirements.txt и **/pyproject.toml, не находит их
           # и падает — а вместе с ним и вся задача.
-          cache-dependency-path: requirements-dev.txt
-      - run: pip install -r requirements-dev.txt
+          cache-dependency-path: |
+            requirements-dev.txt
+            constraints.txt
+      - run: pip install -r requirements-dev.txt -c constraints.txt
       - name: Сверка entity_id и поиск дубликатов
         run: python3 scripts/validate_entities.py
 
@@ -90,16 +96,18 @@ jobs:
         # Поэтому проверяем на диапазоне, а не на одной версии.
         python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
           # Без этой строки actions/setup-python ищет только
           # **/requirements.txt и **/pyproject.toml, не находит их
           # и падает — а вместе с ним и вся задача.
-          cache-dependency-path: requirements-dev.txt
-      - run: pip install -r requirements-dev.txt
+          cache-dependency-path: |
+            requirements-dev.txt
+            constraints.txt
+      - run: pip install -r requirements-dev.txt -c constraints.txt
       - name: ruff
         run: ruff check .
       - name: pytest
@@ -109,16 +117,18 @@ jobs:
     name: Пачка · Liquid-шаблоны
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
           # Без этой строки actions/setup-python ищет только
           # **/requirements.txt и **/pyproject.toml, не находит их
           # и падает — а вместе с ним и вся задача.
-          cache-dependency-path: requirements-dev.txt
-      - run: pip install -r requirements-dev.txt
+          cache-dependency-path: |
+            requirements-dev.txt
+            constraints.txt
+      - run: pip install -r requirements-dev.txt -c constraints.txt
       - name: Рендер шаблонов на примерах payload
         run: python3 scripts/render_pachca.py --check
 
@@ -126,16 +136,18 @@ jobs:
     name: Документация · страницы, ссылки, обезличивание
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
           # Без этой строки actions/setup-python ищет только
           # **/requirements.txt и **/pyproject.toml, не находит их
           # и падает — а вместе с ним и вся задача.
-          cache-dependency-path: requirements-dev.txt
-      - run: pip install -r requirements-dev.txt
+          cache-dependency-path: |
+            requirements-dev.txt
+            constraints.txt
+      - run: pip install -r requirements-dev.txt -c constraints.txt
       - name: Целостность HTML, ссылки и личные данные
         run: python3 scripts/validate_docs.py
 
@@ -143,7 +155,7 @@ jobs:
     name: Файлы · переводы строк и пробелы
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
       # Зависимостей нет — только стандартная библиотека и git,
       # поэтому ни setup-python, ни pip install здесь не нужны.
@@ -154,7 +166,7 @@ jobs:
     name: Docker Compose · оба стека
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
       # Настройки лежат в .env, которого в репозитории нет: разворачиваем
       # на образце. Заодно это проверка самого образца — если в .env.example
       # забыли переменную, шаг упадёт здесь, а не у человека на NAS.
@@ -165,7 +177,7 @@ jobs:
           docker compose -f homeassistant/compose.yaml \
             --env-file homeassistant/.env.example config --quiet
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 

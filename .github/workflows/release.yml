@@ -66,7 +66,7 @@ jobs:
 
       # fetch-depth: 0 — нужны все теги, иначе проверка «такой версии ещё
       # нет» ничего не увидит и молча разрешит второй тег.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           fetch-depth: 0
 
@@ -121,13 +121,15 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-          cache-dependency-path: requirements-dev.txt
+          cache-dependency-path: |
+            requirements-dev.txt
+            constraints.txt
 
-      - run: pip install -r requirements-dev.txt
+      - run: pip install -r requirements-dev.txt -c constraints.txt
 
       # Те же проверки, что и в «Проверки». Дублирование намеренное:
       # выпуск должен отвечать за себя сам, а не полагаться на то, что
@@ -168,7 +170,7 @@ jobs:
       VERSION: ${{ needs.checks.outputs.version }}
       TAG: ${{ needs.checks.outputs.tag }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           fetch-depth: 0
 

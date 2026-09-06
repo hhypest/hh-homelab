@@ -126,7 +126,7 @@ template:
         # Обновляется вместе с метриками — то есть раз в час.
         state: >-
           {% set vals = states.sensor
-             | selectattr('entity_id', 'search', '^sensor\.docker_.*_cpu$')
+             | selectattr('entity_id', 'search', '^sensor\\.docker_.*_cpu$')
              | rejectattr('state', 'in', ['unknown', 'unavailable'])
              | map(attribute='state') | map('float', 0) | list %}
           {{ vals | max | round(1) if vals | count > 0 else 0 }}
@@ -134,7 +134,7 @@ template:
           container: >-
             {% set ns = namespace(best='—', val=-1) %}
             {% for s in states.sensor
-               if s.entity_id is search('^sensor\.docker_.*_cpu$')
+               if s.entity_id is search('^sensor\\.docker_.*_cpu$')
                and s.state not in ['unknown', 'unavailable'] %}
               {% if s.state | float(0) > ns.val %}
                 {% set ns.val = s.state | float(0) %}
@@ -149,7 +149,7 @@ template:
         unit_of_measurement: "MiB"
         state: >-
           {% set vals = states.sensor
-             | selectattr('entity_id', 'search', '^sensor\.docker_.*_memory$')
+             | selectattr('entity_id', 'search', '^sensor\\.docker_.*_memory$')
              | rejectattr('state', 'in', ['unknown', 'unavailable'])
              | map(attribute='state') | map('float', 0) | list %}
           {{ vals | max | round(0) if vals | count > 0 else 0 }}
@@ -157,7 +157,7 @@ template:
           container: >-
             {% set ns = namespace(best='—', val=-1) %}
             {% for s in states.sensor
-               if s.entity_id is search('^sensor\.docker_.*_memory$')
+               if s.entity_id is search('^sensor\\.docker_.*_memory$')
                and s.state not in ['unknown', 'unavailable'] %}
               {% if s.state | float(0) > ns.val %}
                 {% set ns.val = s.state | float(0) %}
