@@ -97,7 +97,7 @@ flowchart TB
     ST -- Кинозал --> PA
     HA -- webOS --> TV
     HA -- Android TV --> GX
-    GX -- HDMI · CEC --> TV
+    TV -- HDMI · CEC --> GX
     DP -- метрики контейнеров --> HA
     ST -.- DP
 
