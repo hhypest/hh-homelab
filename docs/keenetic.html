@@ -697,7 +697,7 @@ ip name-server 1.1.1.1 "" on ISP</code></pre></div>
   "type": "inline",
   "tag": "servarr",
   "rules": [
-    { "domain_suffix": ["servarr.com", "prowlarr.com"] }
+    { "domain": ["prowlarr.servarr.com", "indexers.prowlarr.com"] }
   ]
 }</code></pre></div>
 <p>И правило, которое отправляет набор в туннель, — в <code>route.rules</code>:</p>
@@ -706,9 +706,10 @@ ip name-server 1.1.1.1 "" on ISP</code></pre></div>
   "outbound": "&lt;тег вашего исхода&gt;",
   "rule_set": ["servarr"]
 }</code></pre></div>
+<p><code>domain</code> совпадает ровно с перечисленными именами. Рядом есть <code>domain_suffix</code>, и соблазн написать <code>"servarr.com"</code> вместо двух полных имён велик — но суффикс захватывает и все поддомены разом. Иногда это то, что нужно: сервис переезжает на новое имя, а правило продолжает работать. Здесь — нет: в туннель уедет и то, чего вы туда не звали, а смысл всей схемы в том, чтобы внутрь попадало только необходимое.</p>
 <p>Порядок правил важен: sing-box берёт первое совпавшее, поэтому набор должен стоять до правил, уводящих трафик куда-то ещё.</p>
 <h3 class="sub">Зачем это понадобилось здесь</h3>
-<p>Prowlarr ходит на два адреса, которые к трекерам отношения не имеют: <code>prowlarr.servarr.com</code> — сверка времени, проверка обновлений и мишень кнопки Test у прокси FlareSolverr; <code>indexers.prowlarr.com</code> — определения индексаторов Cardigann. Оба закрыты для части адресов, и в журнале это видно как <code>403</code> с капчей Cloudflare. Два суффикса выше покрывают ровно их.</p>
+<p>Prowlarr ходит на два адреса, которые к трекерам отношения не имеют: <code>prowlarr.servarr.com</code> — сверка времени, проверка обновлений и мишень кнопки Test у прокси FlareSolverr; <code>indexers.prowlarr.com</code> — определения индексаторов Cardigann. Оба закрыты для части адресов, и в журнале это видно как <code>403</code> с капчей Cloudflare. Два имени выше — это они и есть, больше в набор ничего не нужно.</p>
 <p>Проверка после перезагрузки конфигурации — из контейнера, а не с хоста:</p>
 <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo docker exec prowlarr curl -s -o /dev/null -w '%{http_code}\n' https://prowlarr.servarr.com/v1/time</code></pre></div>
 <p>Было <code>403</code>, должно стать <code>200</code>. Посмотреть, что попало в уже собранный набор, можно так:</p>
