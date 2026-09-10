@@ -1108,6 +1108,49 @@ cd media &amp;&amp; sudo docker compose up -d</code></pre></div>
           Home Assistant.</div>
       </div>
     </li>
+
+    <li class="step" data-key="m4-3">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">4.3</span> Знать, что красная кнопка Test врёт</h3>
+        <p>
+          В Prowlarr у прокси FlareSolverr есть кнопка проверки. Когда она
+          краснеет с текстом «Не удалось подключиться к прокси», первая мысль —
+          контейнер упал. Чаще всего это не так.
+        </p>
+        <div class="note why"><b>Проверка ходит не туда, куда кажется.</b>
+          Prowlarr просит FlareSolverr открыть
+          <code>https://prowlarr.servarr.com/v1/ping</code> — собственную
+          инфраструктуру Prowlarr, а не трекер. Если этот хост недоступен
+          с вашего адреса, FlareSolverr честно отвечает
+          <code>500</code> с текстом <i>«Cloudflare has blocked this
+          request»</i>, а Prowlarr переводит это как «прокси недоступен».
+          Прокси при этом жив, отвечает и с трекерами справляется.</div>
+        <p>
+          Отличить одно от другого — две команды. Первая говорит, доступна ли
+          сама мишень проверки:
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>curl -s -o /dev/null -w '%{http_code}\n' https://prowlarr.servarr.com/v1/time</code></pre></div>
+        <p>
+          <code>403</code> — закрыта мишень, а не прокси. Вторая считает,
+          какая доля поисков на самом деле не удалась:
+        </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo docker logs prowlarr 2&gt;&amp;1 | grep -c 'Searching indexer(s): \[RuTracker'
+sudo docker logs prowlarr 2&gt;&amp;1 | grep -c '|Warn|RuTracker|'</code></pre></div>
+        <p>
+          Пока второе число около десятой доли первого — решатель работает,
+          и менять его незачем. Настоящая поломка выглядит иначе: в журнале
+          появляется <code>Connection refused (flaresolverr:8191)</code>.
+        </p>
+        <div class="note warn"><b>А вот что игнорировать нельзя.</b> Тот же
+          недоступный адрес закрывает и
+          <code>indexers.prowlarr.com</code> — источник определений Cardigann.
+          Пока трекеры не меняют вёрстку, всё работает; как поменяют —
+          индексатор отвалится, и обновить его будет нечем. Как завести эти
+          два домена в туннель, не трогая остальное, — раздел 2 страницы
+          <a href="keenetic.html">роутера</a>.</div>
+      </div>
+    </li>
   </ol>
 </section>
 
