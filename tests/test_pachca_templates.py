@@ -123,6 +123,72 @@ def test_transcoding_is_flagged() -> None:
     assert "⚠️" not in direct
 
 
+def test_directstream_is_not_called_direct_play() -> None:
+    """
+    Поводом послужило настоящее сообщение из чата:
+
+        ▶️ jellyfin смотрит: Особое мнение (2002)
+        1080p · H.264 · прямое воспроизведение: DirectPlay
+
+    тогда как сервер в этот момент перекладывал файл на 23,7 ГБ через кэш
+    транскодирования — DTS не подошёл клиенту. Шаблон считал «прямым
+    воспроизведением» всё, что не Transcode, и DirectStream попадал в ту же
+    ветку. А это разные вещи: при DirectStream видео копируется, но файл
+    целиком проходит через диск, и звук чаще всего перекодируется.
+    """
+    payload = json.loads((PACHCA / "samples/jellyfin-directstream.json").read_text(encoding="utf-8"))
+    text = render(PACHCA / "jellyfin.liquid", payload)
+    assert "прямое воспроизведение" not in text.lower(), (
+        f"DirectStream снова выдаётся за прямое воспроизведение: {text!r}"
+    )
+    assert "directstream" in text.lower()
+
+
+def test_three_play_methods_give_three_different_messages() -> None:
+    """
+    PlayMethod у Jellyfin принимает три значения, и каждое означает свою
+    нагрузку на NAS. Если два из них сливаются в один текст, уведомление
+    перестаёт отвечать на вопрос, ради которого его включали.
+    """
+    payload = json.loads((PACHCA / "samples/jellyfin-directstream.json").read_text(encoding="utf-8"))
+    seen = {
+        method: render(PACHCA / "jellyfin.liquid", {**payload, "playMethod": method})
+        for method in ("DirectPlay", "DirectStream", "Transcode")
+    }
+    assert len(set(seen.values())) == 3, "какие-то два способа дают одинаковый текст"
+    assert "⚠️" in seen["Transcode"]
+    assert "⚠️" not in seen["DirectPlay"]
+
+
+def test_unknown_play_method_does_not_claim_direct_play() -> None:
+    """Неизвестное значение не должно молча выдаваться за прямое."""
+    payload = json.loads((PACHCA / "samples/jellyfin-directstream.json").read_text(encoding="utf-8"))
+    text = render(PACHCA / "jellyfin.liquid", {**payload, "playMethod": "SomethingNew"})
+    assert "прямое воспроизведение" not in text.lower()
+    assert "SomethingNew" in text
+
+
+def test_audio_codec_reaches_the_message() -> None:
+    """
+    Звук — самая частая причина того, что сервер вообще что-то делает
+    с файлом. Без него в сообщении видно, что происходит, но не видно почему.
+    """
+    payload = json.loads((PACHCA / "samples/jellyfin-directstream.json").read_text(encoding="utf-8"))
+    assert "DTS" in render(PACHCA / "jellyfin.liquid", payload)
+    assert "AC-3" in render(PACHCA / "jellyfin.liquid", {**payload, "audioCodec": "ac3"})
+    # Незнакомый кодек не должен исчезать.
+    assert "DTSHD" in render(PACHCA / "jellyfin.liquid", {**payload, "audioCodec": "dtshd"})
+
+
+def test_audio_absent_leaves_no_dangling_punctuation() -> None:
+    """У события без звуковой дорожки не должно остаться висящих знаков."""
+    payload = json.loads((PACHCA / "samples/jellyfin-directstream.json").read_text(encoding="utf-8"))
+    text = render(PACHCA / "jellyfin.liquid",
+                  {**payload, "audioCodec": "", "audioChannels": ""})
+    for junk in (": .", " · \n", "· ·", "дорожка:"):
+        assert junk not in text, f"осталось «{junk}»: {text!r}"
+
+
 def test_resolution_uses_width_not_height() -> None:
     """
     Главная ловушка. Кинематографический кадр 2.39:1 в честном 1080p —
@@ -201,7 +267,9 @@ def test_resolution_fields_in_payload_and_template() -> None:
     payload = (PACHCA / "payloads/jellyfin.handlebars").read_text(encoding="utf-8")
     liquid = (PACHCA / "jellyfin.liquid").read_text(encoding="utf-8")
     for source, target in (("Video_0_Width", "width"), ("Video_0_Height", "height"),
-                           ("Video_0_Codec", "videoCodec")):
+                           ("Video_0_Codec", "videoCodec"),
+                           ("Audio_0_Codec", "audioCodec"),
+                           ("Audio_0_Channels", "audioChannels")):
         assert source in payload, f"{source} пропал из payloads/jellyfin.handlebars"
         assert target in liquid, f"поле {target} не используется в jellyfin.liquid"
 

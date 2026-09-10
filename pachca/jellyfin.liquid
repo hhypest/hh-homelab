@@ -67,6 +67,32 @@
 {%- endcase -%}
 
 {%- comment -%}
+  Звук. Ради него всё и затевалось: именно неподходящая дорожка чаще всего
+  и заставляет Jellyfin переложить файл. Имена приводим к человеческим —
+  «dts» в сообщении ничего не подсказывает, «DTS» подсказывает всё.
+{%- endcomment -%}
+{%- assign acodec = audioCodec | default: '' | downcase -%}
+{%- case acodec -%}
+  {%- when 'dts', 'dca' -%}{%- assign acodec = 'DTS' -%}
+  {%- when 'ac3' -%}{%- assign acodec = 'AC-3' -%}
+  {%- when 'eac3' -%}{%- assign acodec = 'E-AC-3' -%}
+  {%- when 'truehd' -%}{%- assign acodec = 'TrueHD' -%}
+  {%- when 'aac' -%}{%- assign acodec = 'AAC' -%}
+  {%- when 'flac' -%}{%- assign acodec = 'FLAC' -%}
+  {%- when 'opus' -%}{%- assign acodec = 'Opus' -%}
+  {%- when 'mp3' -%}{%- assign acodec = 'MP3' -%}
+  {%- when '' -%}{%- assign acodec = '' -%}
+  {%- else -%}{%- assign acodec = audioCodec | upcase -%}
+{%- endcase -%}
+
+{%- assign audio = acodec -%}
+{%- assign ch = audioChannels | plus: 0 -%}
+{%- if audio != '' and ch == 2 -%}{%- assign audio = audio | append: ' стерео' -%}
+{%- elsif audio != '' and ch == 6 -%}{%- assign audio = audio | append: ' 5.1' -%}
+{%- elsif audio != '' and ch == 8 -%}{%- assign audio = audio | append: ' 7.1' -%}
+{%- endif -%}
+
+{%- comment -%}
   Строка «1080p · HEVC» собирается заранее: она нужна и при добавлении
   в библиотеку, и при начале просмотра, а пустых разделителей « · »
   в сообщении быть не должно ни в одном из четырёх сочетаний.
@@ -89,8 +115,12 @@
 {{ device | default: 'неизвестное устройство' }}{% if client and client != '' %} · {{ client }}{% endif %}
 {%- if playMethod == 'Transcode' %}
 {% if media != '' %}{{ media }} · {% endif %}⚠️ **транскодирование** — процессор NAS занят целиком. Проверьте кодек и субтитры.
+{%- elsif playMethod == 'DirectStream' %}
+{% if media != '' %}{{ media }} · {% endif %}🔄 **DirectStream** — видео копируется, но файл целиком перекладывается через кэш. Обычно виновата звуковая дорожка{% if audio != '' %}: {{ audio }}{% endif %}.
+{%- elsif playMethod == 'DirectPlay' %}
+{% if media != '' %}{{ media }} · {% endif %}✅ прямое воспроизведение{% if audio != '' %} · {{ audio }}{% endif %}
 {%- else %}
-{% if media != '' %}{{ media }} · {% endif %}прямое воспроизведение: {{ playMethod | default: '—' }}
+{% if media != '' %}{{ media }} · {% endif %}способ воспроизведения: {{ playMethod | default: '—' }}
 {%- endif -%}
 
 {%- when 'PlaybackStop' -%}

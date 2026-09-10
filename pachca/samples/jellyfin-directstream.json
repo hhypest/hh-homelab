@@ -1,0 +1,11 @@
+{
+  "service": "jellyfin", "event": "PlaybackStart",
+  "item": "Особое мнение", "itemType": "Movie", "year": "2002",
+  "series": "", "season": "", "episode": "",
+  "user": "jellyfin", "client": "Jellyfin Android TV", "device": "RockTek GX1",
+  "address": "192.168.3.54", "playMethod": "DirectStream",
+  "playedToCompletion": "", "position": "",
+  "width": "1920", "height": "802", "videoCodec": "h264",
+  "audioCodec": "dts", "audioChannels": "6",
+  "server": "NAS"
+}
