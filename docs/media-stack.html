@@ -259,6 +259,7 @@ figcaption{margin-top:14px;font-size:13.5px;color:var(--muted);max-width:74ch}
 .tag.opt{color:var(--muted)}
 .tag.later{color:var(--iot)}
 .tag.key{color:var(--home)}
+.tag.cfg{color:var(--iot)}
 
 footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);font-size:13px}
 
@@ -357,6 +358,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
       — метрики, уведомления в Пачку и управление телевизором;
       <a href="logs.html">журналы контейнеров</a> — ограничение размера, уборка и чтение;
       <a href="portability.html">другие платформы</a> — если у вас не Synology.</p>
+    <p class="note why"><b>Метка <span class="tag cfg">эта конфигурация</span>.</b> Ею отмечено то, что верно не вообще, а для этого набора железа и этого провайдера. На другом телевизоре, другой приставке или у другого провайдера правильный ответ будет иным — что именно меняется, разобрано в <a href="portability.html#что-зависит-от-железа">реестре зависимостей</a>.</p>
   </div>
 </header>
 
@@ -598,7 +600,7 @@ ls -li /volume1/data/torrents/hardlink.test /volume1/data/media/hardlink.test</c
           одновременно раздающийся из <code>torrents</code> и видимый в
           библиотеке <code>media</code>, занимает место <b>один раз</b>.
           Раздавать после импорта ничего не стоит — и это меняет отношение
-          к настройке лимитов раздачи в шаге 2.6.</div>
+          к настройке лимитов раздачи в шаге 3.6.</div>
       </div>
     </li>
   </ol>
@@ -824,55 +826,6 @@ sudo docker compose up -d</code></pre></div>
       </div>
     </li>
 
-    <li class="step" data-key="m2-6">
-      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
-      <div class="step-body">
-        <h3><span class="num">2.6</span> Переезд со старой схемы<span class="tag opt">только если стек уже работал</span></h3>
-        <p>
-          Раньше стек монтировал <code class="path">/volume1/docker/&lt;сервис&gt;/config</code>
-          абсолютными путями. Если он у вас уже настроен, состояние надо
-          перенести — иначе сервисы поднимутся пустыми, будто их настраивают
-          впервые. Свежая установка этот шаг пропускает.
-        </p>
-        <div class="note why"><b>Приложения переезда не заметят.</b>
-          Меняется только хостовая сторона монтирования. Внутри контейнера
-          пути остаются прежними — <code>/config</code>, <code>/data</code>,
-          <code>/data/media</code>. Ни базы Radarr, ни библиотека Jellyfin,
-          ни список раздач qBittorrent не хранят хостовых путей, так что
-          перенастраивать ничего не придётся.</div>
-        <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab
-
-<span class="c"># Остановить. Обязательно: внутри базы SQLite, копировать их на ходу —</span>
-<span class="c"># верный способ получить повреждённый файл</span>
-cd media &amp;&amp; sudo docker compose down &amp;&amp; cd ..
-
-<span class="c"># Подстраховаться</span>
-sudo tar czf /volume1/homes/backup-media-$(date +%F).tar.gz \
-  /volume1/docker/{qbittorrent,prowlarr,radarr,jellyfin,seerr}
-
-<span class="c"># Перенести. Оба места на /volume1, поэтому mv мгновенный:</span>
-<span class="c"># это переименование, а не копирование терабайтов</span>
-sudo mkdir -p media/config media/cache
-sudo mv /volume1/docker/qbittorrent/config media/config/qbittorrent
-sudo mv /volume1/docker/qbittorrent/watch  media/watch
-sudo mv /volume1/docker/prowlarr/config    media/config/prowlarr
-sudo mv /volume1/docker/radarr/config      media/config/radarr
-sudo mv /volume1/docker/jellyfin/config    media/config/jellyfin
-sudo mv /volume1/docker/seerr/config       media/config/seerr
-
-<span class="c"># Кэш Jellyfin не переносим — восстановится сам, а весит обычно</span>
-<span class="c"># больше всего остального вместе взятого</span>
-sudo mkdir -p media/cache/jellyfin
-
-sudo chown -R 1026:100 media
-cd media &amp;&amp; sudo docker compose up -d</code></pre></div>
-        <div class="note warn"><b>Старые каталоги не удаляйте сразу.</b>
-          <code class="path">/volume1/docker/qbittorrent</code> и соседние останутся
-          пустыми оболочками — пусть полежат, пока вы не убедитесь по шагу 2.5
-          и по интерфейсам, что все шесть сервисов помнят свои настройки.
-          Откат в этот момент стоит одной команды <code>mv</code> обратно.</div>
-      </div>
-    </li>
   </ol>
 </section>
 
@@ -982,7 +935,7 @@ cd media &amp;&amp; sudo docker compose up -d</code></pre></div>
     <li class="step" data-key="m3-5">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">3.5</span> Ограничить число соединений и скорость<span class="tag key">важно для сети</span></h3>
+        <h3><span class="num">3.5</span> Ограничить число соединений и скорость<span class="tag key">важно для сети</span><span class="tag cfg">эта конфигурация</span></h3>
         <p><b>Настройки → Соединение</b>:</p>
         <div class="tablewrap">
           <table>
@@ -1636,7 +1589,7 @@ sudo docker compose restart prowlarr</code></pre></div>
           свободен. Строка <code>Transcoding</code> с указанием кодеков —
           NAS пережимает видео на лету, и это надо расследовать: обычно виноват
           либо звук DTS, либо формат субтитров.</div>
-        <h4 style="margin-top:22px;font-size:14.5px">Звук: почему фильмы с DTS встают, а с Dolby Digital идут</h4>
+        <h4 style="margin-top:22px;font-size:14.5px">Звук: почему фильмы с DTS встают, а с Dolby Digital идут <span class="tag cfg">эта конфигурация</span></h4>
         <p>
           Симптом узнаваемый: часть фильмов воспроизводится ровно, часть
           подвисает — и разделяются они не размером и не битрейтом, а звуковой
@@ -2104,31 +2057,14 @@ sudo docker compose config &gt;/dev/null &amp;&amp; sudo docker compose up -d</c
           <code>sudo sed -i 's|^TZ=.*|TZ=Europe/Moscow|' media/.env</code></div>
 
         <p>
-          Дальше — два случая, которые встречаются <b>один раз</b>, на давно
+          Дальше — случай, который встречается <b>один раз</b>, на давно
           поднятой установке. Если вы разворачивались недавно, по чек-листу
-          с относительными путями и <code class="path">.env</code>, — шаг
-          на этом закончился, остальное вас не касается.
+          с <code class="path">.env</code>, — шаг на этом закончился,
+          остальное вас не касается.
         </p>
 
-        <div class="note crit"><b>Первое: состояние сервисов могло
-          остаться по старым путям.</b> Раньше оно монтировалось
-          абсолютными <code class="path">/volume1/docker/&lt;сервис&gt;/config</code>.
-          Сделать <code>git pull</code> и поднять стек, не перенеся его, —
-          значит получить шесть приложений, запустившихся <b>с чистого
-          листа</b>: выглядит как «настройки пропали», хотя они целы
-          и лежат по старому пути. Проверить, по каким путям стек работает
-          сейчас:</div>
-        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo docker inspect --format '{{.Name}}{{range .Mounts}} {{.Source}}{{end}}' \
-  qbittorrent prowlarr radarr jellyfin seerr</code></pre></div>
-        <p>
-          Увидели <code class="path">/volume1/docker/&lt;сервис&gt;/config</code> —
-          переезд описан в <a href="#s2">шаге 2.6</a>, с бэкапом и разбором,
-          почему приложения его не заметят. Делается один раз, при
-          остановленном стеке.
-        </p>
-
-        <div class="note crit"><b>И второе: без <code class="path">.env</code>
-          стек теперь не поднимется.</b> Значений по умолчанию
+        <div class="note crit"><b>Без <code class="path">.env</code>
+          стек не поднимется.</b> Значений по умолчанию
           в <code>compose.yaml</code> нет, так что после
           <code>git pull</code> на установке, сделанной до этого изменения,
           <code>docker compose up</code> откажется работать и назовёт

@@ -259,6 +259,7 @@ figcaption{margin-top:14px;font-size:13.5px;color:var(--muted);max-width:74ch}
 .tag.opt{color:var(--muted)}
 .tag.later{color:var(--iot)}
 .tag.key{color:var(--home)}
+.tag.cfg{color:var(--iot)}
 
 footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);font-size:13px}
 
@@ -342,6 +343,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <p class="lede">Шлюз сети — Keenetic. Ниже то, что влияет на работу Home Assistant и медиа-стека, без инвентаря устройств: конкретные имена, адреса и параметры туннеля живут в локальной копии этого файла, а не в публичном репозитории. &gt; Если ведёте свои заметки по сети — назовите файл <code>docs/keenetic.local.md</code>, &gt; он перечислен в <code>.gitignore</code> и в git не попадёт.</p>
     <div class="facts"><span class="fact"><span class="dot home"></span>Home <b>192.168.3.0/24</b></span><span class="fact"><span class="dot iot"></span>IoT <b>10.0.50.0/24</b></span><span class="fact">изоляция сегментов <b>включена</b></span></div>
     <p class="crosslink">Соседние документы: <a href="overview.html">обзор проекта</a> · <a href="index.html">развёртывание Home Assistant</a>.</p>
+    <p class="note why"><b>Метка <span class="tag cfg">эта конфигурация</span>.</b> Ею отмечено то, что верно не вообще, а для этого набора железа и этого провайдера. На другом телевизоре, другой приставке или у другого провайдера правильный ответ будет иным — что именно меняется, разобрано в <a href="portability.html#что-зависит-от-железа">реестре зависимостей</a>.</p>
   </div>
 </header>
 
@@ -370,7 +372,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
 <section id="s1">
   <div class="sec-head">
     <div class="kicker">Раздел 1</div>
-    <h2 id="wi-fi-или-кабель">Wi-Fi или кабель</h2>
+    <h2 id="wi-fi-или-кабель">Wi-Fi или кабель<span class="tag cfg">эта конфигурация</span></h2>
     <p>
       Вопрос возвращается при каждой перестановке мебели. Ответ разный
       для приставки и для телевизора, и разница не в скорости.
@@ -663,7 +665,7 @@ STA(AA:BB:CC:DD:EE:FF) set key done in WPA2/WPA2PSK   <span class="c">← отк
 <section id="s2">
   <div class="sec-head">
     <div class="kicker">Раздел 2</div>
-    <h2 id="если-весь-трафик-идет-через-vpn">Если весь трафик идёт через VPN</h2>
+    <h2 id="если-весь-трафик-идет-через-vpn">Если весь трафик идёт через VPN<span class="tag cfg">эта конфигурация</span></h2>
   </div>
 <p>Распространённая конфигурация: политика подключений отправляет весь исходящий трафик в WireGuard-туннель. Тогда стоит проверить, что нужные сервисы вообще отвечают — некоторые по-разному относятся к зарубежным и дата-центровым адресам.</p>
 <p>По SSH на NAS:</p>
@@ -749,7 +751,7 @@ ip name-server 1.1.1.1 "" on ISP</code></pre></div>
 <section id="s3">
   <div class="sec-head">
     <div class="kicker">Раздел 3</div>
-    <h2 id="проброс-порта-для-раздачи">Проброс порта для раздачи</h2>
+    <h2 id="проброс-порта-для-раздачи">Проброс порта для раздачи<span class="tag cfg">эта конфигурация</span></h2>
   </div>
 <p>qBittorrent слушает <code>6881/tcp</code> и <code>6881/udp</code> — номер задаётся переменной <code>QBITTORRENT_TORRENT_PORT</code> в <code class="path">media/.env</code>. Это единственный порт стека, который меняется с обеих сторон разом: qBittorrent объявляет пирам тот номер, на котором слушает, и пробрасывать на роутере нужно его же. Разъедутся — входящих соединений не будет вовсе.</p>
 <h3 class="sub">Сначала проверьте, что адрес вообще ваш</h3>

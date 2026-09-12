@@ -22,12 +22,12 @@ Home Assistant, дашборд, шаблоны уведомлений, два п
 | Документ | Отвечает на вопрос | Формат |
 |---|---|---|
 | **[Обзор проекта](https://hhypest.github.io/hh-homelab/overview.html)** | Как устроена система целиком, как складывалась, что в ней измерено и нужен ли Prometheus | обзор ([исходник](docs/overview.html)) |
-| **[Установка и настройка медиа-стека](https://hhypest.github.io/hh-homelab/media-stack.html)** | Как поднять шесть контейнеров и связать их в конвейер «запрос → фильм в библиотеке» | 47 шагов с отметками ([исходник](docs/media-stack.html)) |
+| **[Установка и настройка медиа-стека](https://hhypest.github.io/hh-homelab/media-stack.html)** | Как поднять шесть контейнеров и связать их в конвейер «запрос → фильм в библиотеке» | 46 шагов с отметками ([исходник](docs/media-stack.html)) |
 | **[Развёртывание Home Assistant](https://hhypest.github.io/hh-homelab/)** | Как с нуля поднять HA на NAS, снять метрики, настроить уведомления, телевизор и Алису | 62 шага с отметками ([исходник](docs/index.html)) |
 | **[Журналы контейнеров](https://hhypest.github.io/hh-homelab/logs.html)** | Почему логи Docker растут без предела, как их ограничить, убрать накопленное и читать | 23 шага с отметками ([исходник](docs/logs.html)) |
 | **[Уведомления в Пачку](https://hhypest.github.io/hh-homelab/pachca.html)** | Какой бот в каком чате, где чей шаблон, как настроить каждый сервис | справочник ([исходник](docs/pachca.html)) |
 | **[Роутер](https://hhypest.github.io/hh-homelab/keenetic.html)** | Что в настройках Keenetic влияет на этот стек и чего лучше не трогать | заметки ([исходник](docs/keenetic.html)) |
-| **[Другие платформы](https://hhypest.github.io/hh-homelab/portability.html)** | Как поднять оба стека не на Synology: что переносится, что переписать в `.env`, где место Terraform и Ansible | советы ([исходник](docs/portability.html)) |
+| **[Другие платформы](https://hhypest.github.io/hh-homelab/portability.html)** | Как поднять оба стека не на Synology: что переносится, что переписать в `.env`, где место Terraform и Ansible, и реестр решений, зависящих от конкретного железа | советы ([исходник](docs/portability.html)) |
 | **[Дорожная карта](https://hhypest.github.io/hh-homelab/roadmap.html)** | Куда это может расти дальше, в каком порядке и чего решено не делать | 21 пункт с отметками ([исходник](docs/roadmap.html)) |
 | **[История версий](https://hhypest.github.io/hh-homelab/changelog.html)** | Что вошло в выпуск, на каких версиях образов проверено, как обновляться | changelog ([исходник](docs/changelog.html)) |
 
