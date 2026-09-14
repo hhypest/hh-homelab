@@ -95,6 +95,7 @@ class Checker(HTMLParser):
 
 
 STEP_COUNTS: dict[str, int] = {}
+STEP_NUMBERS: dict[str, set[str]] = {}
 
 
 def check_html(path: pathlib.Path, problems: list[str]) -> None:
@@ -120,6 +121,7 @@ def check_html(path: pathlib.Path, problems: list[str]) -> None:
     # вставляют новый шаг и сдвигают нумерацию: текст остаётся прежним,
     # а шага с таким номером больше нет.
     numbers = set(re.findall(r'<span class="num">([\d.]+)</span>', text))
+    STEP_NUMBERS[path.name] = numbers
     if numbers:
         other_page = re.compile(r'href="[\w.-]+\.html')
         missing = set()
@@ -173,6 +175,49 @@ def check_declared_step_counts(path: pathlib.Path, problems: list[str]) -> None:
             )
 
 
+def check_markdown_step_links(path: pathlib.Path, problems: list[str]) -> None:
+    """
+    «Шаг 2.6» в README пережил сам шаг.
+
+    Внутри страницы такие ссылки сверяются давно: check_html знает номера
+    своих шагов и ругается, когда текст ссылается на несуществующий.
+    Из markdown проверять было нечем — и когда переезд со старой схемы
+    убрали из чек-листа, строка в README осталась звать читателя в шаг,
+    которого больше нет. Ошибка того же рода, что и номер шага внутри
+    страницы, просто живёт в другом файле.
+
+    Считаем ссылкой строку, где рядом стоят адрес страницы и номер шага.
+    Адрес бывает и относительным (docs/media-stack.html), и полным —
+    на GitHub Pages, где чек-лист Home Assistant лежит в корне.
+    """
+    rel = path.relative_to(ROOT)
+    page = re.compile(r"(?:docs/|hh-homelab/)([\w.-]+\.html)")
+    # Чек-лист Home Assistant опубликован как индекс каталога, без имени файла.
+    root_link = re.compile(r"hh-homelab/\)")
+    step = re.compile(r"шаг[а-яё]*\s+(\d+\.\d+)")
+
+    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        names = set(page.findall(line))
+        if root_link.search(line):
+            names.add("index.html")
+        numbers = step.findall(line)
+        if not names or not numbers:
+            continue
+        # Страница, которой мы не видели, — не повод ругаться: ссылка может
+        # вести куда угодно, а сверять нам нечем.
+        known = [n for n in names if n in STEP_NUMBERS]
+        if not known:
+            continue
+        for number in numbers:
+            if any(number in STEP_NUMBERS[n] for n in known):
+                continue
+            where = ", ".join(sorted(known))
+            problems.append(
+                f"{rel}: строка {line_number} зовёт в шаг {number}, "
+                f"а на странице {where} такого шага нет"
+            )
+
+
 def check_markdown_links(path: pathlib.Path, problems: list[str]) -> None:
     text = path.read_text(encoding="utf-8")
     rel = path.relative_to(ROOT)
@@ -198,6 +243,7 @@ def main() -> int:
             continue
         check_markdown_links(path, problems)
         check_declared_step_counts(path, problems)
+        check_markdown_step_links(path, problems)
 
     tracked = subprocess.run(
         ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=False,

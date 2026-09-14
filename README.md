@@ -124,7 +124,7 @@ hh-homelab/
 │   ├── .env.example                 → .env: часовой пояс и адрес прокси
 │   ├── dashboard-infrastructure.yaml дашборд, вставляется через интерфейс
 │   └── config/
-│       ├── configuration.yaml       база, recorder, доверенные прокси
+│       ├── configuration.yaml       база, recorder, Wake-on-LAN, счётчик входов
 │       ├── secrets.yaml.example     → переименовать в secrets.yaml
 │       ├── bin/
 │       │   ├── http_check.py        жив ли сервис: HTTP раз в минуту
@@ -178,7 +178,6 @@ hh-homelab/
 |---|---|
 | Медиа-стек, шесть контейнеров | [чек-лист медиа-стека](https://hhypest.github.io/hh-homelab/media-stack.html), разделы 1–2 |
 | Home Assistant и docker-socket-proxy | [чек-лист Home Assistant](https://hhypest.github.io/hh-homelab/), разделы 1–2 |
-| Переезд с прежней схемы абсолютных путей | [чек-лист медиа-стека](https://hhypest.github.io/hh-homelab/media-stack.html), шаг 2.6 |
 | Уже подняли — забрать изменения конфигурации | [медиа-стек](https://hhypest.github.io/hh-homelab/media-stack.html), шаг 10.3; [Home Assistant](https://hhypest.github.io/hh-homelab/), шаг 11.4 |
 
 Начинать с медиа-стека: он ни от чего не зависит, а Home Assistant
@@ -395,9 +394,9 @@ VueTorrent — веб-интерфейс вместо штатного. Он т�
 | **YAML** | отступы, дубликаты ключей, форматирование | `yamllint` |
 | **Конфигурация · YAML, Jinja, секреты** | разбор YAML с тегами HA, компиляция каждого Jinja-шаблона, поиск токенов и MAC | [`validate_config.py`](scripts/validate_config.py) |
 | **Конфигурация · ссылки на сущности** | что каждый `entity_id` из автоматизаций и дашборда действительно кем-то создаётся; дубликаты id и имён скриптов | [`validate_entities.py`](scripts/validate_entities.py) |
-| **Python · ruff и тесты** | линтер и 146 тестов на Python 3.11, 3.12 и 3.13; среди них — проверка самого workflow: кэш pip знает, где лежат зависимости, и версии действий не разъехались | `ruff`, `pytest` |
-| **Пачка · Liquid** | 30 комбинаций «шаблон × пример payload», пустые сообщения, заглушки вместо данных, лимит 40 000 байт | [`render_pachca.py`](scripts/render_pachca.py) |
-| **Документация** | целостность восьми HTML-страниц, живые ссылки, отсутствие личных данных, сверка обещанных в этой таблице счётчиков шагов с самими страницами | [`validate_docs.py`](scripts/validate_docs.py) |
+| **Python · ruff и тесты** | линтер и 238 тестов на Python 3.11, 3.12 и 3.13; среди них — проверка самого workflow: кэш pip знает, где лежат зависимости, и версии действий не разъехались | `ruff`, `pytest` |
+| **Пачка · Liquid** | 32 комбинации «шаблон × пример payload», пустые сообщения, заглушки вместо данных, лимит 40 000 байт | [`render_pachca.py`](scripts/render_pachca.py) |
+| **Документация** | целостность девяти HTML-страниц, живые ссылки, отсутствие личных данных, сверка счётчиков шагов и ссылок вида «шаг 2.6» из Markdown с самими страницами | [`validate_docs.py`](scripts/validate_docs.py) |
 | **Файлы · переводы строк и пробелы** | каждый файл заканчивается переводом строки, нет CRLF и висящих пробелов — во всех типах, а не только в YAML и Python | [`check_files.py`](scripts/check_files.py) |
 | **Docker Compose** | оба файла разворачиваются, порты хоста не заняты дважды | `docker compose config`, [`check_ports.py`](scripts/check_ports.py) |
 
