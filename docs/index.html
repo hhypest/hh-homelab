@@ -1904,23 +1904,40 @@ system configuration save</code></pre></div>
     <li class="step" data-key="s9-4">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
-        <h3><span class="num">9.4</span> Опубликовать Home Assistant через KeenDNS<span class="tag opt">по желанию</span></h3>
+        <h3><span class="num">9.4</span> Открыть доступ снаружи<span class="tag opt">по желанию</span></h3>
         <p>
-          У вас уже настроен KeenDNS для DSM (<code>ip http proxy nas</code>). Добавим второе
-          приложение: <i>Управление → Доменное имя → Приложения → Добавить</i>.
+          Два пути, и выбирать стоит не по удобству, а по тому, что именно
+          вы показываете интернету. Разбор обоих —
+          <a href="keenetic.html#внешний-доступ">раздел 4 страницы роутера</a>,
+          здесь — что от этого меняется в Home Assistant.
+        </p>
+        <p>
+          <b>VPN-сервер на роутере.</b> Клиент подключается к домашней сети
+          целиком, Home Assistant открывается по внутреннему адресу — как дома.
+          Со стороны Home Assistant делать не нужно ничего: он и не узнает,
+          что вы не в квартире. Наружу торчит один UDP-порт, отвечающий только
+          на правильный ключ.
+        </p>
+        <p>
+          <b>Публикация через KeenDNS.</b> <i>Управление → Доменное имя →
+          Приложения → Добавить</i>:
         </p>
         <ul>
           <li>адрес сервера <code>192.168.3.53</code>, порт <code>8123</code>, протокол HTTP;</li>
           <li>авторизацию роутера — <b>выключить</b>: у Home Assistant своя, а мобильное
             приложение не умеет проходить басик-авторизацию Keenetic.</li>
         </ul>
-        <div class="note why"><b>Секция <code>http:</code> уже готова к этому.</b> В
+        <div class="note why"><b>Секция <code>http:</code> готова только ко второму пути.</b> В
           <code>configuration.yaml</code> прописаны <code>use_x_forwarded_for: true</code> и
           <code>trusted_proxies: 192.168.3.1</code>. Без них Home Assistant видел бы все
           запросы приходящими с адреса роутера и после пяти неудачных попыток входа
-          заблокировал бы роутер целиком — вместе со всем внешним доступом.</div>
-        <p>После настройки впишите адрес в <code>secrets.yaml</code> (<code>ha_external_url</code>)
-          и раскомментируйте строку <code>external_url</code> в <code>configuration.yaml</code>.</p>
+          заблокировал бы роутер целиком — вместе со всем внешним доступом.
+          Если вы выбрали туннель и публикацию не включаете, обе строки не делают
+          ничего и их лучше убрать: доверие к заголовкам от чужого адреса
+          не стоит держать включённым про запас.</div>
+        <p>При публикации впишите адрес в <code>secrets.yaml</code> (<code>ha_external_url</code>)
+          и раскомментируйте строку <code>external_url</code> в <code>configuration.yaml</code>.
+          С туннелем этого не требуется: внутренний адрес и так работает.</p>
       </div>
     </li>
   </ol>
