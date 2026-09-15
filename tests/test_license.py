@@ -135,3 +135,56 @@ def test_каждый_файл_лицензии_на_месте():
     for имя in ("LICENSE", "NOTICE.md", "CONTRIBUTING.md",
                 "LICENSES/MIT.txt", "LICENSES/CC-BY-4.0.txt"):
         assert (ROOT / имя).is_file(), f"нет файла {имя}"
+
+
+# Карта лицензий обязана покрывать каждый файл под версией. Замечание
+# Codex к PR 44: NOTICE перечислял `docs/` и README как текст, а каталоги
+# с кодом — как код, и сам NOTICE вместе с CONTRIBUTING не попадал никуда.
+# Список ниже — та же карта, записанная так, чтобы её можно было сверить.
+КАРТА = {
+    "текст": ("docs/", "README.md", "NOTICE.md", "CONTRIBUTING.md"),
+    "код": ("scripts/", "tests/", "media/", "homeassistant/", "pachca/", ".github/"),
+    "тексты лицензий": ("LICENSE", "LICENSES/"),
+    # Про эти NOTICE говорит общими словами — «файлы настроек в корне», —
+    # поэтому поимённо в нём их нет, а здесь есть: новый файл в корне
+    # должен потребовать решения, а не попасть в код молча.
+    "настройки в корне": (
+        ".gitattributes", ".gitignore", ".yamllint", "constraints.txt",
+        "pytest.ini", "requirements-dev.txt", "ruff.toml",
+    ),
+}
+
+
+def под_версией() -> list[str]:
+    import subprocess
+    return subprocess.run(
+        ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=False,
+    ).stdout.splitlines()
+
+
+def test_каждый_файл_под_версией_попал_в_карту_лицензий():
+    префиксы = [p for группа in КАРТА.values() for p in группа]
+    бездомные = [
+        f for f in под_версией()
+        if not any(f == p or f.startswith(p) for p in префиксы)
+    ]
+    assert not бездомные, (
+        "эти файлы не попадают ни в одну категорию NOTICE.md — "
+        f"им не назначена лицензия: {', '.join(sorted(бездомные))}"
+    )
+
+
+def test_notice_называет_каждую_категорию_карты():
+    """
+    Обратная сторона проверки выше: карта в тесте не должна разойтись
+    с картой в NOTICE. Каталоги и файлы, названные там поимённо, ищем
+    в тексте; про настройки в корне NOTICE говорит общими словами.
+    """
+    notice = NOTICE.read_text(encoding="utf-8")
+    for группа in ("текст", "код", "тексты лицензий"):
+        for путь in КАРТА[группа]:
+            искомое = путь.rstrip("/") if путь.endswith("/") else путь
+            assert искомое in notice, (
+                f"«{путь}» есть в карте теста, но в NOTICE.md не упомянут"
+            )
+    assert "файлы настроек в корне" in notice

@@ -25,15 +25,32 @@
 меньше чем за пятнадцать секунд:
 
 ```
-ruff check .
-python -m pytest tests/
-yamllint homeassistant media pachca .github
-python scripts/validate_config.py
-python scripts/validate_entities.py
-python scripts/validate_docs.py
-python scripts/render_pachca.py --check
-python scripts/check_files.py
+ruff check .                                  # Python · ruff и тесты
+python -m pytest tests/                       #   (то же, вторая половина задачи)
+yamllint homeassistant media pachca .github   # YAML · форматирование
+python scripts/validate_config.py             # Конфигурация · YAML, Jinja, секреты
+python scripts/validate_entities.py           # Конфигурация · ссылки на сущности
+python scripts/render_pachca.py --check       # Пачка · Liquid-шаблоны
+python scripts/validate_docs.py               # Документация
+python scripts/check_files.py                 # Файлы · переводы строк и пробелы
 ```
+
+Восьмая задача — `Docker Compose · оба стека` — единственная, которой
+нужен установленный Docker. Она разворачивает оба файла на образцах
+`.env.example`, то есть заодно проверяет и сами образцы: забыли
+переменную в образце — упадёт здесь, а не у человека на NAS.
+
+```
+docker compose -f media/compose.yaml \
+  --env-file media/.env.example config --quiet
+docker compose -f homeassistant/compose.yaml \
+  --env-file homeassistant/.env.example config --quiet
+python scripts/check_ports.py media/compose.yaml homeassistant/compose.yaml
+```
+
+Если правите только документацию, эту часть можно пропустить. Если
+трогаете `compose.yaml` или `.env.example` — нельзя: конфликт портов и
+незаполненная переменная иначе обнаружатся только после push.
 
 Отдельно стоит знать про две проверки, которые ловят не синтаксис:
 
