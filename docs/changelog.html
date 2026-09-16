@@ -547,6 +547,58 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     и пересылают в отрыве от репозитория.
   </p>
 
+  <h3 class="sub" id="dependabot-11">Dependabot: образы молчали две недели</h3>
+  <p>
+    Экосистема <code>docker-compose</code> заведена 2 сентября, расписание
+    еженедельное — и ни одного пул-реквеста, хотя обновления были:
+    Jellyfin, Radarr, Prowlarr, FlareSolverr и Home Assistant успели уйти
+    вперёд. При этом сам Dependabot жив: по <code>pip</code>
+    и <code>github-actions</code> он завёл восемь PR в конце августа.
+  </p>
+  <p>Проверено по первоисточникам — и не подтвердилось ничего:</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Подозрение</th><th>Чем проверено</th><th>Итог</th></tr></thead>
+      <tbody>
+        <tr><td>Неверное имя экосистемы</td><td>таблица значений
+          <code>package-ecosystem</code> в справочнике GitHub</td>
+          <td><code>docker-compose</code> — верное</td></tr>
+        <tr><td><code>compose.yaml</code> не подходит под искомые имена</td>
+          <td><code>FILENAME_REGEX</code> из <code>dependabot-core</code></td>
+          <td>подходит</td></tr>
+        <tr><td><code>directories</code> не поддерживается</td>
+          <td>справочник</td><td>поддерживается</td></tr>
+        <tr><td>Реестр <code>lscr.io</code> не опрашивается</td>
+          <td>запрос к <code>/v2/…/tags/list</code></td>
+          <td>это псевдоним <code>ghcr.io</code>, отвечает</td></tr>
+        <tr><td>Нужных тегов нет в реестре</td>
+          <td>постраничный обход всех 4511 тегов Home Assistant</td>
+          <td><code>2026.9.2</code> на месте</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note warn"><b>Ложный след — граф зависимостей.</b> На вкладке
+    <i>Dependency graph → Dependabot</i> compose-файлов нет, и это выглядит
+    как улика. Не улика: Docker и Docker Compose в граф зависимостей
+    <b>не входят вовсе</b> — там только Bazel, Cargo, Composer, Deno, NuGet,
+    Actions, Go, Gradle, Julia, Maven, npm, OpenTofu, pip, pnpm, pub, Poetry,
+    RubyGems, Swift и Yarn. Образов там не бывает ни у кого, и SBOM
+    репозитория их тоже не покажет.</div>
+  <p>
+    Осталась одна конструкция, которой не было в двух работающих блоках, —
+    <code>directories</code> во множественном числе. Блок разбит на два
+    с <code>directory</code>, чтобы её исключить. Это проверка гипотезы,
+    а не известное лекарство: если PR не появятся и теперь, дело не в ней.
+    Побочный эффект полезен сам по себе — Dependabot перечитывает конфиг
+    при каждом push в основную ветку, так что ответ придёт за минуты,
+    а не через неделю.
+  </p>
+  <div class="note"><b>Два PR вместо одного здесь безопасны.</b> Прежняя
+    беда — когда ветки от одного старого <code>main</code> откатывают правки
+    друг друга — случается, только если пул-реквесты трогают один и тот же
+    файл. Эти два не пересекаются: у каждого свой
+    <code class="path">compose.yaml</code>.</div>
+
   <h3 class="sub" id="что-ещё-в-11">Что ещё</h3>
   <ul>
     <li><b>Медиа-стек.</b> Свои определения индексаторов (шаг 5.3) с разбором
@@ -692,8 +744,8 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
 
   <h3 class="sub" id="как-обновляться">Как обновляться дальше</h3>
   <p>
-    Обновления образов приходят пул-реквестом от Dependabot раз в неделю,
-    одной группой на оба стека. Порядок обратный привычному:
+    Обновления образов приходят пул-реквестами от Dependabot раз в неделю —
+    по одному на стек. Порядок обратный привычному:
     <code>docker compose pull</code> сам версию больше не поднимает.
   </p>
   <div class="code"><pre><code><span class="c"># 1. прочитать changelog, смержить PR от Dependabot</span>
