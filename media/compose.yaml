@@ -182,7 +182,7 @@ services:
         max-file: "3"
 
   jellyfin:
-    image: lscr.io/linuxserver/jellyfin:10.11.11ubu2604-ls47
+    image: lscr.io/linuxserver/jellyfin:12.1ubu2604-ls50
     container_name: jellyfin
     restart: unless-stopped
     environment:
