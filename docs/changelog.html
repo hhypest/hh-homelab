@@ -468,20 +468,17 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
   </p>
 
   <h4 style="margin:22px 0 8px;font-size:15px">Порядок</h4>
-  <p><b>1. Снять копию.</b> Контейнер остановить, каталог состояния скопировать целиком:</p>
-  <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/media
-sudo docker compose stop jellyfin
-sudo cp -a config/jellyfin config/jellyfin.10.11.backup
-du -sh config/jellyfin.10.11.backup</code></pre></div>
-  <div class="note"><b>Кэш копировать не нужно</b> —
-    <code class="path">cache/jellyfin</code> это метаданные, они
-    пересоберутся. Копия нужна только с <code class="path">config/</code>:
-    там база, настройки, пользователи и профили устройств.</div>
+  <div class="note crit"><b>Порядок здесь не косметический.</b> Плагины
+    снимаются <b>через панель работающего Jellyfin 10.11</b> — то есть до
+    остановки контейнера и до <code>up -d</code> с новым образом. Если
+    запустить 12 со сторонними плагинами на месте, миграция пойдёт ровно
+    так, как релиз просит не делать, а отменить её будет нельзя. Поэтому
+    контейнер здесь останавливается и запускается дважды: это не описка.</div>
 
-  <p><b>2. Сохранить настройку вебхука.</b> Сторонние плагины перед
-    миграцией надо снять, а вместе с плагином Webhook может уехать и его
-    конфигурация — адрес вебхука Пачки и шаблон:</p>
-  <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo cp -a config/jellyfin/plugins/configurations/Jellyfin.Plugin.Webhook.xml \
+  <p><b>1. Сохранить настройку вебхука.</b> Контейнер пока работает, файл
+    просто копируется рядом:</p>
+  <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/media
+sudo cp -a config/jellyfin/plugins/configurations/Jellyfin.Plugin.Webhook.xml \
   config/jellyfin.webhook.xml</code></pre></div>
   <div class="note why"><b>Шаблон-то в репозитории есть</b> —
     <code class="path">pachca/payloads/jellyfin.handlebars</code>, — а вот
@@ -489,10 +486,28 @@ du -sh config/jellyfin.10.11.backup</code></pre></div>
     проверка обезличивания. Живёт он только в этом XML, и восстановить его
     потом будет неоткуда.</div>
 
+  <p><b>2. Снять копию.</b> Контейнер остановить — база SQLite на ходу
+    копируется неконсистентно, — скопировать каталог состояния и запустить
+    обратно:</p>
+  <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo docker compose stop jellyfin
+sudo cp -a config/jellyfin config/jellyfin.10.11.backup
+du -sh config/jellyfin.10.11.backup
+sudo docker compose start jellyfin</code></pre></div>
+  <div class="note"><b>Последняя строка не лишняя.</b> Jellyfin нужен
+    работающим для следующего шага: плагины снимаются из его панели.
+    Копия при этом снята с полностью рабочей 10.11 — если миграция не
+    заладится, восстановление вернёт систему целиком, вместе с плагинами.</div>
+  <div class="note"><b>Кэш копировать не нужно</b> —
+    <code class="path">cache/jellyfin</code> это метаданные, они
+    пересоберутся. Копия нужна только с <code class="path">config/</code>:
+    там база, настройки, пользователи и профили устройств.</div>
+
   <p><b>3. Снять сторонние плагины.</b> <i>Панель → Плагины</i>, удалить всё,
     что не входит в поставку, — как минимум Webhook. Из релиза:
     <i>«Installed repository plugins (anything not built-in) should also be
-    removed before migrating»</i>.</p>
+    removed before migrating»</i>. Останавливать контейнер после этого не
+    нужно: <code>up -d</code> на следующем шаге сам пересоздаст его
+    с новым образом.</p>
 
   <p><b>4. Обновиться.</b></p>
   <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab
