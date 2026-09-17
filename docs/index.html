@@ -794,6 +794,53 @@ curl -m 3 http://192.168.3.53:2375/version
         <p>Подробнее о том, зачем нужен прокси, — в шаге 4.2.</p>
       </div>
     </li>
+    <li class="step" data-key="s2-7">
+      <label class="step-check"><input type="checkbox"><span class="box"></span></label>
+      <div class="step-body">
+        <h3><span class="num">2.7</span> Проверить настройки HTTP в интерфейсе</h3>
+        <p>
+          <b>Settings → System → Network</b>, раздел <b>HTTP server</b>. Сверьте
+          по списку:
+        </p>
+        <div class="tablewrap">
+          <table>
+            <tbody>
+              <tr><td>Server port</td><td><code>8123</code></td></tr>
+              <tr><td>Enable IP banning</td><td><b>включено</b></td></tr>
+              <tr><td>Login attempts before ban</td><td><code>5</code></td></tr>
+              <tr><td>Trust X-Forwarded-For</td><td><b>выключено</b></td></tr>
+              <tr><td>Trusted proxies</td><td>пусто</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note crit"><b>Этих настроек нет в репозитории, и это
+          не упущение.</b> С версии 2026.8 Home Assistant не читает секцию
+          <code>http:</code> из <code>configuration.yaml</code> — при первом
+          запуске он переносит её в интерфейс и дальше хранит
+          в <code class="path">config/.storage/</code>, а этот каталог
+          в <code>.gitignore</code>: там же токены и учётные записи. Значит,
+          <b>клон на новой машине поднимется с настройками по умолчанию</b>,
+          и блокировка по IP будет выключена. Отсюда и этот шаг: проверить
+          глазами то, что раньше проверялось файлом.</div>
+        <div class="note warn"><b>Если видите предупреждение «The HTTP
+          configuration … has already been migrated».</b> Значит, в вашем
+          <code>configuration.yaml</code> ещё лежит секция <code>http:</code>
+          от прежней версии. Она не сломает ничего, но будет молча
+          игнорироваться — а это хуже отсутствия: правка в ней выглядит как
+          настройка и ни на что не влияет. Уберите блок, перезапустите
+          контейнер, напоминание в <i>Settings → System → Repairs</i>
+          погаснет само. В этом репозитории блок уже убран.</div>
+        <div class="note why"><b>Почему X-Forwarded-For выключен.</b>
+          Доверять этому заголовку осмысленно, только когда перед Home
+          Assistant стоит реверс-прокси, — например, при публикации наружу
+          через KeenDNS (<a href="#s9">раздел 9</a>). Снаружи сюда ходят
+          через VPN-сервер на роутере, то есть по внутреннему адресу
+          и напрямую. Включённое «про запас» доверие позволило бы подменить
+          адрес клиента и обойти тот самый счётчик неудачных входов.
+          Вернётся публикация — включить <b>обе</b> строки вместе: поодиночке
+          они смысла не имеют.</div>
+      </div>
+    </li>
   </ol>
 </section>
 
@@ -1927,16 +1974,20 @@ system configuration save</code></pre></div>
           <li>авторизацию роутера — <b>выключить</b>: у Home Assistant своя, а мобильное
             приложение не умеет проходить басик-авторизацию Keenetic.</li>
         </ul>
-        <div class="note why"><b>Второй путь требует правки в <code>configuration.yaml</code>.</b>
-          В секцию <code>http:</code> нужно добавить <code>use_x_forwarded_for: true</code> и
-          <code>trusted_proxies</code> с адресом роутера — обе строки разом, поодиночке
-          Home Assistant их не примет. Без них он видел бы все запросы приходящими
-          с адреса роутера и после пяти неудачных попыток входа заблокировал бы роутер
+        <div class="note why"><b>Второй путь требует правки в интерфейсе.</b>
+          <b>Settings → System → Network</b>, раздел <b>HTTP server</b>: включить
+          <b>Trust X-Forwarded-For</b> и вписать адрес роутера в <b>Trusted
+          proxies</b> — оба разом, поодиночке они смысла не имеют. Без них
+          Home Assistant видел бы все запросы приходящими с адреса роутера
+          и после пяти неудачных попыток входа заблокировал бы роутер
           целиком — вместе со всем внешним доступом.
-          В репозитории этих строк нет намеренно: при доступе через туннель прокси
-          в цепочке отсутствует, а включённое про запас доверие к заголовку
+          <br><br>
+          Сейчас оба выключены намеренно: при доступе через туннель прокси
+          в цепочке нет, а включённое про запас доверие к заголовку
           <code>X-Forwarded-For</code> позволило бы подменить адрес клиента
-          и обойти тот самый счётчик. На их месте в файле стоит комментарий.</div>
+          и обойти тот самый счётчик. Почему не в <code>configuration.yaml</code>:
+          с версии 2026.8 секция <code>http:</code> оттуда не читается вовсе —
+          разбор в <a href="#s2">шаге 2.7</a>.</div>
         <p>При публикации впишите адрес в <code>secrets.yaml</code> (<code>ha_external_url</code>)
           и раскомментируйте строку <code>external_url</code> в <code>configuration.yaml</code>.
           С туннелем этого не требуется: внутренний адрес и так работает.</p>
@@ -2398,7 +2449,7 @@ sudo docker compose config &gt;/dev/null &amp;&amp; sudo docker compose up -d</c
         <tr>
           <td><code>configuration.yaml</code></td>
           <td><code class="path">config/</code></td>
-          <td>базовые настройки, щадящий диски recorder, Wake-on-LAN, счётчик неудачных входов</td>
+          <td>базовые настройки, щадящий диски recorder, Wake-on-LAN; настройки HTTP с 2026.8 живут в интерфейсе, не здесь</td>
         </tr>
         <tr>
           <td><code>secrets.yaml.example</code></td>
