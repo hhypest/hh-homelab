@@ -6,9 +6,10 @@
 об этом по нерабочему сервису вечером. Причём непонятно даже, какой
 именно из восьми виноват, если обновились сразу несколько.
 
-Поэтому версии закреплены, а обновления приходят пул-реквестом
-от Dependabot. Здесь — то, что легко нарушить одной правкой: вернуть
-:latest «на время» либо добавить сервис и забыть про тег.
+Поэтому версии закреплены, а обновления сверяются вручную —
+scripts/check_image_updates.py. Здесь — то, что легко нарушить одной
+правкой: вернуть :latest «на время» либо добавить сервис и забыть
+про тег.
 """
 
 from __future__ import annotations
@@ -56,24 +57,43 @@ def test_every_image_is_pinned(path: str) -> None:
         )
 
 
-def test_dependabot_watches_every_compose_directory() -> None:
+def test_сверка_версий_знает_про_каждый_compose_файл() -> None:
     """
     Закрепление версий имеет смысл, только если кто-то приносит обновления.
-    Забыть каталог в dependabot.yml — значит тихо остаться на версиях
-    того дня, когда их закрепили.
+
+    Раньше этим занимался Dependabot, и проверка требовала, чтобы каждый
+    каталог был указан в dependabot.yml. Экосистема docker-compose оттуда
+    убрана — она две недели молчала, пока шесть образов уходили вперёд, —
+    и обновления теперь сверяются вручную скриптом.
+
+    Значит, защита от «добавили стек и забыли» переехала: единственный
+    список, по которому скрипт ходит в реестр, — COMPOSE в нём самом.
+    Ищем compose-файлы по репозиторию и требуем, чтобы каждый там был.
+    """
+    найдено = sorted(str(p.relative_to(ROOT)) for p in ROOT.glob("*/compose.yaml"))
+    assert найдено, "в репозитории не нашлось ни одного compose.yaml — проверка пуста"
+
+    for путь in найдено:
+        assert путь in COMPOSE, (
+            f"{путь} не указан в COMPOSE скрипта scripts/check_image_updates.py — "
+            f"его версии образов не будут сверяться с реестром ни автоматически, "
+            f"ни вручную"
+        )
+
+
+def test_dependabot_больше_не_следит_за_образами() -> None:
+    """
+    Прямое утверждение, а не умолчание.
+
+    Если экосистему вернут, она должна вернуться вместе с решением
+    о том, что делать со скриптом: две системы, следящие за одним и тем
+    же, разойдутся молча. Пусть возврат потребует сознательной правки
+    и этого теста.
     """
     config = yaml.safe_load((ROOT / ".github/dependabot.yml").read_text(encoding="utf-8"))
-    watched: set[str] = set()
-    for update in config.get("updates") or []:
-        if update.get("package-ecosystem") != "docker-compose":
-            continue
-        watched.update(update.get("directories") or [])
-        if "directory" in update:
-            watched.add(update["directory"])
-
-    for path in COMPOSE:
-        directory = "/" + path.rsplit("/", 1)[0]
-        assert directory in watched, (
-            f"{directory} не указан в docker-compose-разделе .github/dependabot.yml — "
-            f"обновления образов оттуда приходить не будут"
-        )
+    экосистемы = {u.get("package-ecosystem") for u in config.get("updates") or []}
+    assert "docker-compose" not in экосистемы, (
+        "docker-compose вернулся в .github/dependabot.yml. Тогда решите, кто "
+        "следит за версиями: он или scripts/check_image_updates.py, — и "
+        "поправьте этот тест вместе с документацией"
+    )

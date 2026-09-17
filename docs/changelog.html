@@ -348,7 +348,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
       <span class="fact">текущий выпуск <b>1.0.0</b></span>
       <span class="fact">контейнеров <b>8</b></span>
       <span class="fact">задач CI <b>8</b></span>
-      <span class="fact">тестов <b>280</b></span>
+      <span class="fact">тестов <b>281</b></span>
     </div>
     <p class="crosslink">Соседние документы: <a href="overview.html">обзор проекта</a>
       — как это устроено и почему именно так;
@@ -635,7 +635,7 @@ sudo docker compose logs -f jellyfin</code></pre></div>
     запросы приходящими от роутера и после пяти неудачных попыток входа
     заблокирует его целиком, вместе со всем внешним доступом.</div>
 
-  <h3 class="sub" id="проверки-11">Проверки: 146 тестов стало 280</h3>
+  <h3 class="sub" id="проверки-11">Проверки: 146 тестов стало 281</h3>
   <p>
     Половина работы выпуска не видна в документации. Разобраны настоящие
     ошибки, которые до сих пор не ловил никто:
@@ -774,8 +774,21 @@ sudo docker compose logs -f jellyfin</code></pre></div>
   <div class="note crit"><b>Не помогло.</b> После слияния Dependabot перечитал
     конфиг — его собственный валидатор дал <code>success</code>, — но прогона
     по образам не поставил ни через семнадцать минут, ни через тридцать восемь.
-    Гипотеза с <code>directories</code> закрыта: дело не в ней. Причина
-    по-прежнему не установлена.</div>
+    Гипотеза с <code>directories</code> закрыта: дело не в ней.</div>
+  <div class="note"><b>Чем кончилось.</b> Экосистема <code>docker-compose</code>
+    убрана из <code class="path">.github/dependabot.yml</code>. Причина молчания
+    так и осталась неизвестной, но держать настройку, которая не работает
+    и создаёт ложное чувство, что за версиями кто-то следит, — хуже, чем
+    не держать её вовсе. Обращаться в поддержку GitHub не стали: сверка
+    с реестром решает задачу целиком и не зависит ни от кого.
+    Для действий GitHub и пакетов Python Dependabot работает и остался —
+    восемь его пул-реквестов в репозитории тому подтверждение.</div>
+  <div class="note why"><b>Что от этого выиграли.</b> Dependabot не умел
+    читать <code>DOCKER_MODS</code> в принципе — мод VueTorrent был вне его
+    поля зрения с самого начала, и в документации на это стояла отдельная
+    оговорка. Своя сверка читает его наравне с ключом <code>image</code>,
+    так что оговорка больше не нужна: все девять образов проверяются
+    одинаково.</div>
 
   <h3 class="sub" id="сверка-образов-11">Сверка образов, не зависящая от Dependabot</h3>
   <p>
@@ -959,11 +972,11 @@ sudo docker compose logs -f jellyfin</code></pre></div>
 
   <h3 class="sub" id="как-обновляться">Как обновляться дальше</h3>
   <p>
-    Обновления образов приходят пул-реквестами от Dependabot раз в неделю —
-    по одному на стек. Порядок обратный привычному:
+    Обновления образов забираются вручную. Порядок обратный привычному:
     <code>docker compose pull</code> сам версию больше не поднимает.
   </p>
-  <div class="code"><pre><code><span class="c"># 1. прочитать changelog, смержить PR от Dependabot</span>
+  <div class="code"><pre><code><span class="c"># 1. в клоне: python3 scripts/check_image_updates.py</span>
+<span class="c">#    поднять теги, прочитать changelog, смержить</span>
 <span class="c"># 2. на NAS:</span>
 cd /volume1/docker/hh-homelab
 git pull
