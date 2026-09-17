@@ -671,23 +671,24 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
   </div>
 <h3 class="sub" id="версии-образов-вместо-latest">Версии образов вместо <code>:latest</code> <span class="tag key">сделано</span></h3>
 <p class="note why"><b>Закрыто.</b> Все девять образов — восемь контейнеров
-плюс мод VueTorrent — закреплены на конкретных версиях, а экосистема
-<code>docker-compose</code> добавлена в <code>.github/dependabot.yml</code>:
-обновления приходят пул-реквестами раз в неделю — по одному на стек.
-Плавающий тег теперь не вернёшь незаметно —
-<code>tests/test_compose_images.py</code> роняет проверки и на
-<code>:latest</code>, и на образе вовсе без тега, и на каталоге, выпавшем
-из настроек Dependabot.</p>
-<p class="note warn"><b>Что осталось ручным.</b> VueTorrent подключён
-через <code>DOCKER_MODS</code>, а Dependabot разбирает только ключ
-<code>image</code> — за его релизами придётся следить самому. Зато
-плавающий тег там был опаснее прочих: моды скачиваются при каждом старте
-контейнера, так что версия менялась бы и без единого
+плюс мод VueTorrent — закреплены на конкретных версиях. Плавающий тег
+не вернёшь незаметно: <code>tests/test_compose_images.py</code> роняет
+проверки и на <code>:latest</code>, и на образе вовсе без тега, и на
+compose-файле, выпавшем из списка сверки.</p>
+<p class="note warn"><b>Обновления забираются вручную.</b> Экосистема
+<code>docker-compose</code> в <code>.github/dependabot.yml</code> стояла
+две недели и не завела ни одного пул-реквеста, пока шесть образов уходили
+вперёд; причину установить не удалось, настройку убрали. Вместо неё —
+<code>scripts/check_image_updates.py</code>: читает оба compose-файла
+вместе с <code>DOCKER_MODS</code>, ходит в реестр и говорит, что отстало.
+Заодно закрылся старый пробел — мод VueTorrent Dependabot не видел
+в принципе, а тег там был опаснее прочих: моды скачиваются при каждом
+старте контейнера, так что версия менялась бы и без единого
 <code>compose pull</code>.</p>
 <p class="note"><b>Что это поменяло в обслуживании:</b> <code>docker compose
 pull</code> больше сам версию не поднимает. Порядок стал обратным
-привычному — смержить PR, затем <code>git pull</code> на NAS, и только
-потом <code>pull</code> с <code>up -d</code>. Расписано в шаге 10.2
+привычному — поднять тег и смержить, затем <code>git pull</code> на NAS,
+и только потом <code>pull</code> с <code>up -d</code>. Расписано в шаге 10.2
 чек-листа медиа-стека и шаге 11.3 чек-листа Home Assistant.</p>
 <ol class="steps">
     <li class="step" data-key="rm19">

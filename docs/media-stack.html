@@ -1990,19 +1990,33 @@ sudo docker image prune -f</code></pre></div>
           и полусотней интеграций.</div>
         <div class="note crit"><b>Сам по себе <code>compose pull</code> версию
           не поднимет.</b> Все образы медиа-стека закреплены на конкретных
-          тегах, а не на <code>:latest</code>. Новая версия приходит пул-реквестом
-          от Dependabot раз в неделю, и порядок обратный привычному: сначала
-          смержить PR, потом на NAS <code>git pull</code> (шаг 10.3),
-          и только потом команды выше. Иначе <code>pull</code> честно скачает
-          ровно тот же образ, что уже лежит.</div>
-        <div class="note warn"><b>Проверить самому, не полагаясь на Dependabot.</b>
-          Он уже молчал две недели подряд, пока пять образов уходили вперёд,
-          — поэтому есть независимая сверка с реестром. Запускается из клона
-          репозитория, не на NAS:
-          <div class="code"><button class="copy" type="button">копировать</button><pre><code>python3 scripts/check_image_updates.py</code></pre></div>
-          Читает оба compose-файла вместе с <code>DOCKER_MODS</code> и говорит,
-          что отстало. Отдельной строкой показывает случаи, где сменилась схема
-          нумерации: ранжировать такое машине нельзя, решает человек.</div>
+          тегах, а не на <code>:latest</code>. Иначе <code>pull</code> честно
+          скачает ровно тот же образ, что уже лежит. Поднимать версии —
+          отдельная работа, и делается она вручную, снизу вверх:</div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th></th><th>Где</th><th>Что</th></tr></thead>
+            <tbody>
+              <tr><td class="num-col">1</td><td>в клоне репозитория</td>
+                <td><code>python3 scripts/check_image_updates.py</code> — что отстало</td></tr>
+              <tr><td class="num-col">2</td><td>там же</td>
+                <td>прочитать release notes и поднять теги в <code class="path">compose.yaml</code></td></tr>
+              <tr><td class="num-col">3</td><td>там же</td>
+                <td>смержить; особые случаи — в <a href="changelog.html">истории версий</a></td></tr>
+              <tr><td class="num-col">4</td><td>на NAS</td>
+                <td><code>git pull</code> (шаг 10.3), затем команды выше</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note why"><b>Почему вручную.</b> Экосистема
+          <code>docker-compose</code> стояла в <code class="path">.github/dependabot.yml</code>
+          две недели и не завела ни одного пул-реквеста, пока шесть образов
+          уходили вперёд. Всё проверяемое оказалось верным, причина осталась
+          неизвестной — разбор в <a href="changelog.html">истории версий</a>.
+          Неработающую настройку убрали, сверку с реестром написали свою.
+          Она заодно умеет то, чего Dependabot не умел в принципе, — читать
+          <code>DOCKER_MODS</code>. В проверках на каждый push её нет
+          намеренно: это поход в сеть наружу.</div>
         <div class="note why"><b>Зачем так.</b> С <code>:latest</code>
           мажорное обновление приезжало бы молча, в момент очередного
           <code>pull</code>, и сразу у нескольких сервисов — искать виноватого
@@ -2010,15 +2024,14 @@ sudo docker image prune -f</code></pre></div>
           в осознанный шаг: видно, что именно меняется, есть changelog,
           и откат — это <code>git revert</code>, а не поиск предыдущего
           тега по памяти.</div>
-        <div class="note warn"><b>VueTorrent — исключение, его обновлять
-          руками.</b> Веб-интерфейс qBittorrent подключён модом через
-          <code>DOCKER_MODS</code>, и это не ключ <code>image</code>:
-          Dependabot туда не смотрит, для него это обычная переменная
-          окружения. Мод к тому же скачивается при <b>каждом старте
-          контейнера</b>, а не при <code>compose pull</code>, — с плавающим
-          тегом интерфейс менялся бы от простого перезапуска, и
-          <code>pull</code> этого не показал бы. Версия закреплена, но
-          за новыми релизами придётся следить самому:
+        <div class="note warn"><b>VueTorrent обновляется вместе со всеми.</b>
+          Веб-интерфейс qBittorrent подключён модом через
+          <code>DOCKER_MODS</code>, и это не ключ <code>image</code> —
+          но сверка с реестром читает и его. Помнить про мод всё же стоит:
+          он скачивается при <b>каждом старте контейнера</b>, а не при
+          <code>compose pull</code>, так что с плавающим тегом интерфейс
+          менялся бы от простого перезапуска, и <code>pull</code> этого
+          не показал бы. Тег закреплён, релизы —
           <a href="https://github.com/VueTorrent/VueTorrent/releases">VueTorrent/releases</a>.</div>
       </div>
     </li>
