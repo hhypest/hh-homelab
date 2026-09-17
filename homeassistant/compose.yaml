@@ -42,7 +42,7 @@ services:
   # Home Assistant Core
   # ---------------------------------------------------------------------------
   homeassistant:
-    image: ghcr.io/home-assistant/home-assistant:2026.9.0
+    image: ghcr.io/home-assistant/home-assistant:2026.9.2
     container_name: homeassistant
     restart: unless-stopped
 
