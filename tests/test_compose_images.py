@@ -15,6 +15,7 @@ scripts/check_image_updates.py. Здесь — то, что легко нару�
 from __future__ import annotations
 
 import re
+import subprocess
 
 import pytest
 import yaml
@@ -69,9 +70,27 @@ def test_сверка_версий_знает_про_каждый_compose_фай
     Значит, защита от «добавили стек и забыли» переехала: единственный
     список, по которому скрипт ходит в реестр, — COMPOSE в нём самом.
     Ищем compose-файлы по репозиторию и требуем, чтобы каждый там был.
+
+    Ищем по всему дереву, а не на один уровень вглубь: замечание Codex
+    к PR 50. Первая версия смотрела `*/compose.yaml`, и стек, заведённый
+    в корне или под `stacks/media/`, проходил бы мимо — причём тест
+    остался бы зелёным, то есть обещанная защита оказалась бы пустой.
+
+    Список берём у git, а не обходом каталога: под `media/config/` лежит
+    состояние сервисов, оно в .gitignore, и случайный compose-файл оттуда
+    проверке не подлежит.
     """
-    найдено = sorted(str(p.relative_to(ROOT)) for p in ROOT.glob("*/compose.yaml"))
-    assert найдено, "в репозитории не нашлось ни одного compose.yaml — проверка пуста"
+    tracked = subprocess.run(
+        ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=False,
+    )
+    assert tracked.returncode == 0, "git ls-files не отработал"
+
+    имена = {"compose.yaml", "compose.yml", "docker-compose.yaml", "docker-compose.yml"}
+    найдено = sorted(
+        путь for путь in tracked.stdout.splitlines()
+        if путь.rsplit("/", 1)[-1] in имена
+    )
+    assert найдено, "в репозитории не нашлось ни одного compose-файла — проверка пуста"
 
     for путь in найдено:
         assert путь in COMPOSE, (
