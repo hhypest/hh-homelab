@@ -17,37 +17,23 @@ import re
 
 import pytest
 import yaml
-from conftest import ROOT
+from conftest import ROOT, load
 
-COMPOSE = ["media/compose.yaml", "homeassistant/compose.yaml"]
-
-# Ссылки на образы прячутся не только в ключе image. У linuxserver-образов
-# есть DOCKER_MODS: перечисленные там образы init скачивает при КАЖДОМ старте
+# Разбор образов живёт в скрипте сверки версий и берётся оттуда, а не
+# повторяется здесь: список образов, который проверяет тест, и список,
+# который сверяется с реестром, обязаны быть одним и тем же. Раньше
+# разбор был написан дважды, и разойтись они могли молча.
+#
+# Ссылки прячутся не только в ключе image: у linuxserver-образов есть
+# DOCKER_MODS, и перечисленные там образы init скачивает при КАЖДОМ старте
 # контейнера, а не при `compose pull`. Плавающий тег здесь опаснее обычного —
-# версия меняется от простого перезапуска, и `pull` этого даже не показывает.
-IMAGE_ENV = ("DOCKER_MODS", "UNIVERSAL_MODS")
+# версия меняется от простого перезапуска, и `pull` этого даже не покажет.
+ci = load(ROOT / "scripts" / "check_image_updates.py")
+images = ci.images
+COMPOSE = ci.COMPOSE
 
 # Теги, которые указывают не на версию, а на «то, что сейчас новее всего».
 FLOATING = {"latest", "stable", "dev", "develop", "nightly", "edge", "main", "master"}
-
-
-def images(path: str) -> dict[str, str]:
-    """Все ссылки на образы: и сам image, и образы модов из окружения."""
-    data = yaml.safe_load((ROOT / path).read_text(encoding="utf-8"))
-    found: dict[str, str] = {}
-    for name, service in (data.get("services") or {}).items():
-        if "image" in service:
-            found[name] = service["image"]
-        for entry in service.get("environment") or []:
-            if not isinstance(entry, str) or "=" not in entry:
-                continue
-            key, value = entry.split("=", 1)
-            if key.strip() not in IMAGE_ENV:
-                continue
-            # В переменной может стоять список образов через |
-            for index, image in enumerate(v for v in value.split("|") if v.strip()):
-                found[f"{name} · {key.strip()}[{index}]"] = image.strip()
-    return found
 
 
 @pytest.mark.parametrize("path", COMPOSE)
