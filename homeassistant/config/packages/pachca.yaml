@@ -100,14 +100,12 @@ script:
             {{ verdict | trim }}
 
             **Железо**
-
             • Процессор {{ cpu }} % · память {{ ram }} % · {{ nas_temp | round | int }} °C
             • Том volume1 занят на {{ vol_used | round | int }} %
             • Диски: {% if disks | count == 0 %}норма{% else %}⛔ {{ disks | join(', ') }}{% endif %}
             • Работает с {{ booted }}
 
             **Контейнеры** — {{ cont_running }} из {{ cont_total }}
-
             {% if cont_down | int > 0 -%}
             {% for line in cont_detail -%}
             • 🔻 {{ line }}
@@ -120,7 +118,6 @@ script:
             • Больше всех памяти: {{ top_ram }} ({{ states('sensor.docker_top_ram') }} MiB)
 
             **Сервисы** — {{ svc_total | int - svc_down | count }} из {{ svc_total }} отвечают
-
             {% if svc_down | count > 0 -%}
             • 🔴 Молчат: {{ svc_down | join(', ') }}
             {% else -%}
@@ -198,7 +195,6 @@ script:
             {{ verdict | trim }}
 
             **Железо**
-
             • Процессор {{ states('sensor.ds725_cpu_utilization_total') }} % ·
               память {{ states('sensor.ds725_memory_usage_real') }} % ·
               {{ states('sensor.ds725_temperature') }} °C
@@ -224,7 +220,6 @@ script:
               ({{ states('sensor.docker_top_ram') }} MiB)
 
             **Сервисы** — {{ svc_total | int - svc_down | count }} из {{ svc_total }} отвечают
-
             {% if svc_down | count > 0 %}
             • 🔴 Молчат: {{ svc_down | join(', ') }}
             {% else %}
