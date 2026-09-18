@@ -1513,16 +1513,30 @@ data:
           сама — отдельно настраивать её не нужно, только переименовать
           сущность. Если её нет в списке, включите на приставке
           <b>Настройки → Google Cast</b>.</div>
-        <div class="note"><b>Необязательная пятая сущность.</b> Если клиент
-          Jellyfin на приставке создаёт свою сущность (интеграция Jellyfin,
-          по одной на устройство), переименуйте её в
-          <code>media_player.jellyfin_rocktek_gx1</code> — она подстрахует
-          случай, когда приложение не отдаёт медиасессию и Cast молчит.
-          Сущности нет — ничего делать не нужно: <code>states()</code> вернёт
-          <code>unknown</code>, и признак просмотра просто не будет её учитывать.
-          Именно одну, а не все сессии Jellyfin разом: иначе фильм, включённый
-          на телефоне, будет означать «телевизор занят», и ночью он останется
-          гореть.</div>
+        <div class="note warn"><b>Пятая сущность, и она не запасная.</b>
+          Клиент Jellyfin для Android TV медиасессию в Cast <b>не отдаёт</b>:
+          при идущем фильме Cast-сущность стоит в <code>idle</code>
+          с <code>media_position: 0</code>, хотя <code>app_name</code> у неё —
+          <code>Jellyfin</code>. Проверено на живой системе. Значит для
+          просмотра через Jellyfin — самого частого здесь сценария — Cast
+          бесполезен, и признак держится на сущности интеграции Jellyfin.
+          Она заводит по сущности на устройство: найдите ту, у которой во время
+          фильма состояние <code>playing</code> и верное
+          <code>media_title</code>, и переименуйте её в
+          <code>media_player.jellyfin_rocktek_gx1</code>.
+          Именно одну, а не все сессии Jellyfin разом: иначе фильм,
+          включённый на телефоне, будет означать «телевизор занят»,
+          и ночью он останется гореть.</div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Что запущено на приставке</th><th>Cast</th><th>Jellyfin</th></tr></thead>
+            <tbody>
+              <tr><td>YouTube</td><td><code>playing</code></td><td>сессии нет</td></tr>
+              <tr><td>Jellyfin</td><td><code>idle</code></td><td><code>playing</code></td></tr>
+              <tr><td>домашний экран</td><td><code>idle</code> или <code>off</code></td><td>сессии нет</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </li>
 
