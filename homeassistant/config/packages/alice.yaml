@@ -75,6 +75,20 @@ template:
       - name: "Server voice status"
         unique_id: alice_server_phrase
         icon: mdi:account-voice
+        # У трёх зеркал выше доступность задана, а у фразы её не было —
+        # и приведение | int(0) превращало недоступные значения в нули.
+        # Интеграция Synology DSM отвалилась (перезагрузка NAS, обновление
+        # DSM), зеркала ушли в unavailable, а Алиса бодро отвечала
+        # «Процессор ноль, память ноль процентов, ноль градусов. Всё
+        # работает». Это худший вид ошибки в мониторинге: отчёт уверенно
+        # говорит «норма» ровно тогда, когда данных нет.
+        #
+        # Теперь при недоступности зеркал фраза сама становится недоступной,
+        # и сценарий произносит отдельную реплику — см. script.alice_report.
+        availability: >-
+          {{ states('sensor.server_cpu_load') not in ['unknown', 'unavailable']
+             and states('sensor.server_ram_load') not in ['unknown', 'unavailable']
+             and states('sensor.server_temperature') not in ['unknown', 'unavailable'] }}
         state: >-
           {% set cpu = states('sensor.server_cpu_load') | int(0) %}
           {% set ram = states('sensor.server_ram_load') | int(0) %}
@@ -112,7 +126,13 @@ script:
               {% if ns.found == '' %}{% set ns.found = e %}{% endif %}
             {% endfor %}
             {{ ns.found }}
-          phrase: "{{ states('sensor.server_voice_status') }}"
+          # Сенсор фразы становится недоступным, когда недоступны зеркала
+          # метрик. Произносить слово «unavailable» колонке незачем —
+          # у неё для этого случая своя реплика.
+          phrase: >-
+            {% set готовая = states('sensor.server_voice_status') %}
+            {{ 'Нет связи с сервером. Данные не приходят.'
+               if готовая in ['unknown', 'unavailable'] else готовая }}
 
       - choose:
           - conditions:

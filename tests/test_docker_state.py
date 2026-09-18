@@ -307,3 +307,52 @@ def test_исправный_ответ_по_прежнему_без_ошибки
         httpd.shutdown()
     assert data["error"] == ""
     assert data["down"] == 0
+
+
+# ---------------------------------------------------------------------------
+#  Контейнер в цикле перезапуска
+# ---------------------------------------------------------------------------
+#  У Docker для этого есть собственное состояние: политика перезапуска ждёт
+#  перед следующей попыткой, и пауза удваивается с каждым падением. Скрипт
+#  считает такие контейнеры отдельно — на счётчике упавших цикл не виден,
+#  потому что контейнер успевает подняться до конца двухминутной выдержки.
+
+RESTARTING = {"Names": ["/radarr"], "State": "restarting", "Status": "Restarting (3) 8 seconds ago"}
+
+
+def test_цикл_перезапуска_считается_отдельно() -> None:
+    url, httpd = make_server([RESTARTING, RUNNING])
+    try:
+        data = run(url, "radarr", "jellyfin")
+    finally:
+        httpd.shutdown()
+    assert data["restarting"] == 1
+    assert data["down_names"] == ["radarr"], "мечущийся контейнер это ещё и упавший"
+    assert data["running"] == 1
+
+
+def test_здоровый_стек_не_считается_мечущимся() -> None:
+    url, httpd = make_server([RUNNING])
+    try:
+        data = run(url, "jellyfin")
+    finally:
+        httpd.shutdown()
+    assert data["restarting"] == 0
+
+
+def test_остановленный_контейнер_не_считается_мечущимся() -> None:
+    """Exited — это падение, а не цикл: разные сообщения и разные выдержки."""
+    url, httpd = make_server([STOPPED])
+    try:
+        data = run(url, "prowlarr")
+    finally:
+        httpd.shutdown()
+    assert data["restarting"] == 0
+    assert data["down"] == 1
+
+
+def test_поле_есть_и_при_отказе_прокси() -> None:
+    """Сенсор читает одни и те же ключи в обоих случаях."""
+    data = run("http://127.0.0.1:9", "jellyfin")
+    assert data["restarting"] == 0
+    assert data["error"] != ""

@@ -71,7 +71,7 @@ def fail(message: str) -> None:
     print(json.dumps({
         "down": 0, "running": 0, "total": 0,
         "down_names": [], "down_detail": [],
-        "oom": False, "error": message,
+        "oom": False, "restarting": 0, "error": message,
     }, ensure_ascii=False))
     sys.exit(0)
 
@@ -117,6 +117,7 @@ def main() -> None:
 
     down_names, down_detail = [], []
     running = 0
+    restarting = 0
     oom = False
 
     for name in watched:
@@ -128,6 +129,13 @@ def main() -> None:
 
         state = (container.get("State") or "").lower()
         status = container.get("Status") or ""
+        # «restarting» — собственное состояние Docker: политика перезапуска
+        # ждёт перед следующей попыткой. Пауза удваивается с каждым падением
+        # и упирается в минуту, поэтому контейнер в цикле почти всегда
+        # застаётся именно в нём, а здоровый перезапуск проскакивает это
+        # состояние за миллисекунды и в минутный опрос не попадает.
+        if state == "restarting":
+            restarting += 1
         if state == "running":
             running += 1
         else:
@@ -145,6 +153,7 @@ def main() -> None:
         "down_names": down_names,
         "down_detail": down_detail,
         "oom": oom,
+        "restarting": restarting,
         "error": "",
     }, ensure_ascii=False))
 

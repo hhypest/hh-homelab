@@ -143,6 +143,16 @@ script:
           booted: "{{ states('sensor.ds725_last_boot') }}"
           vol_used: "{{ states('sensor.ds725_volume_1_volume_used') | float(0) }}"
           nas_temp: "{{ states('sensor.ds725_temperature') | float(0) }}"
+          # Приведение | float(0) превращает недоступный сенсор в ноль,
+          # и отчёт получается уверенным враньём: интеграция Synology DSM
+          # отвалилась, а сводка докладывает «Всё в порядке» и «0 °C».
+          # Поэтому доступность проверяется до всякого приведения.
+          nas_ok: >-
+            {% set значения = [states('sensor.ds725_temperature'),
+                               states('sensor.ds725_cpu_utilization_total'),
+                               states('sensor.ds725_memory_usage_real'),
+                               states('sensor.ds725_volume_1_volume_used')] %}
+            {{ 'unavailable' not in значения and 'unknown' not in значения }}
           # Простой за сутки history_stats отдаёт в часах — переводим в минуты
           # round(0) в Jinja возвращает дробное число, и в сводку уезжало
           # «Простой за сутки: 0.0 мин». int после round отрезает хвост.
@@ -156,7 +166,9 @@ script:
       - variables:
           # --- один общий вердикт в первой строке ---
           verdict: >-
-            {% if cont_down | int > 0 or svc_down | count > 0 or disks | count > 0 %}
+            {% if nas_ok not in [true, 'True', 'true'] %}
+              ⚠️ Нет данных от NAS — проверьте интеграцию Synology DSM
+            {% elif cont_down | int > 0 or svc_down | count > 0 or disks | count > 0 %}
               🔴 Есть проблемы прямо сейчас
             {% elif svc_down_min | int > 5 or cont_down_min | int > 5
                     or vol_used > 85 or nas_temp > 55 %}
@@ -170,10 +182,14 @@ script:
             {{ verdict | trim }}
 
             **Железо**
+            {% if nas_ok not in [true, 'True', 'true'] -%}
+            • Метрики NAS недоступны: интеграция Synology DSM не отвечает
+            {%- else -%}
             • Процессор {{ cpu }} % · память {{ ram }} % · {{ nas_temp | round | int }} °C
             • Том volume1 занят на {{ vol_used | round | int }} %
             • Диски: {% if disks | count == 0 %}норма{% else %}⛔ {{ disks | join(', ') }}{% endif %}
             • Работает с {{ booted }}
+            {%- endif %}
 
             **Контейнеры** — {{ cont_running }} из {{ cont_total }}
             {% if cont_down | int > 0 -%}
