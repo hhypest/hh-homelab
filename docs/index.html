@@ -1487,7 +1487,7 @@ data:
       <div class="step-body">
         <h3><span class="num">7.3</span> Привести идентификаторы к ожидаемым<span class="tag key">важно</span></h3>
         <p>
-          Пакет <code>media_tv.yaml</code> ссылается ровно на три идентификатора.
+          Пакет <code>media_tv.yaml</code> ссылается ровно на четыре идентификатора.
           Проверьте их в карточках устройств и при необходимости переименуйте:
         </p>
         <div class="tablewrap">
@@ -1495,11 +1495,24 @@ data:
             <thead><tr><th>Должно быть</th><th>Устройство</th></tr></thead>
             <tbody>
               <tr><td><code>media_player.lg_tv</code></td><td>телевизор, 192.168.3.52</td></tr>
-              <tr><td><code>media_player.rocktek_gx1</code></td><td>приставка, 192.168.3.54</td></tr>
-              <tr><td><code>remote.rocktek_gx1</code></td><td>она же, пульт</td></tr>
+              <tr><td><code>media_player.rocktek_gx1</code></td><td>приставка, 192.168.3.54 — пульт (Android TV Remote)</td></tr>
+              <tr><td><code>remote.rocktek_gx1</code></td><td>она же, кнопки и запуск приложений</td></tr>
+              <tr><td><code>media_player.rocktek_gx1_cast</code></td><td>она же со стороны Google Cast</td></tr>
             </tbody>
           </table>
         </div>
+        <div class="note why"><b>Почему у приставки две сущности и обе нужны.</b>
+          Пульт умеет нажимать кнопки, но о происходящем на экране почти ничего
+          не знает: его состояние принимает ровно два значения, <code>on</code>
+          и <code>off</code>, — <code>playing</code> он не выдаёт никогда.
+          Google Cast, наоборот, видит медиасессию Android TV и отдаёт
+          <code>playing</code>, <code>paused</code>, название и приложение —
+          для любого приложения с нормальной сессией, а не только для того,
+          что запущено «кастом». Поэтому кнопки уходят через пульт, а вопрос
+          «идёт ли просмотр» задаётся Cast. Интеграция Cast находит приставку
+          сама — отдельно настраивать её не нужно, только переименовать
+          сущность. Если её нет в списке, включите на приставке
+          <b>Настройки → Google Cast</b>.</div>
       </div>
     </li>
 

@@ -3,12 +3,29 @@
 # =============================================================================
 #  Устройства
 #  ----------
-#    media_player.lg_tv          — телевизор, 192.168.3.52 (webOS)
-#    media_player.rocktek_gx1    — приставка, 192.168.3.54 (Android TV Remote)
-#    remote.rocktek_gx1          — она же, для запуска приложений и кнопок
+#    media_player.lg_tv            — телевизор, 192.168.3.52 (webOS)
+#    media_player.rocktek_gx1      — приставка, 192.168.3.54 (Android TV Remote)
+#    remote.rocktek_gx1            — она же, для запуска приложений и кнопок
+#    media_player.rocktek_gx1_cast — она же, но со стороны Google Cast
 #
 #  Если Home Assistant назвал сущности иначе, переименуйте их в карточках
-#  устройств — весь файл ссылается именно на эти три идентификатора.
+#  устройств — весь файл ссылается именно на эти четыре идентификатора.
+#
+#  Зачем приставке две сущности
+#  ----------------------------
+#  Android TV Remote — это пульт: он шлёт кнопки и умеет запускать
+#  приложения, но о том, что происходит на экране, не знает почти ничего.
+#  Его состояние принимает ровно два значения, on и off:
+#
+#      androidtv_remote/media_player.py:120-124
+#      if self._attr_is_on: return MediaPlayerState.ON
+#      return MediaPlayerState.OFF
+#
+#  Google Cast видит медиасессию Android TV и отдаёт playing, paused,
+#  название, исполнителя и приложение — причём для любого приложения
+#  с нормальной сессией, не только для того, что запущено «кастом».
+#  Поэтому кнопки шлём через пульт, а «идёт ли просмотр» спрашиваем
+#  у Cast. Интеграция Cast находит приставку сама, настраивать её не нужно.
 #
 #  Как включается связка
 #  ---------------------
@@ -118,15 +135,41 @@ rest:
 # Отдельная сущность вместо условия внутри автоматизации: delay_on делает
 # ровно то, что нужно — состояние становится «включено» только после того,
 # как простой продержался двадцать минут подряд.
+#
+# Признак «идёт просмотр» брался у телевизора и у пульта приставки, и это
+# было неверно у обоих сразу. Пульт (androidtv_remote) состояния playing
+# не выдаёт вообще, а телевизор на внешнем входе не знает, что показывает:
+# в его ответе media_state пустой список, и webostv оставляет состояние on.
+# Проверено на живом железе — диагностика webOS при идущем фильме:
+#
+#     current_app_id: com.webos.app.hdmi2
+#     media_state: []
+#
+# Значит при активном просмотре все условия были истинны, простой копился,
+# и ночью автоматика 4.2 выключала телевизор посреди фильма.
+#
+# Теперь просмотр спрашивается у Cast-сущности приставки, которая видит
+# медиасессию, и дополнительно — у сессий Jellyfin. Пауза просмотром
+# не считается намеренно: двадцать минут на паузе — это «вышел и забыл»,
+# а перемотку такая выдержка переживает.
 template:
   - binary_sensor:
       - name: "TV idle"
         unique_id: tv_idle_20min
         icon: mdi:television-pause
         state: >-
-          {{ states('media_player.lg_tv') not in ['off', 'unavailable', 'unknown', 'standby']
-             and states('media_player.lg_tv') != 'playing'
-             and states('media_player.rocktek_gx1') != 'playing' }}
+          {% set tv = states('media_player.lg_tv') %}
+          {% set cast = states('media_player.rocktek_gx1_cast') %}
+          {% set ns = namespace(jellyfin=false) %}
+          {% for e in integration_entities('jellyfin') if e.startswith('media_player.') %}
+            {% if states(e) in ['playing', 'buffering'] %}
+              {% set ns.jellyfin = true %}
+            {% endif %}
+          {% endfor %}
+          {{ tv not in ['off', 'unavailable', 'unknown', 'standby']
+             and tv != 'playing'
+             and cast not in ['playing', 'buffering']
+             and not ns.jellyfin }}
         delay_on: "00:20:00"
         delay_off: "00:00:30"
 
@@ -443,6 +486,16 @@ automation:
   # Здесь всё сложнее: идёт воспроизведение, и отличить «смотрю» от «сплю»
   # можно только спросив. Спрашиваем паузой: если человек не спит, он нажмёт
   # play, состояние вернётся в playing — и мы отступим.
+  #
+  # Раньше и условие, и ожидание смотрели на пульт приставки, который playing
+  # не выдаёт никогда. Поэтому автоматика не срабатывала вовсе, а если бы
+  # сработала от телевизора — ждала бы возврата в playing от пульта, не
+  # дождалась бы за пять минут и выключила телевизор у человека, который
+  # исправно нажал play. Нажать было физически нечем: следили не за тем.
+  #
+  # Теперь состояние спрашивается у Cast, а пауза отправляется пультом —
+  # это кнопка, она работает в любом приложении, даже когда медиасессия
+  # управляется не через Cast.
   - id: tv_night_sleep_check
     alias: "ТВ: проверка «вы ещё смотрите?»"
     mode: single
@@ -458,7 +511,7 @@ automation:
       - condition: or
         conditions:
           - condition: state
-            entity_id: media_player.rocktek_gx1
+            entity_id: media_player.rocktek_gx1_cast
             state: "playing"
           - condition: state
             entity_id: media_player.lg_tv
@@ -481,7 +534,7 @@ automation:
       # Пять минут на то, чтобы нажать play. Нажали — выходим.
       - wait_for_trigger:
           - trigger: state
-            entity_id: media_player.rocktek_gx1
+            entity_id: media_player.rocktek_gx1_cast
             to: "playing"
         timeout: "00:05:00"
         continue_on_timeout: true
