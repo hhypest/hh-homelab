@@ -94,13 +94,17 @@ template:
           {% set ram = states('sensor.server_ram_load') | int(0) %}
           {% set temp = states('sensor.server_temperature') | int(0) %}
           {% set down = state_attr('sensor.docker_down', 'down_names') | default([], true) %}
+          {#- У truncate есть пятый аргумент — запас, и по умолчанию он равен
+              пяти: строка длиной до 104 символов проходила фильтр нетронутой,
+              хотя облачный режим YandexStation режет по сотне. Ноль вместо
+              умолчания делает границу той, которая написана. -#}
           {% set head = 'Процессор ' ~ cpu ~ ', память ' ~ ram ~ ' процентов, ' ~ temp ~ ' градусов. ' %}
           {% if down | count == 0 %}
-            {{ (head ~ 'Всё работает.') | truncate(99, true, '') }}
+            {{ (head ~ 'Всё работает.') | truncate(99, true, '', 0) }}
           {% elif down | count == 1 %}
-            {{ (head ~ 'Не работает ' ~ down[0] ~ '.') | truncate(99, true, '') }}
+            {{ (head ~ 'Не работает ' ~ down[0] ~ '.') | truncate(99, true, '', 0) }}
           {% else %}
-            {{ (head ~ 'Не работают ' ~ down | count ~ ' контейнера.') | truncate(99, true, '') }}
+            {{ (head ~ 'Не работают ' ~ down | count ~ ' контейнера.') | truncate(99, true, '', 0) }}
           {% endif %}
 
 # -----------------------------------------------------------------------------

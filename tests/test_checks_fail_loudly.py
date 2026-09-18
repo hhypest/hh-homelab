@@ -124,3 +124,62 @@ def test_настоящий_mac_в_образце_находится(tmp_path) -
     assert not [метка for шаблон, метка in vc.FORBIDDEN if шаблон.search(текст)], (
         "в самом образце срабатываний быть не должно — заглушки на то и заглушки"
     )
+
+
+def test_длина_строк_действительно_проверяется(tmp_path) -> None:
+    """
+    Комментарий в ruff.toml утверждал, что длину строк сторожит line-length,
+    и на этом основании E501 стояло в исключениях. Но line-length влияет
+    ровно на E501 и на ruff format, а формат в CI не запускается: строка
+    в триста символов проходила проверку молча. Исключение снято, предел —
+    те же 120, что у yamllint.
+    """
+    длинная = tmp_path / "длинная.py"
+    длинная.write_text('x = "' + "я" * 130 + '"\n', encoding="utf-8")
+    готово = subprocess.run(
+        [sys.executable, "-m", "ruff", "check", "--config", "ruff.toml", str(длинная)],
+        cwd=ROOT, capture_output=True, text=True, check=False,
+    )
+    assert готово.returncode != 0, "длинная строка прошла проверку"
+    assert "E501" in готово.stdout
+
+    короткая = tmp_path / "короткая.py"
+    короткая.write_text('x = "' + "я" * 100 + '"\n', encoding="utf-8")
+    готово = subprocess.run(
+        [sys.executable, "-m", "ruff", "check", "--config", "ruff.toml", str(короткая)],
+        cwd=ROOT, capture_output=True, text=True, check=False,
+    )
+    assert готово.returncode == 0, f"строка в пределах лимита отвергнута: {готово.stdout}"
+
+
+def test_исключения_recorder_совпадают_с_настоящими_сенсорами() -> None:
+    """
+    В списке исключений recorder стояли маски sensor.docker_*_image
+    и sensor.docker_*_status, не совпадающие ни с чем: в monitored_conditions
+    нет ни image, ни status. Мёртвая строка в списке исключений опаснее
+    отсутствующей — она выглядит как работающая защита.
+    """
+    import yaml
+
+    class Loader(yaml.SafeLoader):
+        pass
+
+    Loader.add_multi_constructor("!", lambda loader, suffix, node: None)
+
+    конфиг = yaml.load(
+        (ROOT / "homeassistant" / "config" / "configuration.yaml").read_text(encoding="utf-8"),
+        Loader=Loader,
+    )
+    маски = [м for м in конфиг["recorder"]["exclude"]["entity_globs"] if м.startswith("sensor.docker_")]
+    пакет = yaml.load(
+        (ROOT / "homeassistant" / "config" / "packages" / "docker.yaml").read_text(encoding="utf-8"),
+        Loader=Loader,
+    )
+    условия = set(пакет["monitor_docker"][0]["monitored_conditions"])
+
+    for маска in маски:
+        хвост = маска.removeprefix("sensor.docker_*_")
+        assert хвост in условия, (
+            f"маска {маска} не совпадает ни с одним сенсором: в monitored_conditions "
+            f"есть {sorted(условия)}"
+        )
