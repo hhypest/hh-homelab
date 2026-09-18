@@ -180,15 +180,28 @@ def bind_addr() -> str:
 
 
 def media_ports() -> set[str]:
-    """Порты хоста, которые публикует медиа-стек, — только они зависят от BIND_ADDR."""
+    """
+    Порты хоста, которые публикует медиа-стек, — только они зависят от BIND_ADDR.
+
+    Кроме тех, у кого адрес публикации свой. FlareSolverr публикуется
+    на петле отдельной переменной и от BIND_ADDR не зависит вовсе:
+    сузьте BIND_ADDR — его опрос по 127.0.0.1 продолжит отвечать.
+    """
     ports = set()
-    for name, value in (
+    свои_адреса = set()
+    строки = [
         line.split("=", 1)
         for line in (ROOT / "media" / ".env.example").read_text(encoding="utf-8").splitlines()
         if "=" in line and not line.lstrip().startswith("#")
-    ):
+    ]
+    for name, _ in строки:
+        if name.endswith("_BIND_ADDR"):
+            свои_адреса.add(name.removesuffix("_BIND_ADDR"))
+    for name, value in строки:
         if "PORT" in name and value.strip().isdigit():
-            ports.add(value.strip())
+            сервис = name.split("_PORT", 1)[0]
+            if сервис not in свои_адреса:
+                ports.add(value.strip())
     return ports
 
 
@@ -237,3 +250,63 @@ def test_the_check_above_actually_finds_something() -> None:
     assert any("monitoring.yaml" in item for item in broken), (
         f"ожидались опросы из monitoring.yaml, а найдено: {broken}"
     )
+
+
+# ---------------------------------------------------------------------------
+#  Находка 12 разбора: адрес публикации FlareSolverr
+# ---------------------------------------------------------------------------
+#  На порту 8191 стоит безголовый браузер без какой-либо аутентификации:
+#  запрос {"cmd": "request.get", "url": "..."} заставляет его сходить по
+#  любому адресу и вернуть тело. Любой, кто дотянулся до этого порта, ходит
+#  по сети от имени NAS — в том числе к веб-интерфейсу роутера, к DSM
+#  и к самому Home Assistant.
+#
+#  В локальной сети порт не нужен никому: Prowlarr обращается к контейнеру
+#  по имени внутри сети Docker, Home Assistant — по петле.
+
+ПЕТЛЯ = {"127.0.0.1", "::1", "[::1]"}
+
+
+def строка_публикации(порт: str) -> str:
+    текст = (ROOT / "media" / "compose.yaml").read_text(encoding="utf-8")
+    строки = [с.strip() for с in текст.splitlines() if f":{порт}\"" in с and с.strip().startswith("-")]
+    assert len(строки) == 1, f"ожидалась одна публикация порта {порт}, найдено: {строки}"
+    return строки[0]
+
+
+def значение_переменной(имя: str) -> str:
+    for строка in (ROOT / "media" / ".env.example").read_text(encoding="utf-8").splitlines():
+        if строка.startswith(f"{имя}="):
+            return строка.split("=", 1)[1].strip()
+    raise AssertionError(f"в media/.env.example нет {имя}")
+
+
+def test_flaresolverr_публикуется_не_на_общем_адресе() -> None:
+    строка = строка_публикации("8191")
+    assert "${BIND_ADDR" not in строка, (
+        "FlareSolverr снова публикуется общим адресом стека: безголовый браузер "
+        "без аутентификации виден всей домашней сети"
+    )
+    assert "FLARESOLVERR_BIND_ADDR" in строка
+
+
+def test_адрес_flaresolverr_петлевой() -> None:
+    assert значение_переменной("FLARESOLVERR_BIND_ADDR") in ПЕТЛЯ
+
+
+def test_остальные_сервисы_остались_на_общем_адресе() -> None:
+    """Разводить по сервисам всё подряд не нужно: у этих пяти есть вход по паролю."""
+    for порт in ("9080", "9696", "7878", "8096", "5055"):
+        assert "${BIND_ADDR" in строка_публикации(порт), f"порт {порт} ушёл со своим адресом"
+
+
+def test_home_assistant_опрашивает_flaresolverr_по_петле() -> None:
+    """Публикация на петле имеет смысл ровно потому, что опрос идёт оттуда же."""
+    текст = (ROOT / HA_PACKAGES / "monitoring.yaml").read_text(encoding="utf-8")
+    assert "127.0.0.1:8191" in текст
+
+
+def test_prowlarr_ходит_к_flaresolverr_по_имени_контейнера() -> None:
+    """Если бы он ходил по адресу NAS, петлевая публикация сломала бы обход Cloudflare."""
+    страница = (ROOT / "docs" / "media-stack.html").read_text(encoding="utf-8")
+    assert "http://flaresolverr:8191" in страница
