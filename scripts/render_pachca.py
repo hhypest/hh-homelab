@@ -81,7 +81,14 @@ def main() -> int:
         if wanted and not any(w in sample.stem for w in wanted):
             continue
 
-        payload = json.loads(sample.read_text(encoding="utf-8"))
+        try:
+            payload = json.loads(sample.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError) as err:
+            # Ошибки шаблонов рядом аккуратно копятся в список проблем,
+            # а битый пример ронял скрипт трассировкой — при том, что
+            # причина у них одна и та же: пример разошёлся с реальностью.
+            problems.append(f"{sample.name}: не разбирается — {type(err).__name__}: {err}")
+            continue
 
         targets = [PACHCA / f"{service}.liquid"]
         if ROUTER.exists():
@@ -117,6 +124,28 @@ def main() -> int:
                 print("─" * 68)
                 print(text)
                 print()
+
+    # Ноль отрендеренных — это не успех, а отключённая проверка.
+    # Переименованный, потерянный или опустевший каталог примеров давал
+    # «Отрендерено: 0. Проблем: 0» с нулевым кодом возврата, и в журнале CI
+    # это выглядело как пройденная задача. Проверка на примерах — единственная,
+    # которая прогоняет шаблоны на данных; молча снимать её нельзя.
+    if rendered == 0:
+        цель = f" по запросу {wanted}" if wanted else ""
+        problems.append(
+            f"не отрендерено ни одного шаблона{цель}: каталог {SAMPLES.name} пуст "
+            f"или недоступен — проверка ничего не проверила"
+        )
+
+    # Пример, потерянный у одного сервиса, не виден по общему счётчику:
+    # остальные три дадут ненулевое «отрендерено».
+    if not wanted:
+        for service in SERVICES:
+            if not any(s.stem.split("-")[0] == service for s in SAMPLES.glob("*.json")):
+                problems.append(
+                    f"у сервиса «{service}» не осталось ни одного примера — "
+                    f"его шаблон больше ничем не проверяется"
+                )
 
     print(f"Отрендерено: {rendered}. Проблем: {len(problems)}.")
     for item in problems:

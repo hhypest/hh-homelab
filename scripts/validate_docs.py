@@ -57,6 +57,11 @@ PERSONAL = [
         r'[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}"', re.I),
      "UUID клиента VLESS из конфигурации sing-box"),
     (re.compile(r"\btoken=[0-9a-f]{32,}"), "токен доступа в ссылке"),
+    # Ключ WireGuard — сорок четыре символа base64. Требуем именно значение,
+    # а не слово: строка «PrivateKey берётся из интерфейса Keenetic» должна
+    # спокойно жить в документации, а «PrivateKey = <ключ>» — нет.
+    (re.compile(r"\b(?:Private|Preshared)Key\s*=\s*[A-Za-z0-9+/]{43}="),
+     "приватный ключ WireGuard"),
 ]
 
 SKIP_BINARY = {".png", ".jpg", ".jpeg", ".gif", ".zip", ".ico", ".woff", ".woff2"}
@@ -232,6 +237,33 @@ def check_markdown_links(path: pathlib.Path, problems: list[str]) -> None:
     print(f"  ССЫЛКИ ok  {rel}")
 
 
+def tracked_files() -> list[str]:
+    """
+    Файлы под версией. Ошибка git — это отказ, а не пустой список.
+
+    Раньше вызов стоял с check=False, и результат брался прямо из stdout.
+    Недоступный git давал пустой список, цикл не выполнялся ни разу,
+    и проверка печатала успех, ничего не проверив. Пустой ответ исправного
+    git означает то же самое: проверять нечего, и это не повод для зелёного
+    кода возврата.
+
+    Такой же помощник есть в check_files.py, validate_config.py
+    и validate_docs.py — все трое читают индекс одинаково.
+    """
+    try:
+        готово = subprocess.run(
+            ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=False,
+        )
+    except OSError as err:
+        sys.exit(f"git недоступен: {err}")
+    if готово.returncode != 0:
+        sys.exit(f"git ls-files вернул {готово.returncode}: {готово.stderr.strip()}")
+    файлы = готово.stdout.splitlines()
+    if not файлы:
+        sys.exit("git ls-files не вернул ни одного файла — проверять нечего, это не успех")
+    return файлы
+
+
 def main() -> int:
     problems: list[str] = []
 
@@ -245,9 +277,7 @@ def main() -> int:
         check_declared_step_counts(path, problems)
         check_markdown_step_links(path, problems)
 
-    tracked = subprocess.run(
-        ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=False,
-    ).stdout.splitlines()
+    tracked = tracked_files()
 
     scanned = 0
     for name in tracked:

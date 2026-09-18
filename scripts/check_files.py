@@ -74,10 +74,35 @@ def problems_in(name: str, text: str) -> list[str]:
     return found
 
 
+def tracked_files() -> list[str]:
+    """
+    Файлы под версией. Ошибка git — это отказ, а не пустой список.
+
+    Раньше вызов стоял с check=False, и результат брался прямо из stdout.
+    Недоступный git давал пустой список, цикл не выполнялся ни разу,
+    и проверка печатала успех, ничего не проверив. Пустой ответ исправного
+    git означает то же самое: проверять нечего, и это не повод для зелёного
+    кода возврата.
+
+    Такой же помощник есть в check_files.py, validate_config.py
+    и validate_docs.py — все трое читают индекс одинаково.
+    """
+    try:
+        готово = subprocess.run(
+            ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=False,
+        )
+    except OSError as err:
+        sys.exit(f"git недоступен: {err}")
+    if готово.returncode != 0:
+        sys.exit(f"git ls-files вернул {готово.returncode}: {готово.stderr.strip()}")
+    файлы = готово.stdout.splitlines()
+    if not файлы:
+        sys.exit("git ls-files не вернул ни одного файла — проверять нечего, это не успех")
+    return файлы
+
+
 def main() -> int:
-    tracked = subprocess.run(
-        ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=False,
-    ).stdout.splitlines()
+    tracked = tracked_files()
 
     problems: list[str] = []
     checked = 0
@@ -110,9 +135,7 @@ def main() -> int:
 
 
 def fix() -> int:
-    tracked = subprocess.run(
-        ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=False,
-    ).stdout.splitlines()
+    tracked = tracked_files()
 
     changed = 0
     for name in tracked:
