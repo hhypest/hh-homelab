@@ -348,7 +348,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
       <span class="fact">текущий выпуск <b>1.1.0</b></span>
       <span class="fact">контейнеров <b>8</b></span>
       <span class="fact">задач CI <b>8</b></span>
-      <span class="fact">тестов <b>281</b></span>
+      <span class="fact">тестов <b>289</b></span>
     </div>
     <p class="crosslink">Соседние документы: <a href="overview.html">обзор проекта</a>
       — как это устроено и почему именно так;
@@ -892,6 +892,22 @@ sudo docker compose logs -f jellyfin</code></pre></div>
     <li><b>Граница восстановления</b> записана явно: что вернётся из клона,
       а что придётся заводить руками.</li>
   </ul>
+
+  <div class="note warn"><b>Что сломалось в самом выпуске.</b>
+    Таблица версий в описании релиза собирается из compose-файлов, и в 1.1.0
+    в неё попала строка <code>| , | , |</code>. Сборка была однострочником
+    в workflow — <code>grep</code> искал <code>image:</code> в любом месте
+    строки, а в <code>media/compose.yaml</code> есть комментарий со словами
+    «он ищет поля <code>image:</code>, а здесь»: запятую после двоеточия
+    и приняли за образ. Комментарий, объясняющий слепое пятно Dependabot,
+    угодил в слепое пятно сборщика описаний.
+    Текст релиза на GitHub поправлен вручную, сообщение тега <code>v1.1.0</code>
+    оставлено как есть — переставлять опубликованный тег ради строки
+    в описании дороже, чем она стоит. Сам разбор вынесен
+    в <code>scripts/release_images.sh</code> и сверяется тестом с разбором
+    через pyyaml из <code>scripts/check_image_updates.py</code>: теперь
+    у описания выпуска и у сверки версий один список образов на двоих.
+    Исправление войдёт в следующий выпуск — в 1.1.0 его нет.</div>
 </section>
 
 <section id="v100">

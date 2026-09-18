@@ -176,18 +176,16 @@ jobs:
 
       # Версии берутся из compose-файлов, поэтому описание релиза
       # не может разойтись с тем, что реально закреплено.
+      #
+      # Разбор вынесен в скрипт не ради красоты: пока он был однострочником
+      # прямо здесь, его не покрывал ни один тест, и выпуск 1.1.0 получил
+      # в таблице строку «, | ,» из комментария со словами «поля image:,».
+      # Теперь тот же скрипт сверяется с разбором через pyyaml
+      # в tests/test_release_images.py.
       - name: Составить описание релиза
         run: |
-          {
-            echo '| Образ | Версия |'
-            echo '|---|---|'
-            grep -hoP '(image:|DOCKER_MODS=)\s*\K\S+' \
-              media/compose.yaml homeassistant/compose.yaml \
-              | sort -u \
-              | while IFS= read -r ref; do
-                  printf '| `%s` | `%s` |\n' "${ref%:*}" "${ref##*:}"
-                done
-          } > images.md
+          sh scripts/release_images.sh \
+            media/compose.yaml homeassistant/compose.yaml > images.md
           {
             printf 'Домашний сервер на Synology DS725+: медиа-стек и Home Assistant.\n\n'
             printf 'Выпуск фиксирует состав конфигурации и версии образов: клон этого\n'
