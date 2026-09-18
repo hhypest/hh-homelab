@@ -172,7 +172,10 @@ services:
       - LOG_LEVEL=info
       - TZ=${TZ:?см. .env.example}
     ports:
-      - "${BIND_ADDR:?см. .env.example}:${FLARESOLVERR_PORT:?см. .env.example}:8191"
+      # Не BIND_ADDR: на 8191 безголовый браузер без аутентификации, и в сети
+      # он не нужен никому — Prowlarr ходит к нему по имени контейнера внутри
+      # сети Docker, Home Assistant опрашивает по петле. Разбор в .env.example.
+      - "${FLARESOLVERR_BIND_ADDR:?см. .env.example}:${FLARESOLVERR_PORT:?см. .env.example}:8191"
     networks:
       - media
     logging:

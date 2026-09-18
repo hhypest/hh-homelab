@@ -578,6 +578,17 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <code class="path">packages/media_tv.yaml</code>. Разнесли стеки
     по разным машинам — опросы у вас и так идут по сети, и сужение
     ничего не ломает.</div>
+  <div class="note warn"><b>Разнесли стеки — не забудьте про FlareSolverr.</b>
+    У него адрес публикации свой, <code>FLARESOLVERR_BIND_ADDR</code>,
+    и по умолчанию это петля: в образце Home Assistant стоит на том же NAS
+    и опрашивает его из host-сети. Меняете <code>BIND_ADDR</code> под другую
+    машину — эта переменная останется петлевой, и проверка порта 8191 будет
+    единственной из шести, которая получит «connection refused», пока
+    остальные пять отвечают. Искать причину в такой картине долго.
+    <p>Впишите туда адрес NAS — и <b>закройте порт на файрволе</b> для всех,
+    кроме адреса Home Assistant. На 8191 стоит безголовый браузер без
+    какой-либо аутентификации: любой, кто дотянулся, ходит по сети от имени
+    NAS. Разбор — в <code class="path">media/.env.example</code>.</p></div>
 
 <section id="s2">
   <div class="sec-head">

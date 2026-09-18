@@ -817,7 +817,7 @@ sudo docker compose up -d</code></pre></div>
               <tr><td>qBittorrent</td><td><a href="http://192.168.3.53:9080">:9080</a></td><td>форма входа</td></tr>
               <tr><td>Prowlarr</td><td><a href="http://192.168.3.53:9696">:9696</a></td><td>мастер первичной настройки</td></tr>
               <tr><td>Radarr</td><td><a href="http://192.168.3.53:7878">:7878</a></td><td>мастер первичной настройки</td></tr>
-              <tr><td>FlareSolverr</td><td><a href="http://192.168.3.53:8191">:8191</a></td><td>строка <code>FlareSolverr is ready!</code></td></tr>
+              <tr><td>FlareSolverr</td><td>из браузера не открывается — только с NAS: <code>curl -s http://127.0.0.1:8191/</code></td><td>строка <code>FlareSolverr is ready!</code></td></tr>
               <tr><td>Jellyfin</td><td><a href="http://192.168.3.53:8096">:8096</a></td><td>мастер первичной настройки</td></tr>
               <tr><td>Seerr</td><td><a href="http://192.168.3.53:5055">:5055</a></td><td>экран входа</td></tr>
             </tbody>
@@ -1040,6 +1040,21 @@ sudo docker compose up -d</code></pre></div>
           и версию. Адрес для Prowlarr запомните в другой форме —
           <code>http://flaresolverr:8191</code>, по имени контейнера.
         </p>
+        <div class="note crit"><b>Именно <code>curl</code> с NAS, а не браузер
+          с компьютера.</b> Этот порт единственный во всём стеке публикуется
+          только на петле, и это не перестраховка. На 8191 стоит безголовый
+          браузер <b>без какой-либо аутентификации</b>: запрос вида
+          <code>{"cmd": "request.get", "url": "…"}</code> заставляет его сходить
+          по любому адресу и вернуть тело ответа. Любой, кто дотянулся
+          до порта, ходит по сети от имени NAS — и упирается это не в чужой
+          сайт, а в веб-интерфейс роутера, в DSM и в сам Home Assistant.
+          <p>В локальной сети порт не нужен никому: Prowlarr обращается
+          к контейнеру по имени внутри сети Docker, Home Assistant опрашивает
+          по петле. У остальных пяти сервисов есть вход по паролю или ключу,
+          и для них домашняя сеть — доверенная граница; у этого входа нет.
+          Разбор и единственный случай, когда адрес стоит поменять, —
+          в <code class="path">media/.env.example</code>, переменная
+          <code>FLARESOLVERR_BIND_ADDR</code>.</p></div>
       </div>
     </li>
 
@@ -2353,7 +2368,7 @@ sudo docker compose up -d seerr</code></pre></div>
         <tr><td>qBittorrent</td><td><code>qbittorrent:9080</code></td><td><code>127.0.0.1:9080</code></td><td><code>192.168.3.53:9080</code></td></tr>
         <tr><td>Prowlarr</td><td><code>prowlarr:9696</code></td><td><code>127.0.0.1:9696</code></td><td><code>192.168.3.53:9696</code></td></tr>
         <tr><td>Radarr</td><td><code>radarr:7878</code></td><td><code>127.0.0.1:7878</code></td><td><code>192.168.3.53:7878</code></td></tr>
-        <tr><td>FlareSolverr</td><td><code>flaresolverr:8191</code></td><td><code>127.0.0.1:8191</code></td><td><code>192.168.3.53:8191</code></td></tr>
+        <tr><td>FlareSolverr</td><td><code>flaresolverr:8191</code></td><td><code>127.0.0.1:8191</code></td><td>—&nbsp;не публикуется</td></tr>
         <tr><td>Jellyfin</td><td><code>jellyfin:8096</code></td><td><code>127.0.0.1:8096</code></td><td><code>192.168.3.53:8096</code></td></tr>
         <tr><td>Seerr</td><td><code>seerr:5055</code></td><td><code>127.0.0.1:5055</code></td><td><code>192.168.3.53:5055</code></td></tr>
       </tbody>

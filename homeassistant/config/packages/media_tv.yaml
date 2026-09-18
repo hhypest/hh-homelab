@@ -546,11 +546,39 @@ automation:
         entity_id: binary_sensor.tv_watching
         state: "on"
     actions:
-      # Предупреждаем на экране. Служба уведомлений webOS называется по имени
-      # устройства — если у вас она иначе, шаг просто будет пропущен.
-      - action: notify.lg_tv
+      # Предупреждаем на экране тостом самого webOS, а не службой уведомлений.
+      #
+      # Здесь стояло «action: notify.lg_tv» с комментарием «если у вас служба
+      # называется иначе, шаг просто будет пропущен». Оба утверждения неверны.
+      #
+      # Во-первых, такого имени почти ни у кого нет: службу регистрирует
+      # webostv/__init__.py по ЗАГОЛОВКУ записи интеграции (CONF_NAME:
+      # entry.title), а он по умолчанию вида «LG webOS TV 32LK540BPLA» —
+      # то есть служба называется notify.lg_webos_tv_32lk540bpla.
+      #
+      # Во-вторых, шаг не пропускался. ServiceNotFound стоит в списке
+      # исключений, которые continue_on_error НЕ подавляет:
+      #
+      #     homeassistant/helpers/script.py, _handle_exception
+      #     # These are incorrect scripts, and not runtime errors that need
+      #     # to be handled and thus cannot be stopped by `continue_on_error`.
+      #     if isinstance(exception, (..., exceptions.ServiceNotFound, ...)):
+      #         raise exception
+      #
+      # То есть автоматика обрывалась на первом же шаге: ни предупреждения,
+      # ни паузы, ни выключения — вся ветка «вы ещё смотрите?» не работала,
+      # и Home Assistant показывал «использует неизвестное действие».
+      #
+      # webostv.command — служба самой интеграции, имя у неё фиксированное,
+      # а адресуется она сущностью, которую мы и так переименовали.
+      # Неответивший телевизор даёт обычную ошибку, и вот её
+      # continue_on_error действительно подавляет.
+      - action: webostv.command
         data:
-          message: "Ещё смотрите? Через три минуты поставлю на паузу."
+          entity_id: media_player.lg_tv
+          command: system.notifications/createToast
+          payload:
+            message: "Ещё смотрите? Через три минуты поставлю на паузу."
         continue_on_error: true
 
       - delay: "00:03:00"
