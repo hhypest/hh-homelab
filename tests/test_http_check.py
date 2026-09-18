@@ -20,7 +20,7 @@ import sys
 import threading
 
 import pytest
-from conftest import BIN
+from conftest import BIN, ROOT
 
 SCRIPT = BIN / "http_check.py"
 
@@ -79,11 +79,45 @@ def test_server_error_reports_off(server: str) -> None:
     assert run(f"{server}/500").stdout.strip() == "OFF"
 
 
-def test_explicit_codes_narrow_the_check(server: str) -> None:
-    """Со вторым аргументом успехом считается только перечисленное."""
-    assert run(f"{server}/200", "200").stdout.strip() == "ON"
-    assert run(f"{server}/401", "200").stdout.strip() == "OFF"
-    assert run(f"{server}/404", "404").stdout.strip() == "ON"
+def test_второй_аргумент_добавляет_а_не_заменяет(server: str) -> None:
+    """
+    Здесь было записано обратное: «со вторым аргументом успехом считается
+    только перечисленное». Код так и работал, а docstring скрипта обещал
+    «доп. коды» — и обещание не выполнялось ни для одного из шести сенсоров.
+
+    Стреляло бы это так: Radarr включает аутентификацию, /ping начинает
+    отвечать 401, в команде сенсора перечислен 200 — и приходит «сервис
+    не отвечает» о полностью живом сервисе. Ровно ради этого случая 401
+    и 403 внесены в набор по умолчанию.
+    """
+    assert run(f"{server}/401", "200").stdout.strip() == "ON", (
+        "перечисленный код вытеснил набор по умолчанию"
+    )
+    assert run(f"{server}/404", "404").stdout.strip() == "ON", "код не добавился"
+    assert run(f"{server}/404").stdout.strip() == "OFF", "набор по умолчанию раздулся"
+
+
+def test_нецифровой_аргумент_не_гасит_проверку(server: str) -> None:
+    """Раньше он давал пустой набор кодов, то есть OFF при любом ответе."""
+    готово = run(f"{server}/200", "абв")
+    assert готово.stdout.strip() == "ON"
+    assert "не код ответа" in готово.stderr, "молча проглоченная опечатка не видна в журнале"
+    assert готово.stdout.strip().count("\n") == 0, "stdout читает сенсор, там только одно слово"
+
+
+def test_сенсоры_не_передают_лишних_кодов() -> None:
+    """
+    Списки кодов в командах остались бы безвредными, но вводящими
+    в заблуждение: перечисление 200 больше ничего не означает.
+    """
+    текст = (ROOT / "homeassistant" / "config" / "packages" / "monitoring.yaml").read_text(
+        encoding="utf-8"
+    )
+    команды = [с for с in текст.splitlines() if "http_check.py" in с and "command:" in с]
+    assert len(команды) == 6
+    for команда in команды:
+        хвост = команда.split("http_check.py", 1)[1].strip().rstrip('"')
+        assert len(хвост.split()) == 1, f"лишний аргумент в команде: {команда.strip()}"
 
 
 def test_connection_refused_reports_off() -> None:
