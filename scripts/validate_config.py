@@ -74,7 +74,11 @@ FORBIDDEN = [
     (re.compile(r"\b(?!AA:BB:CC)[0-9a-f]{2}(:[0-9a-f]{2}){5}\b", re.I), "похоже на реальный MAC-адрес"),
 ]
 
-ALLOWED_IN_EXAMPLES = {"secrets.yaml.example"}
+# Исключения для secrets.yaml.example здесь больше нет. Оно освобождало
+# от проверок ровно тот файл, который правят руками, копируя в него свой
+# боевой secrets.yaml, — и покупало этим ничего: заглушка AA:BB:CC:DD:EE:FF
+# и так вырезана из выражения просмотром вперёд, а «ВАШ_API_КЛЮЧ»
+# не подходит под шаблон шестнадцатеричного ключа.
 
 
 class HALoader(yaml.SafeLoader):
@@ -178,6 +182,33 @@ def ha_environment() -> Environment:
     return env
 
 
+def tracked_files() -> list[str]:
+    """
+    Файлы под версией. Ошибка git — это отказ, а не пустой список.
+
+    Раньше вызов стоял с check=False, и результат брался прямо из stdout.
+    Недоступный git давал пустой список, цикл не выполнялся ни разу,
+    и проверка печатала успех, ничего не проверив. Пустой ответ исправного
+    git означает то же самое: проверять нечего, и это не повод для зелёного
+    кода возврата.
+
+    Такой же помощник есть в check_files.py, validate_config.py
+    и validate_docs.py — все трое читают индекс одинаково.
+    """
+    try:
+        готово = subprocess.run(
+            ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=False,
+        )
+    except OSError as err:
+        sys.exit(f"git недоступен: {err}")
+    if готово.returncode != 0:
+        sys.exit(f"git ls-files вернул {готово.returncode}: {готово.stderr.strip()}")
+    файлы = готово.stdout.splitlines()
+    if not файлы:
+        sys.exit("git ls-files не вернул ни одного файла — проверять нечего, это не успех")
+    return файлы
+
+
 def main() -> int:
     problems: list[str] = []
     env = ha_environment()
@@ -227,9 +258,7 @@ def main() -> int:
                     )
 
     # --- секреты в рабочем дереве ---
-    tracked = subprocess.run(
-        ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=False,
-    ).stdout.splitlines()
+    tracked = tracked_files()
 
     for name in tracked:
         if name.endswith("config/secrets.yaml"):
@@ -245,8 +274,6 @@ def main() -> int:
         except (UnicodeDecodeError, OSError):
             continue
         for pattern, label in FORBIDDEN:
-            if path.name in ALLOWED_IN_EXAMPLES and label != "боевой вебхук Пачки":
-                continue
             found = pattern.search(content)
             if found:
                 problems.append(f"{name}: {label} — «{found.group(0)[:48]}»")

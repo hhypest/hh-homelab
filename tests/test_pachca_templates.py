@@ -9,6 +9,7 @@ render_pachca.py уже прогоняет шаблоны на примерах 
 
 from __future__ import annotations
 
+import html
 import json
 import pathlib
 import re
@@ -355,11 +356,11 @@ def test_jellyfin_payload_valid_json_after_substitution() -> None:
     после замены плейсхолдеров получается разбираемая структура и что
     её поля совпадают с теми, которые ждёт jellyfin.liquid.
     """
-    import re
-
-    raw = (PACHCA / "payloads/jellyfin.handlebars").read_text(encoding="utf-8")
-    body = re.sub(r"\{\{!--.*?--\}\}", "", raw, flags=re.S)
-    substituted = re.sub(r"\{\{\w+\}\}", "значение", body)
+    body = тело_шаблона()
+    # Тройные скобки разбираются первыми: иначе выражение для двойных
+    # откусит внутреннюю пару и оставит лишние фигурные скобки в значении.
+    substituted = re.sub(r"\{\{\{?\w+\}?\}\}", "значение", body)
+    assert "{" not in substituted.split('"service"')[1], "подстановка оставила скобки"
     data = json.loads(substituted)
 
     assert data["service"] == "jellyfin"
@@ -367,3 +368,109 @@ def test_jellyfin_payload_valid_json_after_substitution() -> None:
     for field in ("event", "item", "user", "playMethod", "series"):
         assert field in data, f"поле {field} пропало из payload"
         assert field in liquid, f"поле {field} есть в payload, но не используется в шаблоне"
+
+
+# ---------------------------------------------------------------------------
+#  Экранирование в шаблоне Handlebars для Jellyfin
+# ---------------------------------------------------------------------------
+#  Плагин Webhook экранирует строки для JSON сам — Escape() в
+#  DataObjectHelpers.cs заменяет " на \". Двойные скобки Handlebars делают
+#  поверх этого HTML-экранирование, и \" превращается в \&quot;: недопустимая
+#  escape-последовательность, битый JSON, молча потерянное уведомление.
+#  Фильм с кавычкой в названии не порождал сообщения вовсе.
+#
+#  Тройные скобки отдают значение как есть — но безопасны только там, где
+#  плагин экранирует всегда. Здесь повторены обе ступени, чтобы граница
+#  проверялась, а не держалась на внимательности.
+# ---------------------------------------------------------------------------
+
+PAYLOAD = PACHCA / "payloads/jellyfin.handlebars"
+
+# Поля, которые плагин экранирует при любом событии.
+ЭКРАНИРУЕТСЯ_ВСЕГДА = {"Name", "SeriesName", "ItemType", "ServerName"}
+
+# Поля, которым тройные скобки противопоказаны, с причиной.
+СЫРЫЕ = {
+    "NotificationUsername": "AuthenticationFailureNotifier кладёт чужой ввод без Escape()",
+    "ClientName": "AddPlaybackProgressData кладёт без Escape()",
+    "DeviceName": "при неудачном входе не экранируется",
+}
+
+
+def тело_шаблона() -> str:
+    return re.sub(r"\{\{!--.*?--\}\}", "", PAYLOAD.read_text(encoding="utf-8"), flags=re.S)
+
+
+def как_плагин(значение: str) -> str:
+    """DataObjectHelpers.Escape(): кавычка → \\кавычка, и больше ничего."""
+    return значение.replace('"', '\\"')
+
+
+def как_handlebars(шаблон: str, данные: dict[str, str]) -> str:
+    """Тройные скобки — как есть, двойные — с HTML-экранированием."""
+    текст = re.sub(r"\{\{\{(\w+)\}\}\}", lambda m: данные.get(m[1], ""), шаблон)
+    return re.sub(
+        r"\{\{(\w+)\}\}",
+        lambda m: html.escape(данные.get(m[1], ""), quote=True),
+        текст,
+    )
+
+
+def test_кавычка_в_названии_не_ломает_json() -> None:
+    """Регрессия: фильм «Я, „Робот"» не порождал уведомления вовсе."""
+    название = 'Фильм "в кавычках"'
+    данные = {"Name": как_плагин(название), "NotificationType": "PlaybackStart"}
+    разобрано = json.loads(как_handlebars(тело_шаблона(), данные))
+    assert разобрано["item"] == название
+
+
+def test_двойные_скобки_на_экранированном_поле_дают_битый_json() -> None:
+    """Причина поломки, зафиксированная исполняемо."""
+    сломанный = тело_шаблона().replace("{{{Name}}}", "{{Name}}")
+    данные = {"Name": как_плагин('Фильм "в кавычках"')}
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(как_handlebars(сломанный, данные))
+
+
+def test_амперсанд_в_названии_приезжает_собой() -> None:
+    """«Tom & Jerry», а не «Tom &amp; Jerry»."""
+    данные = {"Name": как_плагин("Tom & Jerry")}
+    assert json.loads(как_handlebars(тело_шаблона(), данные))["item"] == "Tom & Jerry"
+
+
+def test_чужой_ввод_при_неудачном_входе_не_ломает_json() -> None:
+    """
+    Имя из неудачного входа плагин кладёт сырым. Двойные скобки его
+    обезвреживают; тройные дали бы дописать в сообщение произвольный JSON.
+    """
+    подделка = '", "service": "radarr", "x": "'
+    данные = {"NotificationType": "AuthenticationFailure", "NotificationUsername": подделка}
+    разобрано = json.loads(как_handlebars(тело_шаблона(), данные))
+    assert разобрано["service"] == "jellyfin", "поле service подменили через имя пользователя"
+
+    опасный = тело_шаблона().replace("{{NotificationUsername}}", "{{{NotificationUsername}}}")
+    подменено = json.loads(как_handlebars(опасный, данные))
+    assert подменено["service"] == "radarr", (
+        "проверка бесполезна: подстановка не сработала даже с тройными скобками"
+    )
+
+
+@pytest.mark.parametrize("поле", sorted(ЭКРАНИРУЕТСЯ_ВСЕГДА))
+def test_экранируемые_поля_в_тройных_скобках(поле: str) -> None:
+    assert f"{{{{{{{поле}}}}}}}" in тело_шаблона(), (
+        f"{поле} плагин экранирует всегда — двойные скобки испортят значение"
+    )
+
+
+@pytest.mark.parametrize("поле", sorted(СЫРЫЕ))
+def test_сырые_поля_остаются_в_двойных_скобках(поле: str) -> None:
+    assert f"{{{{{{{поле}}}}}}}" not in тело_шаблона(), f"{поле}: {СЫРЫЕ[поле]}"
+    assert f"{{{{{поле}}}}}" in тело_шаблона()
+
+
+def test_числовые_поля_не_трогали() -> None:
+    """Кавычек в них не бывает, и тройные скобки им ничего не дают."""
+    тело = тело_шаблона()
+    for поле in ("Year", "SeasonNumber", "Video_0_Width", "Video_0_Height", "Audio_0_Channels"):
+        assert f"{{{{{поле}}}}}" in тело
+        assert f"{{{{{{{поле}}}}}}}" not in тело

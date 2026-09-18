@@ -245,3 +245,65 @@ def test_total_equals_requested_count(names: tuple[str, ...]) -> None:
         assert run(url, *names)["total"] == len(names)
     finally:
         httpd.shutdown()
+
+
+# ---------------------------------------------------------------------------
+#  Ответы, на которых скрипт падал вместо того, чтобы отчитаться
+# ---------------------------------------------------------------------------
+#  Контракт файла, записанный в его же docstring, — «никогда не падать»:
+#  сенсор должен получить разбираемый JSON с полем error, иначе он уходит
+#  в unknown, binary_sensor.docker_problem становится недоступен, и
+#  автоматика «контейнер упал» молчит ровно тогда, когда нужна.
+#
+#  Для недоступного прокси контракт соблюдался. Две дыры мимо него: разбор
+#  JSON стоял внутри try, а обход результата — уже снаружи; разбор таймаута
+#  из окружения стоял до всякого try и вообще до первой строки main().
+# ---------------------------------------------------------------------------
+
+
+def test_объект_вместо_списка_не_роняет_скрипт() -> None:
+    """200 и {"message": ...} — обратный прокси, ошибка маршрутизации, смена API."""
+    url, httpd = make_server({"message": "permission denied"})
+    try:
+        data = run(url, "jellyfin")
+    finally:
+        httpd.shutdown()
+    assert data["error"] != ""
+    assert data["down_names"] == []
+
+
+def test_список_строк_вместо_контейнеров_не_роняет_скрипт() -> None:
+    """Список есть, но элементы не словари — .get() по строке падал так же."""
+    url, httpd = make_server(["jellyfin", "radarr"])
+    try:
+        data = run(url, "jellyfin")
+    finally:
+        httpd.shutdown()
+    assert data["error"] != ""
+
+
+def test_нечисловой_таймаут_не_роняет_скрипт() -> None:
+    """DOCKER_PROXY_TIMEOUT=8s ронял файл первым же исполняемым выражением."""
+    url, httpd = make_server([RUNNING])
+    try:
+        env = dict(os.environ, DOCKER_PROXY_URL=url, DOCKER_PROXY_TIMEOUT="8s")
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), "jellyfin"],
+            capture_output=True, text=True, timeout=30, check=False, env=env,
+        )
+    finally:
+        httpd.shutdown()
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    assert "DOCKER_PROXY_TIMEOUT" in data["error"], "молчаливая подстановка умолчания скрыла бы опечатку"
+
+
+def test_исправный_ответ_по_прежнему_без_ошибки() -> None:
+    """Контроль: проверки выше не превратили нормальный ответ в отказ."""
+    url, httpd = make_server([RUNNING])
+    try:
+        data = run(url, "jellyfin")
+    finally:
+        httpd.shutdown()
+    assert data["error"] == ""
+    assert data["down"] == 0

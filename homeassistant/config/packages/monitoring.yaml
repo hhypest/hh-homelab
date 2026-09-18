@@ -21,12 +21,18 @@
 # HA работает в host-сети NAS, поэтому все сервисы доступны на 127.0.0.1.
 # Префикс "svc " в имени даёт предсказуемые entity_id: binary_sensor.svc_*
 # — по нему автоматизации и сводки находят все проверки разом.
+#
+# Списки кодов из команд убраны. Раньше второй аргумент ЗАМЕНЯЛ набор
+# по умолчанию, и перечислять 200 приходилось, чтобы проверка не считала
+# живой сервис мёртвым. Теперь аргумент добавляет коды к набору
+# 200/201/204/301/302/401/403, и для всех шести сервисов он не нужен:
+# сенсор отвечает на вопрос «сервис жив?», а сервис за формой логина жив.
 command_line:
 
   - binary_sensor:
       name: "svc qBittorrent"
       unique_id: svc_qbittorrent_http
-      command: "python3 /config/bin/http_check.py http://127.0.0.1:9080/ 200,401,403"
+      command: "python3 /config/bin/http_check.py http://127.0.0.1:9080/"
       device_class: connectivity
       scan_interval: 60
       command_timeout: 15
@@ -34,7 +40,7 @@ command_line:
   - binary_sensor:
       name: "svc Prowlarr"
       unique_id: svc_prowlarr_http
-      command: "python3 /config/bin/http_check.py http://127.0.0.1:9696/ping 200"
+      command: "python3 /config/bin/http_check.py http://127.0.0.1:9696/ping"
       device_class: connectivity
       scan_interval: 60
       command_timeout: 15
@@ -42,7 +48,7 @@ command_line:
   - binary_sensor:
       name: "svc Radarr"
       unique_id: svc_radarr_http
-      command: "python3 /config/bin/http_check.py http://127.0.0.1:7878/ping 200"
+      command: "python3 /config/bin/http_check.py http://127.0.0.1:7878/ping"
       device_class: connectivity
       scan_interval: 60
       command_timeout: 15
@@ -50,7 +56,7 @@ command_line:
   - binary_sensor:
       name: "svc FlareSolverr"
       unique_id: svc_flaresolverr_http
-      command: "python3 /config/bin/http_check.py http://127.0.0.1:8191/ 200"
+      command: "python3 /config/bin/http_check.py http://127.0.0.1:8191/"
       device_class: connectivity
       scan_interval: 120
       command_timeout: 15
@@ -58,7 +64,7 @@ command_line:
   - binary_sensor:
       name: "svc Jellyfin"
       unique_id: svc_jellyfin_http
-      command: "python3 /config/bin/http_check.py http://127.0.0.1:8096/health 200"
+      command: "python3 /config/bin/http_check.py http://127.0.0.1:8096/health"
       device_class: connectivity
       scan_interval: 60
       command_timeout: 15
@@ -66,7 +72,7 @@ command_line:
   - binary_sensor:
       name: "svc Seerr"
       unique_id: svc_seerr_http
-      command: "python3 /config/bin/http_check.py http://127.0.0.1:5055/api/v1/status 200"
+      command: "python3 /config/bin/http_check.py http://127.0.0.1:5055/api/v1/status"
       device_class: connectivity
       scan_interval: 60
       command_timeout: 15

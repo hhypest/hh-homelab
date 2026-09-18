@@ -36,7 +36,23 @@ import urllib.request
 # Переопределяется переменной окружения: это нужно тестам, чтобы не занимать
 # настоящий порт, и пригодится, если прокси однажды переедет.
 PROXY = os.environ.get("DOCKER_PROXY_URL", "http://127.0.0.1:2375")
-TIMEOUT = int(os.environ.get("DOCKER_PROXY_TIMEOUT", "8"))
+
+
+def read_timeout() -> tuple[int, str]:
+    """
+    Таймаут из окружения. Разбор стоял прямо в присвоении, то есть ДО всякого
+    try и до первой строки main(): DOCKER_PROXY_TIMEOUT=8s ронял скрипт
+    первым же исполняемым выражением, молча и с пустым выводом — при том,
+    что весь смысл файла в обещании «никогда не падать».
+    """
+    raw = os.environ.get("DOCKER_PROXY_TIMEOUT", "8")
+    try:
+        return int(raw), ""
+    except ValueError:
+        return 8, f"DOCKER_PROXY_TIMEOUT={raw!r} — не число"
+
+
+TIMEOUT, TIMEOUT_PROBLEM = read_timeout()
 
 # Контейнеры, за которыми следим. Держите список в согласии с packages/docker.yaml.
 WATCHED = [
@@ -63,6 +79,10 @@ def fail(message: str) -> None:
 def main() -> None:
     watched = sys.argv[1:] or WATCHED
 
+    if TIMEOUT_PROBLEM:
+        fail(TIMEOUT_PROBLEM)
+        return
+
     request = urllib.request.Request(
         PROXY + "/containers/json?all=1",
         headers={"Accept": "application/json"},
@@ -76,6 +96,17 @@ def main() -> None:
         return
     except Exception as err:  # таймаут, отказ соединения, битый JSON
         fail(type(err).__name__)
+        return
+
+    # Разбор JSON стоял внутри try, а всё, что с ним делается, — уже снаружи.
+    # Прокси, ответивший 200 с объектом вместо списка (сообщение обратного
+    # прокси, ошибка маршрутизации, смена версии API), уводил цикл по ключам
+    # строкам: AttributeError, пустой stdout, сенсор в unknown — и молчание
+    # автоматики «контейнер упал» ровно в тот момент, ради которого она
+    # заведена. Отказ прокси при этом обработан образцово, поэтому проверка
+    # должна вернуть отказ в то же русло, а не в трассировку.
+    if not isinstance(containers, list) or not all(isinstance(c, dict) for c in containers):
+        fail("proxy ответил не списком контейнеров")
         return
 
     # Docker отдаёт имена со слэшем в начале: "/jellyfin"

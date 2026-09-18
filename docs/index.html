@@ -893,7 +893,10 @@ curl -m 3 http://192.168.3.53:2375/version
           на <code>127.0.0.1</code> раз в минуту. Контейнер может быть «запущен», а
           приложение внутри — висеть; такое ловится только реальным запросом.
           Скрипт <code>bin/http_check.py</code> считает успехом и коды 401/403: qBittorrent
-          отвечает формой логина, и это нормальный признак жизни.</div>
+          отвечает формой логина, и это нормальный признак жизни. Второй аргумент скрипта
+          <b>добавляет</b> коды к этому набору, а не заменяет его — раньше было наоборот,
+          и перечисленный в команде <code>200</code> выбрасывал 401 и 403 обратно.
+          Сервис, включивший аутентификацию, после этого выглядел бы мёртвым.</div>
       </div>
     </li>
 
@@ -1068,7 +1071,7 @@ sudo docker exec homeassistant python3 /config/bin/docker_state.py
         </p>
         <p>Если какая-то из проверок в <code>off</code>, а сервис заведомо работает,
           подберите путь вручную:</p>
-        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo docker exec homeassistant python3 /config/bin/http_check.py http://127.0.0.1:9696/ping 200
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>sudo docker exec homeassistant python3 /config/bin/http_check.py http://127.0.0.1:9696/ping
 <span class="c"># ON — путь верный, OFF — попробуйте корневой /</span></code></pre></div>
       </div>
     </li>

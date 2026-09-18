@@ -94,13 +94,37 @@ def slug(name: str) -> str:
     return re.sub(r"_+", "_", re.sub(r"[^a-z0-9]+", "_", name.lower())).strip("_")
 
 
-# Ключи, значение которых — не сущность, а имя службы или платформы.
-# Без этого «action: input_boolean.turn_off» выглядит как ссылка
-# на несуществующий флаг с именем turn_off.
+# Ключи, значение которых — не сущность, а имя платформы, типа или класса.
 NOT_ENTITY_KEYS = {
-    "action", "service", "platform", "trigger", "condition", "domain",
+    "platform", "trigger", "condition", "domain",
     "device_class", "state_class", "media_content_type", "type",
 }
+
+# Под этими ключами лежит вызов, и он бывает двух разных видов:
+# «action: input_boolean.turn_off» — это служба, а «action: script.tv_off» —
+# это сущность-скрипт, вызываемая напрямую.
+#
+# Раньше оба ключа целиком лежали в NOT_ENTITY_KEYS, и обход выбрасывал
+# всё, что под ними. В Home Assistant 2024.8+ «action: script.имя» —
+# основная форма вызова, и в этом репозитории так записаны почти все
+# обращения к скриптам: опечатка в имени проходила проверку молча,
+# а автоматизация потом просто никогда не срабатывала — ровно тот класс
+# ошибок, против которого скрипт и написан.
+#
+# Отличать нужно не по ключу, а по второй части. В домене script служб
+# всего четыре, и любое другое имя за точкой — сущность.
+SERVICE_KEYS = {"action", "service"}
+SCRIPT_SERVICES = {"turn_on", "turn_off", "toggle", "reload"}
+
+
+def looks_like_entity(key: str | None, value: str) -> bool:
+    """Стоит ли искать в этой строке ссылку на сущность."""
+    if key in NOT_ENTITY_KEYS:
+        return False
+    if key in SERVICE_KEYS:
+        domain, _, name = value.partition(".")
+        return domain == "script" and name not in SCRIPT_SERVICES and bool(name)
+    return True
 
 
 def walk_strings(node, key: str | None = None):
@@ -111,7 +135,7 @@ def walk_strings(node, key: str | None = None):
     elif isinstance(node, list):
         for item in node:
             yield from walk_strings(item, key)
-    elif isinstance(node, str) and key not in NOT_ENTITY_KEYS:
+    elif isinstance(node, str) and looks_like_entity(key, node):
         yield node
 
 

@@ -16,6 +16,30 @@ homeassistant/config/secrets.yaml
 .env.*
 !.env.example
 
+# Соседи тех же ключей. Раньше список был перечнем знакомых имён: закрыты
+# *.key, *.pem и *.token, а wg0.conf с приватным ключом туннеля, id_rsa
+# и выгруженный сертификат попали бы в коммит открытым текстом. Проверено
+# через git check-ignore, зафиксировано в tests/test_gitignore.py.
+wg*.conf
+*.crt
+*.cer
+*.pfx
+*.p12
+*.jks
+*.keystore
+id_rsa*
+id_dsa*
+id_ecdsa*
+id_ed25519*
+*.ppk
+
+# Резервные копии: выгрузка Home Assistant — это secrets.yaml, база
+# и учётные записи одним файлом.
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+
 # --- Состояние Home Assistant ------------------------------------------------
 # Всё это генерируется при работе и меняется постоянно: в git от него
 # только шум и раздутая история.
@@ -31,6 +55,12 @@ homeassistant/config/deps/
 homeassistant/config/image/
 homeassistant/config/blueprints/
 homeassistant/config/.cache/
+# Эти два файла пишет сам Home Assistant, и в них лежат адреса и устройства
+# домашней сети: ip_bans.yaml — адреса, с которых были неудачные входы,
+# known_devices.yaml — MAC и имена. Каталог одновременно рабочий и
+# версионируемый, поэтому всё, что демон пишет сам, перечисляем явно.
+homeassistant/config/ip_bans.yaml
+homeassistant/config/known_devices.yaml
 
 # --- Сторонние компоненты ----------------------------------------------------
 # HACS ставит их сам, у каждого свой репозиторий и своя лицензия.

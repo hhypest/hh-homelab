@@ -134,11 +134,20 @@ script:
                | list | count }}
           cont_down: "{{ states('sensor.docker_down') | int(0) }}"
           cont_detail: "{{ state_attr('sensor.docker_down', 'down_detail') | default([], true) }}"
+          cont_running: "{{ state_attr('sensor.docker_down', 'running') }}"
+          cont_total: "{{ state_attr('sensor.docker_down', 'total') }}"
+          top_cpu: "{{ state_attr('sensor.docker_top_cpu', 'container') }}"
+          top_ram: "{{ state_attr('sensor.docker_top_ram', 'container') }}"
+          cpu: "{{ states('sensor.ds725_cpu_utilization_total') }}"
+          ram: "{{ states('sensor.ds725_memory_usage_real') }}"
+          booted: "{{ states('sensor.ds725_last_boot') }}"
           vol_used: "{{ states('sensor.ds725_volume_1_volume_used') | float(0) }}"
           nas_temp: "{{ states('sensor.ds725_temperature') | float(0) }}"
           # Простой за сутки history_stats отдаёт в часах — переводим в минуты
-          svc_down_min: "{{ (states('sensor.stack_downtime_24h') | float(0) * 60) | round(0) }}"
-          cont_down_min: "{{ (states('sensor.docker_downtime_24h') | float(0) * 60) | round(0) }}"
+          # round(0) в Jinja возвращает дробное число, и в сводку уезжало
+          # «Простой за сутки: 0.0 мин». int после round отрезает хвост.
+          svc_down_min: "{{ (states('sensor.stack_downtime_24h') | float(0) * 60) | round | int }}"
+          cont_down_min: "{{ (states('sensor.docker_downtime_24h') | float(0) * 60) | round | int }}"
           disks: >-
             {{ [states('sensor.ds725_drive_1_status'),
                 states('sensor.ds725_drive_2_status')]
@@ -155,44 +164,35 @@ script:
             {% else %}
               ✅ Всё в порядке
             {% endif %}
-          body: >-
+          body: |-
             📊 **DS725+ — сводка за сутки**
 
             {{ verdict | trim }}
 
             **Железо**
-
-            • Процессор {{ states('sensor.ds725_cpu_utilization_total') }} % ·
-              память {{ states('sensor.ds725_memory_usage_real') }} % ·
-              {{ states('sensor.ds725_temperature') }} °C
-            • Том volume1 занят на {{ states('sensor.ds725_volume_1_volume_used') }} %
+            • Процессор {{ cpu }} % · память {{ ram }} % · {{ nas_temp | round | int }} °C
+            • Том volume1 занят на {{ vol_used | round | int }} %
             • Диски: {% if disks | count == 0 %}норма{% else %}⛔ {{ disks | join(', ') }}{% endif %}
+            • Работает с {{ booted }}
 
-            • Работает с {{ states('sensor.ds725_last_boot') }}
-
-            **Контейнеры** — {{ state_attr('sensor.docker_down', 'running') }}
-            из {{ state_attr('sensor.docker_down', 'total') }}
-
-            {% if cont_down | int > 0 %}
-            {% for line in cont_detail %}
+            **Контейнеры** — {{ cont_running }} из {{ cont_total }}
+            {% if cont_down | int > 0 -%}
+            {% for line in cont_detail -%}
             • 🔻 {{ line }}
-            {% endfor %}
-            {% else %}
+            {% endfor -%}
+            {%- else -%}
             • Все запущены
-            {% endif %}
+            {% endif -%}
             • Простой за сутки: {{ cont_down_min }} мин
-            • Больше всех процессора: {{ state_attr('sensor.docker_top_cpu', 'container') }}
-              ({{ states('sensor.docker_top_cpu') }} %)
-            • Больше всех памяти: {{ state_attr('sensor.docker_top_ram', 'container') }}
-              ({{ states('sensor.docker_top_ram') }} MiB)
+            • Больше всех процессора: {{ top_cpu }} ({{ states('sensor.docker_top_cpu') }} %)
+            • Больше всех памяти: {{ top_ram }} ({{ states('sensor.docker_top_ram') }} MiB)
 
             **Сервисы** — {{ svc_total | int - svc_down | count }} из {{ svc_total }} отвечают
-
-            {% if svc_down | count > 0 %}
+            {% if svc_down | count > 0 -%}
             • 🔴 Молчат: {{ svc_down | join(', ') }}
-            {% else %}
+            {% else -%}
             • Все отвечают
-            {% endif %}
+            {% endif -%}
             • Простой за сутки: {{ svc_down_min }} мин
 
       - action: rest_command.pachca_send
