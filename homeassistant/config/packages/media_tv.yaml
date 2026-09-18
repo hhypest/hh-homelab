@@ -130,7 +130,7 @@ rest:
           - ParentIndexNumber
 
 # -----------------------------------------------------------------------------
-# 3. Сенсор «ТВ включён, но ничего не играет»
+# 3. Два сенсора: идёт ли просмотр и как долго телевизор горит впустую
 # -----------------------------------------------------------------------------
 # Отдельная сущность вместо условия внутри автоматизации: delay_on делает
 # ровно то, что нужно — состояние становится «включено» только после того,
@@ -149,27 +149,42 @@ rest:
 # и ночью автоматика 4.2 выключала телевизор посреди фильма.
 #
 # Теперь просмотр спрашивается у Cast-сущности приставки, которая видит
-# медиасессию, и дополнительно — у сессий Jellyfin. Пауза просмотром
-# не считается намеренно: двадцать минут на паузе — это «вышел и забыл»,
-# а перемотку такая выдержка переживает.
+# медиасессию Android TV, и записан он один раз — отдельным сенсором
+# binary_sensor.tv_watching. Пауза просмотром не считается намеренно:
+# двадцать минут на паузе — это «вышел и забыл», а перемотку такая
+# выдержка переживает.
 template:
   - binary_sensor:
+      # Признак «на этом телевизоре идёт просмотр» — один на весь файл.
+      # Отдельной сущностью, потому что спрашивают его двое: сенсор простоя
+      # ниже и ночная проверка «вы ещё смотрите?». Пока предикат был записан
+      # дважды, они разошлись: простой учитывал сессии Jellyfin, а проверка
+      # нет, и просмотр без Cast-сессии не выключался вообще никогда —
+      # ни по простою, ни по ночной проверке.
+      #
+      # Сессия Jellyfin берётся ровно одна и именно этой приставки. Обход
+      # всех сессий интеграции считал просмотром Jellyfin на телефоне
+      # и в браузере, и забытый телевизор горел до конца чужого сеанса.
+      # Если у приставки такой сущности нет, строка просто не сработает:
+      # states() вернёт unknown.
+      - name: "TV watching"
+        unique_id: tv_watching
+        icon: mdi:television-play
+        state: >-
+          {% set tv = states('media_player.lg_tv') %}
+          {% set cast = states('media_player.rocktek_gx1_cast') %}
+          {% set jellyfin = states('media_player.jellyfin_rocktek_gx1') %}
+          {{ tv == 'playing'
+             or cast in ['playing', 'buffering']
+             or jellyfin in ['playing', 'buffering'] }}
+
       - name: "TV idle"
         unique_id: tv_idle_20min
         icon: mdi:television-pause
         state: >-
           {% set tv = states('media_player.lg_tv') %}
-          {% set cast = states('media_player.rocktek_gx1_cast') %}
-          {% set ns = namespace(jellyfin=false) %}
-          {% for e in integration_entities('jellyfin') if e.startswith('media_player.') %}
-            {% if states(e) in ['playing', 'buffering'] %}
-              {% set ns.jellyfin = true %}
-            {% endif %}
-          {% endfor %}
           {{ tv not in ['off', 'unavailable', 'unknown', 'standby']
-             and tv != 'playing'
-             and cast not in ['playing', 'buffering']
-             and not ns.jellyfin }}
+             and is_state('binary_sensor.tv_watching', 'off') }}
         delay_on: "00:20:00"
         delay_off: "00:00:30"
 
@@ -493,9 +508,10 @@ automation:
   # дождалась бы за пять минут и выключила телевизор у человека, который
   # исправно нажал play. Нажать было физически нечем: следили не за тем.
   #
-  # Теперь состояние спрашивается у Cast, а пауза отправляется пультом —
-  # это кнопка, она работает в любом приложении, даже когда медиасессия
-  # управляется не через Cast.
+  # Теперь состояние спрашивается у того же binary_sensor.tv_watching,
+  # что и у сенсора простоя, — двух копий предиката больше нет. Пауза
+  # отправляется пультом: это кнопка, она работает в любом приложении,
+  # даже когда медиасессия управляется не через Cast.
   - id: tv_night_sleep_check
     alias: "ТВ: проверка «вы ещё смотрите?»"
     mode: single
@@ -508,14 +524,9 @@ automation:
       - condition: state
         entity_id: input_boolean.tv_no_auto_off
         state: "off"
-      - condition: or
-        conditions:
-          - condition: state
-            entity_id: media_player.rocktek_gx1_cast
-            state: "playing"
-          - condition: state
-            entity_id: media_player.lg_tv
-            state: "playing"
+      - condition: state
+        entity_id: binary_sensor.tv_watching
+        state: "on"
     actions:
       # Предупреждаем на экране. Служба уведомлений webOS называется по имени
       # устройства — если у вас она иначе, шаг просто будет пропущен.
@@ -534,8 +545,8 @@ automation:
       # Пять минут на то, чтобы нажать play. Нажали — выходим.
       - wait_for_trigger:
           - trigger: state
-            entity_id: media_player.rocktek_gx1_cast
-            to: "playing"
+            entity_id: binary_sensor.tv_watching
+            to: "on"
         timeout: "00:05:00"
         continue_on_timeout: true
 
