@@ -185,23 +185,31 @@ automation:
         above: 0
         for: "00:02:00"
     actions:
+      # Счётчики вынесены в переменные: в теле сообщения обращение целиком
+      # не помещается в строку, а переносить строку в литеральном скаляре
+      # нельзя — перенос попадёт в сообщение.
+      - variables:
+          running: "{{ state_attr('sensor.docker_down', 'running') }}"
+          total: "{{ state_attr('sensor.docker_down', 'total') }}"
+
       - action: script.pachca_notify
         data:
           title: >-
             {{ 'Упал контейнер' if states('sensor.docker_down') | int(0) == 1
                else 'Упали контейнеры' }}
-          text: >-
-            {% for line in state_attr('sensor.docker_down', 'down_detail') | default([], true) %}
+          # Литеральный скаляр, а не свёрнутый: «>-» склеивает соседние
+          # строки пробелом, и при двух упавших контейнерах оба имени
+          # оказывались в одной строке вместе со всем остальным текстом.
+          text: |-
+            {% for line in state_attr('sensor.docker_down', 'down_detail') | default([], true) -%}
             🔻 **{{ line }}**
             {% endfor %}
-
-            Работает {{ state_attr('sensor.docker_down', 'running') }}
-            из {{ state_attr('sensor.docker_down', 'total') }}.
-            {% if state_attr('sensor.docker_down', 'oom') %}
+            Работает {{ running }} из {{ total }}.
+            {%- if state_attr('sensor.docker_down', 'oom') %}
 
             ⚠️ Код выхода 137 — процесс убит из-за нехватки памяти.
             Посмотрите, что ещё занимало RAM в этот момент.
-            {% endif %}
+            {%- endif %}
 
             Поднять: `cd /volume1/docker/<проект> && sudo docker compose up -d`
           level: crit
