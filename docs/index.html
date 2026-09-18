@@ -1451,10 +1451,27 @@ data:
       <div class="step-body">
         <h3><span class="num">6.6</span> Уведомления на экран<span class="tag opt">по желанию</span></h3>
         <p>
-          Интеграция создаёт службу <code>notify.lg_tv</code> — всплывающее сообщение поверх
-          картинки. Удобно для «фильм скачался» или «NAS перегревается», когда вы у экрана.
-          Заготовка лежит в <code>media_tv.yaml</code>, закомментирована.
+          Всплывающее сообщение поверх картинки — удобно для «фильм скачался»
+          или «NAS перегревается», когда вы у экрана. Отправляется тостом webOS:
         </p>
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>action: webostv.command
+data:
+  entity_id: media_player.lg_tv
+  command: system.notifications/createToast
+  payload:
+    message: Фильм скачался</code></pre></div>
+        <div class="note warn"><b>Не через <code>notify</code>.</b> Интеграция
+          заводит и службу уведомлений, но имя ей даёт <b>заголовок записи
+          интеграции</b>, а не сущность: <code>webostv/__init__.py</code> передаёт
+          в платформу <code>CONF_NAME: entry.title</code>, и по умолчанию это
+          <code>notify.lg_webos_tv_32lk540bpla</code>. Переименование сущности
+          на него не влияет.
+          <p>Ошибиться здесь дороже, чем кажется: <code>continue_on_error</code>
+          такую ошибку <b>не подавляет</b> — <code>ServiceNotFound</code> стоит
+          в списке исключений, которые Home Assistant считает ошибкой сценария,
+          а не сбоем выполнения. Шаг не пропускается, а обрывает автоматизацию
+          целиком. У <code>webostv.command</code> имя фиксированное, и адресуется
+          она сущностью — той самой, которую вы переименовали в шаге 6.3.</p></div>
       </div>
     </li>
   </ol>

@@ -217,3 +217,69 @@ def test_пауза_отправляется_пультом() -> None:
     ночная = next(a for a in данные["automation"] if a.get("id") == "tv_night_sleep_check")
     пауза = [ш for ш in ночная["actions"] if ш.get("action") == "media_player.media_pause"]
     assert пауза and пауза[0]["target"]["entity_id"] == ПУЛЬТ
+
+
+# ---------------------------------------------------------------------------
+#  Служба, которой нет
+# ---------------------------------------------------------------------------
+#  Ночная проверка начиналась с «action: notify.lg_tv» и комментария «если
+#  у вас служба называется иначе, шаг просто будет пропущен». Неверно и то,
+#  и другое. Имя службе даёт заголовок записи интеграции (webostv/__init__.py
+#  передаёт в платформу CONF_NAME: entry.title), по умолчанию это что-то вроде
+#  notify.lg_webos_tv_32lk540bpla. А ServiceNotFound стоит в списке исключений,
+#  которые continue_on_error НЕ подавляет:
+#
+#      homeassistant/helpers/script.py, _handle_exception
+#      # These are incorrect scripts, and not runtime errors ...
+#      if isinstance(exception, (..., exceptions.ServiceNotFound, ...)):
+#          raise exception
+#
+#  То есть автоматика обрывалась на первом шаге: ни предупреждения, ни паузы,
+#  ни выключения. Home Assistant сообщал об этом как о «неизвестном действии».
+
+СЛУЖБЫ_ПО_ЗАГОЛОВКУ = ("notify.lg", "notify.webos", "notify.tv")
+
+
+def действия(ident: str) -> list[str]:
+    данные = yaml.load(ПАКЕТ.read_text(encoding="utf-8"), Loader=Loader)
+    запись = next(a for a in данные["automation"] if a.get("id") == ident)
+    return [ш["action"] for ш in запись["actions"] if isinstance(ш, dict) and "action" in ш]
+
+
+def test_ночная_проверка_не_зовёт_службу_по_имени_устройства() -> None:
+    for служба in действия("tv_night_sleep_check"):
+        assert not служба.startswith(СЛУЖБЫ_ПО_ЗАГОЛОВКУ), (
+            f"{служба}: имя этой службы зависит от заголовка записи интеграции, "
+            f"а не от сущности — на чужой системе её не существует, и вся "
+            f"автоматика оборвётся на этом шаге"
+        )
+
+
+def test_предупреждение_уходит_тостом_webos() -> None:
+    """Имя webostv.command фиксировано, а адресуется она сущностью."""
+    данные = yaml.load(ПАКЕТ.read_text(encoding="utf-8"), Loader=Loader)
+    запись = next(a for a in данные["automation"] if a.get("id") == "tv_night_sleep_check")
+    тост = [ш for ш in запись["actions"] if ш.get("action") == "webostv.command"]
+    assert тост, "предупреждение на экране пропало"
+    данные_шага = тост[0]["data"]
+    assert данные_шага["entity_id"] == ТВ
+    assert данные_шага["command"] == "system.notifications/createToast"
+    assert "message" in данные_шага["payload"]
+    assert тост[0].get("continue_on_error") is True, (
+        "выключенный телевизор не должен ронять автоматику — эту ошибку "
+        "continue_on_error как раз подавляет"
+    )
+
+
+def test_ни_одна_автоматика_не_зовёт_notify_по_имени_устройства() -> None:
+    """Та же ошибка в другом файле стоила бы столько же."""
+    найдено = []
+    for путь in sorted(ПАКЕТ.parent.glob("*.yaml")):
+        текст = путь.read_text(encoding="utf-8")
+        for строка in текст.splitlines():
+            голое = строка.strip()
+            if голое.startswith(("- action:", "action:", "- service:", "service:")):
+                значение = голое.split(":", 1)[1].strip()
+                if значение.startswith(СЛУЖБЫ_ПО_ЗАГОЛОВКУ):
+                    найдено.append(f"{путь.name}: {значение}")
+    assert not найдено, найдено
