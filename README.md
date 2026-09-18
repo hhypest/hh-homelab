@@ -73,40 +73,35 @@ Home Assistant: он подключается к уже работающим с�
 
 ```mermaid
 flowchart TB
-    subgraph cloud [Интернет]
-        YA[Облако Яндекса<br/>навык Yaha Cloud]
-        PA[Пачка<br/>Кинозал и Мониторинг]
-    end
-
     subgraph iot [Сегмент IoT · 10.0.50.0/24]
         AL[Алиса Мини 3]
     end
-
+    subgraph net [Интернет]
+        YA[Облако Яндекса]
+    end
     subgraph home [Домашний сегмент · 192.168.3.0/24]
-        subgraph nas [Synology DS725+ · 192.168.3.53]
-            HA[Home Assistant<br/>host-сеть, :8123]
-            DP[docker-socket-proxy<br/>127.0.0.1:2375]
-            ST[Jellyfin · Radarr · Prowlarr<br/>qBittorrent · Seerr · FlareSolverr]
-        end
-        TV[LG 32LK540B]
-        GX[RockTek GX1]
+        HA[Home Assistant<br/>NAS · сеть хоста]
+        ST[Медиа-стек<br/>6 контейнеров]
+        TV[Телевизор]
+        GX[Приставка]
     end
 
     AL -- голос --> YA
     YA -- команда --> HA
-    HA -- Мониторинг --> PA
-    ST -- Кинозал --> PA
+    HA -. следит .-> ST
     HA -- webOS --> TV
     HA -- Android TV --> GX
     TV -- HDMI · CEC --> GX
-    DP -- метрики контейнеров --> HA
-    ST -.- DP
-
-    home x-.-x iot
 ```
 
 Голосовая команда не пересекает границу сегментов: колонка отдаёт её в облако,
 облако возвращает в Home Assistant по исходящему соединению NAS.
+
+Схема нарочно грубая: телефон вписывает её по ширине экрана, и всё, что
+не влезло, становится нечитаемым — подписи размером в три пикселя.
+Подробная — с шестью контейнерами, портами, `docker-socket-proxy`
+и уведомлениями в Пачку — в
+[обзоре проекта](https://hhypest.github.io/hh-homelab/overview.html).
 
 ---
 
@@ -421,7 +416,7 @@ release notes, смержить, потом `git pull` на NAS, и только
 | **YAML** | отступы, дубликаты ключей, форматирование | `yamllint` |
 | **Конфигурация · YAML, Jinja, секреты** | разбор YAML с тегами HA, компиляция каждого Jinja-шаблона, поиск токенов и MAC | [`validate_config.py`](scripts/validate_config.py) |
 | **Конфигурация · ссылки на сущности** | что каждый `entity_id` из автоматизаций и дашборда действительно кем-то создаётся; дубликаты id и имён скриптов | [`validate_entities.py`](scripts/validate_entities.py) |
-| **Python · ruff и тесты** | линтер и 289 тестов на Python 3.11, 3.12 и 3.13; среди них — проверка самого workflow: кэш pip знает, где лежат зависимости, и версии действий не разъехались | `ruff`, `pytest` |
+| **Python · ruff и тесты** | линтер и 294 теста на Python 3.11, 3.12 и 3.13; среди них — проверка самого workflow: кэш pip знает, где лежат зависимости, и версии действий не разъехались | `ruff`, `pytest` |
 | **Пачка · Liquid** | 32 комбинации «шаблон × пример payload», пустые сообщения, заглушки вместо данных, лимит 40 000 байт | [`render_pachca.py`](scripts/render_pachca.py) |
 | **Документация** | целостность девяти HTML-страниц, живые ссылки, отсутствие личных данных, сверка счётчиков шагов и ссылок вида «шаг 2.6» из Markdown с самими страницами | [`validate_docs.py`](scripts/validate_docs.py) |
 | **Файлы · переводы строк и пробелы** | каждый файл заканчивается переводом строки, нет CRLF и висящих пробелов — во всех типах, а не только в YAML и Python | [`check_files.py`](scripts/check_files.py) |
