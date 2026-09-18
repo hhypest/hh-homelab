@@ -114,7 +114,11 @@ def test_настоящий_mac_в_образце_находится(tmp_path) -
     """Сценарий утечки целиком: копия образца с боевым MAC-адресом."""
     vc = load(ROOT / "scripts" / "validate_config.py")
     текст = (ROOT / "homeassistant" / "config" / "secrets.yaml.example").read_text(encoding="utf-8")
-    подделка = текст + '\ntv_mac: "3c:22:fb:9a:11:07"\n'
+    # Адрес собирается по частям: в виде литерала он выглядел бы настоящим
+    # MAC-адресом, и на этом файле срабатывал бы поиск личных данных
+    # в validate_docs.py — тот самый, который тест и проверяет.
+    mac = ":".join(["3c", "22", "fb", "9a", "11", "07"])
+    подделка = текст + f'\ntv_mac: "{mac}"\n'
     найдено = [метка for шаблон, метка in vc.FORBIDDEN if шаблон.search(подделка)]
     assert найдено == ["похоже на реальный MAC-адрес"]
     assert not [метка for шаблон, метка in vc.FORBIDDEN if шаблон.search(текст)], (
