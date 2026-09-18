@@ -2277,8 +2277,25 @@ git fetch origin
 git log --oneline HEAD..origin/main
 git pull
 
+# что нового появилось в образцах, но не заведено у вас
+for p in media homeassistant; do
+  diff &lt;(grep -oE '^[A-Z_]+' "$p/.env.example" | sort -u)        &lt;(grep -oE '^[A-Z_]+' "$p/.env" | sort -u)     | grep '^&lt;' &amp;&amp; echo "^^^ $p/.env: добавьте эти строки"
+done
+
 cd homeassistant
 sudo docker compose config &gt;/dev/null &amp;&amp; sudo docker compose up -d</code></pre></div>
+        <div class="note crit"><b>Сверка <code>.env</code> с образцом — не формальность.</b>
+          Файл <code class="path">.env</code> в git не лежит и обновлением
+          не трогается, а в <code>compose.yaml</code> каждая переменная объявлена
+          как <code>${VAR:?…}</code> — без значения Compose не запустится вовсе.
+          Значит новая переменная в свежем выпуске останавливает обновление
+          на полпути: образы уже скачаны, стек не поднимается, и виноватым
+          выглядит обновление, а не отсутствующая строка.
+          <p>Команда выше печатает ровно то, чего не хватает. В выпуске
+          с разделением адресов публикации это
+          <code>FLARESOLVERR_BIND_ADDR=127.0.0.1</code> — допишите строку
+          в <code class="path">media/.env</code> <b>до</b>
+          <code>docker compose up -d</code>.</p></div>
         <div class="note crit"><b>Здесь <code>git status</code> нужен всерьёз,
           а не для порядка.</b> В <code class="path">automations.yaml</code>,
           <code>scripts.yaml</code> и <code>scenes.yaml</code> пишет
