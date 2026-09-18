@@ -149,9 +149,34 @@ def test_цикл_перезапуска_ловится_отдельно() -> No
     вообще: «упавших» почти всегда ноль.
     """
     запись = сенсор("docker.yaml", "docker_restarting")
-    assert запись["delay_on"] == "00:10:00", (
-        "без выдержки обычный docker compose up -d будет считаться циклом"
+    assert запись["delay_on"] != "00:00:00", (
+        "без выдержки одиночный перезапуск будет считаться циклом"
     )
-    assert "_uptime$" in запись["state"], "свежесть старта берётся не из uptime"
     авто = автоматика("docker.yaml", "docker_container_restarting")
     assert авто["triggers"][0]["entity_id"] == "binary_sensor.docker_restarting"
+
+
+def test_цикл_перезапуска_берётся_из_минутного_источника() -> None:
+    """
+    Замечание Codex. Первая версия считала возраст контейнера
+    по sensor.docker_*_uptime, а у Monitor Docker scan_interval 3600:
+    признак «моложе пяти минут» на часовых данных живёт от силы пять минут
+    и десятиминутной выдержки не набирает никогда. Проверка не могла
+    сработать в принципе.
+    """
+    шаблон = сенсор("docker.yaml", "docker_restarting")["state"]
+    assert "_uptime" not in шаблон, "признак снова построен на часовых данных"
+    assert "sensor.docker_down" in шаблон, (
+        "источник не command_line-сенсор — а обновляется раз в минуту только он"
+    )
+
+    # Тот сенсор действительно опрашивается раз в минуту.
+    данные = разобрать("docker.yaml")
+    команда = next(
+        з["sensor"] for з in данные["command_line"]
+        if "docker_state.py" in (з.get("sensor") or {}).get("command", "")
+    )
+    assert команда["scan_interval"] <= 60
+
+    # А Monitor Docker — раз в час, и это осознанный размен, см. шапку файла.
+    assert данные["monitor_docker"][0]["scan_interval"] == 3600

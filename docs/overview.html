@@ -349,7 +349,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
       <span class="fact"><span class="dot home"></span>NAS <b>192.168.3.53</b></span>
       <span class="fact">контейнеров <b>8</b></span>
       <span class="fact">файлов под версией <b>96</b></span><span class="fact">страниц документации <b>9</b></span>
-      <span class="fact">тестов <b>420</b></span>
+      <span class="fact">тестов <b>426</b></span>
       <span class="fact">задач CI <b>8</b></span>
     </div>
 
@@ -848,7 +848,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <table>
       <thead><tr><th>Проверка</th><th>Что делает</th><th class="num-col">Время</th></tr></thead>
       <tbody>
-        <tr><td><code>pytest</code></td><td>420 тестов</td><td class="num-col">13,80 с</td></tr>
+        <tr><td><code>pytest</code></td><td>426 тестов</td><td class="num-col">15,16 с</td></tr>
         <tr><td><code>yamllint</code></td><td>4 каталога YAML</td><td class="num-col">0,35 с</td></tr>
         <tr><td><code>render_pachca.py --check</code></td><td>32 пары «шаблон × payload»</td><td class="num-col">0,25 с</td></tr>
         <tr><td><code>validate_config.py</code></td><td>12 файлов, Jinja, секреты</td><td class="num-col">0,34 с</td></tr>
@@ -856,7 +856,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
         <tr><td><code>validate_docs.py</code></td><td>9 страниц, ссылки на шаги и счётчики, 94 файла</td><td class="num-col">0,24 с</td></tr>
         <tr><td><code>check_files.py</code></td><td>96 файлов на переводы строк</td><td class="num-col">0,05 с</td></tr>
         <tr><td><code>ruff check .</code></td><td>32 файла Python</td><td class="num-col">0,01 с</td></tr>
-        <tr><td><b>Всего последовательно</b></td><td></td><td class="num-col"><b>15,16 с</b></td></tr>
+        <tr><td><b>Всего последовательно</b></td><td></td><td class="num-col"><b>16,52 с</b></td></tr>
       </tbody>
     </table>
   </div>
@@ -869,42 +869,42 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
 
   <figure>
     <svg viewBox="0 0 900 1088" role="img"
-         aria-label="Стоимость одного теста по файлам: test_docker_state 469 миллисекунд, test_docs_counters 259, test_http_check 152, test_docs_toc 96, test_checks_fail_loudly 92, test_compose_images 61, test_tv_idle 52, test_readme_diagram 38, test_validate_config 34, test_release_images 32, test_validate_docs 32, test_thresholds 29, test_ha_messages 26, test_license 20, test_validate_entities 17, test_env_example 16, test_workflow 16, test_gitignore 11, test_restore_boundary 11, test_check_ports 10, test_check_image_updates 8, test_pachca_templates 6 миллисекунд.">
+         aria-label="Стоимость одного теста по файлам: test_docker_state 460 миллисекунд, test_docs_counters 257, test_http_check 148, test_checks_fail_loudly 95, test_docs_toc 95, test_compose_images 63, test_tv_idle 51, test_readme_diagram 37, test_validate_config 34, test_release_images 32, test_validate_docs 31, test_thresholds 29, test_ha_messages 25, test_license 19, test_validate_entities 18, test_workflow 16, test_env_example 15, test_gitignore 11, test_restore_boundary 11, test_check_ports 10, test_check_image_updates 7, test_pachca_templates 5 миллисекунд.">
       <text x="0" y="18" fill="currentColor" opacity=".6"
             font-family="IBM Plex Sans, sans-serif" font-size="11.5">Миллисекунд на один тест</text>
       <line x1="200" y1="34" x2="200" y2="1070" stroke="currentColor" stroke-width="1" opacity=".25"></line>
 
       <g fill="var(--home)">
-        <rect x="200" y="40" width="660" height="22" rx="4"><title>test_docker_state.py — 17 тестов, 7,97 с, 469 мс на тест</title></rect>
-        <rect x="200" y="88" width="364" height="22" rx="4"><title>test_docs_counters.py — 4 теста, 1,04 с, 259 мс на тест</title></rect>
-        <rect x="200" y="136" width="214" height="22" rx="4"><title>test_http_check.py — 11 тестов, 1,67 с, 152 мс на тест</title></rect>
-        <rect x="200" y="184" width="135" height="22" rx="4"><title>test_docs_toc.py — 2 теста, 0,19 с, 96 мс на тест</title></rect>
-        <rect x="200" y="232" width="129" height="22" rx="4"><title>test_checks_fail_loudly.py — 10 тестов, 0,92 с, 92 мс на тест</title></rect>
-        <rect x="200" y="280" width="86" height="22" rx="4"><title>test_compose_images.py — 4 теста, 0,25 с, 61 мс на тест</title></rect>
-        <rect x="200" y="328" width="73" height="22" rx="4"><title>test_tv_idle.py — 22 теста, 1,15 с, 52 мс на тест</title></rect>
-        <rect x="200" y="376" width="53" height="22" rx="4"><title>test_readme_diagram.py — 5 тестов, 0,19 с, 38 мс на тест</title></rect>
-        <rect x="200" y="424" width="48" height="22" rx="4"><title>test_validate_config.py — 15 тестов, 0,51 с, 34 мс на тест</title></rect>
-        <rect x="200" y="472" width="45" height="22" rx="4"><title>test_release_images.py — 8 тестов, 0,25 с, 32 мс на тест</title></rect>
-        <rect x="200" y="520" width="45" height="22" rx="4"><title>test_validate_docs.py — 6 тестов, 0,19 с, 32 мс на тест</title></rect>
-        <rect x="200" y="568" width="41" height="22" rx="4"><title>test_thresholds.py — 21 тест, 0,60 с, 29 мс на тест</title></rect>
-        <rect x="200" y="616" width="37" height="22" rx="4"><title>test_ha_messages.py — 17 тестов, 0,44 с, 26 мс на тест</title></rect>
-        <rect x="200" y="664" width="28" height="22" rx="4"><title>test_license.py — 10 тестов, 0,20 с, 20 мс на тест</title></rect>
-        <rect x="200" y="712" width="24" height="22" rx="4"><title>test_validate_entities.py — 16 тестов, 0,27 с, 17 мс на тест</title></rect>
-        <rect x="200" y="760" width="23" height="22" rx="4"><title>test_env_example.py — 13 тестов, 0,20 с, 16 мс на тест</title></rect>
-        <rect x="200" y="808" width="23" height="22" rx="4"><title>test_workflow.py — 23 теста, 0,36 с, 16 мс на тест</title></rect>
-        <rect x="200" y="856" width="15" height="22" rx="4"><title>test_gitignore.py — 22 теста, 0,25 с, 11 мс на тест</title></rect>
-        <rect x="200" y="904" width="15" height="22" rx="4"><title>test_restore_boundary.py — 22 теста, 0,24 с, 11 мс на тест</title></rect>
+        <rect x="200" y="40" width="660" height="22" rx="4"><title>test_docker_state.py — 21 тест, 9,67 с, 460 мс на тест</title></rect>
+        <rect x="200" y="88" width="369" height="22" rx="4"><title>test_docs_counters.py — 4 теста, 1,03 с, 257 мс на тест</title></rect>
+        <rect x="200" y="136" width="212" height="22" rx="4"><title>test_http_check.py — 11 тестов, 1,63 с, 148 мс на тест</title></rect>
+        <rect x="200" y="184" width="136" height="22" rx="4"><title>test_checks_fail_loudly.py — 10 тестов, 0,94 с, 95 мс на тест</title></rect>
+        <rect x="200" y="232" width="136" height="22" rx="4"><title>test_docs_toc.py — 2 теста, 0,19 с, 95 мс на тест</title></rect>
+        <rect x="200" y="280" width="90" height="22" rx="4"><title>test_compose_images.py — 4 теста, 0,25 с, 63 мс на тест</title></rect>
+        <rect x="200" y="328" width="73" height="22" rx="4"><title>test_tv_idle.py — 22 теста, 1,12 с, 51 мс на тест</title></rect>
+        <rect x="200" y="376" width="53" height="22" rx="4"><title>test_readme_diagram.py — 5 тестов, 0,18 с, 37 мс на тест</title></rect>
+        <rect x="200" y="424" width="49" height="22" rx="4"><title>test_validate_config.py — 15 тестов, 0,50 с, 34 мс на тест</title></rect>
+        <rect x="200" y="472" width="46" height="22" rx="4"><title>test_release_images.py — 8 тестов, 0,26 с, 32 мс на тест</title></rect>
+        <rect x="200" y="520" width="44" height="22" rx="4"><title>test_validate_docs.py — 6 тестов, 0,19 с, 31 мс на тест</title></rect>
+        <rect x="200" y="568" width="42" height="22" rx="4"><title>test_thresholds.py — 22 теста, 0,64 с, 29 мс на тест</title></rect>
+        <rect x="200" y="616" width="36" height="22" rx="4"><title>test_ha_messages.py — 18 тестов, 0,46 с, 25 мс на тест</title></rect>
+        <rect x="200" y="664" width="27" height="22" rx="4"><title>test_license.py — 10 тестов, 0,20 с, 19 мс на тест</title></rect>
+        <rect x="200" y="712" width="26" height="22" rx="4"><title>test_validate_entities.py — 16 тестов, 0,28 с, 18 мс на тест</title></rect>
+        <rect x="200" y="760" width="23" height="22" rx="4"><title>test_workflow.py — 23 теста, 0,36 с, 16 мс на тест</title></rect>
+        <rect x="200" y="808" width="22" height="22" rx="4"><title>test_env_example.py — 13 тестов, 0,20 с, 15 мс на тест</title></rect>
+        <rect x="200" y="856" width="16" height="22" rx="4"><title>test_gitignore.py — 22 теста, 0,25 с, 11 мс на тест</title></rect>
+        <rect x="200" y="904" width="16" height="22" rx="4"><title>test_restore_boundary.py — 22 теста, 0,25 с, 11 мс на тест</title></rect>
         <rect x="200" y="952" width="14" height="22" rx="4"><title>test_check_ports.py — 20 тестов, 0,20 с, 10 мс на тест</title></rect>
-        <rect x="200" y="1000" width="11" height="22" rx="4"><title>test_check_image_updates.py — 32 теста, 0,24 с, 8 мс на тест</title></rect>
-        <rect x="200" y="1048" width="11" height="22" rx="4"><title>test_pachca_templates.py — 120 тестов, 0,66 с, 6 мс на тест</title></rect>
+        <rect x="200" y="1000" width="11" height="22" rx="4"><title>test_check_image_updates.py — 32 теста, 0,24 с, 7 мс на тест</title></rect>
+        <rect x="200" y="1048" width="11" height="22" rx="4"><title>test_pachca_templates.py — 120 тестов, 0,66 с, 5 мс на тест</title></rect>
       </g>
 
       <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="12.5" text-anchor="end">
         <text x="188" y="56">test_docker_state</text>
         <text x="188" y="104">test_docs_counters</text>
         <text x="188" y="152">test_http_check</text>
-        <text x="188" y="200">test_docs_toc</text>
-        <text x="188" y="248">test_checks_fail_loudly</text>
+        <text x="188" y="200">test_checks_fail_loudly</text>
+        <text x="188" y="248">test_docs_toc</text>
         <text x="188" y="296">test_compose_images</text>
         <text x="188" y="344">test_tv_idle</text>
         <text x="188" y="392">test_readme_diagram</text>
@@ -915,8 +915,8 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
         <text x="188" y="632">test_ha_messages</text>
         <text x="188" y="680">test_license</text>
         <text x="188" y="728">test_validate_entities</text>
-        <text x="188" y="776">test_env_example</text>
-        <text x="188" y="824">test_workflow</text>
+        <text x="188" y="776">test_workflow</text>
+        <text x="188" y="824">test_env_example</text>
         <text x="188" y="872">test_gitignore</text>
         <text x="188" y="920">test_restore_boundary</text>
         <text x="188" y="968">test_check_ports</text>
@@ -924,28 +924,28 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
         <text x="188" y="1064">test_pachca_templates</text>
       </g>
       <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="12" opacity=".75">
-        <text x="848" y="56" text-anchor="end" fill="var(--surface)">469 мс</text>
-        <text x="576" y="104">259 мс</text>
-        <text x="426" y="152">152 мс</text>
-        <text x="347" y="200">96 мс</text>
-        <text x="341" y="248">92 мс</text>
-        <text x="298" y="296">61 мс</text>
-        <text x="285" y="344">52 мс</text>
-        <text x="265" y="392">38 мс</text>
-        <text x="260" y="440">34 мс</text>
-        <text x="257" y="488">32 мс</text>
-        <text x="257" y="536">32 мс</text>
-        <text x="253" y="584">29 мс</text>
-        <text x="249" y="632">26 мс</text>
-        <text x="240" y="680">20 мс</text>
-        <text x="236" y="728">17 мс</text>
+        <text x="848" y="56" text-anchor="end" fill="var(--surface)">460 мс</text>
+        <text x="581" y="104">257 мс</text>
+        <text x="424" y="152">148 мс</text>
+        <text x="348" y="200">95 мс</text>
+        <text x="348" y="248">95 мс</text>
+        <text x="302" y="296">63 мс</text>
+        <text x="285" y="344">51 мс</text>
+        <text x="265" y="392">37 мс</text>
+        <text x="261" y="440">34 мс</text>
+        <text x="258" y="488">32 мс</text>
+        <text x="256" y="536">31 мс</text>
+        <text x="254" y="584">29 мс</text>
+        <text x="248" y="632">25 мс</text>
+        <text x="239" y="680">19 мс</text>
+        <text x="238" y="728">18 мс</text>
         <text x="235" y="776">16 мс</text>
-        <text x="235" y="824">16 мс</text>
-        <text x="227" y="872">11 мс</text>
-        <text x="227" y="920">11 мс</text>
+        <text x="234" y="824">15 мс</text>
+        <text x="228" y="872">11 мс</text>
+        <text x="228" y="920">11 мс</text>
         <text x="226" y="968">10 мс</text>
-        <text x="223" y="1016">8 мс</text>
-        <text x="223" y="1064">6 мс</text>
+        <text x="223" y="1016">7 мс</text>
+        <text x="223" y="1064">5 мс</text>
       </g>
     </svg>
     <figcaption>
@@ -957,10 +957,10 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
       Содержательная разница — на краях. <code>test_pachca_templates</code>
       прогоняет 120 тестов за 0,66 секунды, <code>test_check_image_updates</code>
       — 32 за 0,24: оба разбирают данные в том же процессе, сеть второй
-      не трогает вовсе. <code>test_docker_state</code> на 17 тестов тратит
-      почти восемь секунд, потому что каждый поднимает подставной HTTP-сервер
-      и запускает скрипт отдельным процессом. Разница на тест — почти
-      восьмидесятикратная. <code>test_docs_counters</code> попал в ту же
+      не трогает вовсе. <code>test_docker_state</code> на 21 тест тратит
+      почти десять секунд, потому что каждый поднимает подставной HTTP-сервер
+      и запускает скрипт отдельным процессом. Разница на тест — более чем
+      семидесятикратная. <code>test_docs_counters</code> попал в ту же
       верхушку по-честному: чтобы узнать, сколько в репозитории тестов, он
       спрашивает об этом сам pytest, и делает это дважды. Рядом с ними
       <code>test_checks_fail_loudly</code> и <code>test_http_check</code> —

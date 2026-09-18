@@ -152,7 +152,7 @@ script:
                                states('sensor.ds725_cpu_utilization_total'),
                                states('sensor.ds725_memory_usage_real'),
                                states('sensor.ds725_volume_1_volume_used')] %}
-            {{ 'unavailable' not in значения and 'unknown' not in значения }}"
+            {{ 'unavailable' not in значения and 'unknown' not in значения }}
           # Простой за сутки history_stats отдаёт в часах — переводим в минуты
           # round(0) в Jinja возвращает дробное число, и в сводку уезжало
           # «Простой за сутки: 0.0 мин». int после round отрезает хвост.
