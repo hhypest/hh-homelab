@@ -117,6 +117,56 @@ template:
         delay_on: "00:03:00"
         delay_off: "00:01:00"
 
+      # ---------------------------------------------------------------------
+      #  Пороги: почему сущностями, а не триггерами numeric_state
+      # ---------------------------------------------------------------------
+      #  numeric_state срабатывает на ПЕРЕХОДЕ «вне диапазона → внутрь».
+      #  При настройке Home Assistant взводит только те сущности, которые
+      #  на этот момент находятся вне диапазона:
+      #
+      #      homeassistant/components/homeassistant/triggers/numeric_state.py
+      #      # Each entity that starts outside the range is already armed.
+      #      for entity_id in entity_ids:
+      #          if not check_numeric_state(entity_id, None, entity_id):
+      #              armed_entities.add(entity_id)
+      #
+      #  Сущность, УЖЕ находящаяся за порогом, должна сначала выйти
+      #  из диапазона и войти обратно. Для заканчивающегося места это
+      #  означает «никогда»: том занят на 90 %, вы перезагрузили NAS —
+      #  и предупреждение не придёт, сколько бы ни было занято. Перегрев
+      #  усугубляет: Home Assistant чаще всего перезапускают под нагрузкой.
+      #
+      #  Шаблонный сенсор ведёт себя иначе: после перезапуска он стартует
+      #  из unknown и переходит в on — это настоящий переход состояния,
+      #  и автоматика на него срабатывает. Сообщение придёт после каждого
+      #  перезапуска, пока порог держится, и это лучше, чем не прийти вовсе.
+      #
+      #  float(-1) по умолчанию — чтобы недоступный сенсор не превращался
+      #  в ноль и не выглядел как «всё хорошо»: -1 ниже любого порога.
+      - name: "NAS hot"
+        unique_id: nas_hot
+        device_class: heat
+        state: "{{ states('sensor.ds725_temperature') | float(-1) > 60 }}"
+        delay_on: "00:10:00"
+        delay_off: "00:05:00"
+
+      - name: "NAS cpu busy"
+        unique_id: nas_cpu_busy
+        device_class: problem
+        state: "{{ states('sensor.ds725_cpu_utilization_total') | float(-1) > 90 }}"
+        delay_on: "00:20:00"
+        delay_off: "00:05:00"
+
+      - name: "NAS volume filling"
+        unique_id: nas_volume_filling
+        device_class: problem
+        state: "{{ states('sensor.ds725_volume_1_volume_used') | float(-1) > 85 }}"
+
+      - name: "NAS volume critical"
+        unique_id: nas_volume_critical
+        device_class: problem
+        state: "{{ states('sensor.ds725_volume_1_volume_used') | float(-1) > 93 }}"
+
 # -----------------------------------------------------------------------------
 # 2а. Накопительная статистика за сутки — для утренней сводки
 # -----------------------------------------------------------------------------
@@ -212,10 +262,17 @@ automation:
     alias: "Мониторинг: температура NAS"
     mode: single
     triggers:
-      - trigger: numeric_state
-        entity_id: sensor.ds725_temperature
-        above: 60
-        for: "00:10:00"
+      # Переход сенсора, а не numeric_state: разбор — у сенсора выше.
+      - trigger: state
+        entity_id: binary_sensor.nas_hot
+        to: "on"
+      # Напоминание, пока держится: без него о перегреве сообщают один раз.
+      - trigger: time
+        at: "10:00:00"
+    conditions:
+      - condition: state
+        entity_id: binary_sensor.nas_hot
+        state: "on"
     actions:
       - action: script.pachca_notify
         data:
@@ -230,10 +287,15 @@ automation:
     alias: "Мониторинг: высокая загрузка CPU"
     mode: single
     triggers:
-      - trigger: numeric_state
-        entity_id: sensor.ds725_cpu_utilization_total
-        above: 90
-        for: "00:20:00"
+      - trigger: state
+        entity_id: binary_sensor.nas_cpu_busy
+        to: "on"
+      - trigger: time
+        at: "10:00:00"
+    conditions:
+      - condition: state
+        entity_id: binary_sensor.nas_cpu_busy
+        state: "on"
     actions:
       - action: script.pachca_notify
         data:
@@ -249,14 +311,20 @@ automation:
     alias: "Мониторинг: место на volume1"
     mode: single
     triggers:
-      - trigger: numeric_state
-        entity_id: sensor.ds725_volume_1_volume_used
-        above: 85
-        id: warn
-      - trigger: numeric_state
-        entity_id: sensor.ds725_volume_1_volume_used
-        above: 93
-        id: crit
+      - trigger: state
+        entity_id: binary_sensor.nas_volume_filling
+        to: "on"
+      - trigger: state
+        entity_id: binary_sensor.nas_volume_critical
+        to: "on"
+      # Место кончается медленно и само не рассасывается — напоминаем
+      # каждое утро, пока занято больше порога.
+      - trigger: time
+        at: "10:00:00"
+    conditions:
+      - condition: state
+        entity_id: binary_sensor.nas_volume_filling
+        state: "on"
     actions:
       - action: script.pachca_notify
         data:
@@ -264,7 +332,10 @@ automation:
           text: >-
             Занято {{ states('sensor.ds725_volume_1_volume_used') }} %.
             Проверьте /volume1/data и очередь загрузок qBittorrent.
-          level: "{{ trigger.id }}"
+          # Уровень берётся из второго порога, а не из id триггера:
+          # при утреннем напоминании и при перезапуске триггер один,
+          # а разница между «пора посмотреть» и «пора чистить» остаётся.
+          level: "{{ 'crit' if is_state('binary_sensor.nas_volume_critical', 'on') else 'warn' }}"
 
   # --- 3.6 Проблемы с дисками -------------------------------------------------
   - id: mon_disk_health

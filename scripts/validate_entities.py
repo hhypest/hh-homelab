@@ -57,6 +57,7 @@ OWNED = (
     "binary_sensor.svc_",
     "binary_sensor.stack_",
     "binary_sensor.docker_",
+    "binary_sensor.nas_",
     "binary_sensor.tv_",
     "sensor.docker_",
     "sensor.server_",

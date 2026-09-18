@@ -82,6 +82,7 @@ def отрисовать(текст: str, **данные) -> list[str]:
     "cont_running": 6, "cont_total": 8, "cont_down_min": 0,
     "top_cpu": "jellyfin", "top_ram": "jellyfin",
     "booted": "1 сентября, 10:00", "disks": [], "svc_total": 6, "svc_down_min": 0,
+    "nas_ok": True,
     "states": lambda _: "0", "state_attr": lambda *_: "0",
 }
 
@@ -163,6 +164,34 @@ def test_простой_печатается_целым_числом() -> None:
     for имя in ("svc_down_min", "cont_down_min"):
         строка = next(с for с in текст.splitlines() if с.strip().startswith(f"{имя}:"))
         assert "| round | int" in строка, f"{имя}: {строка.strip()}"
+
+
+def test_без_данных_от_nas_сводка_не_печатает_нули() -> None:
+    """
+    Приведение | float(0) превращало недоступные сенсоры в нули, и сводка
+    докладывала «0 °C» и «Всё в порядке» ровно тогда, когда данных нет.
+    Худший вид ошибки в мониторинге: уверенный отчёт о норме.
+    """
+    строки = сводка(nas_ok=False)
+    assert any("Метрики NAS недоступны" in с for с in строки)
+    assert not any("°C" in с for с in строки), "напечатаны метрики, которых нет"
+    assert not any("Том volume1" in с for с in строки)
+    # Остальные разделы на месте: контейнеры и сервисы живут без DSM.
+    assert "**Контейнеры** — 6 из 8" in строки
+    assert any("Простой за сутки" in с for с in строки)
+
+
+@pytest.mark.parametrize(
+    ("nas_ok", "ожидание"),
+    [(True, "✅ Всё в порядке"), (False, "⚠️ Нет данных от NAS")],
+)
+def test_вердикт_знает_про_отвал_интеграции(nas_ok: bool, ожидание: str) -> None:
+    """Вердикт считался из нулей и потому был бодрым при отсутствии данных."""
+    шаблон = переменная_скрипта("pachca.yaml", "pachca_report", "verdict")
+    итог = "\n".join(отрисовать(шаблон, cont_down=0, svc_down=[], disks=[],
+                                svc_down_min=0, cont_down_min=0,
+                                vol_used=42.0, nas_temp=38.0, nas_ok=nas_ok))
+    assert ожидание in итог
 
 
 # --- уведомление об упавшем контейнере -------------------------------------
