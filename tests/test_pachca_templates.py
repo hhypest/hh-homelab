@@ -474,3 +474,49 @@ def test_числовые_поля_не_трогали() -> None:
     for поле in ("Year", "SeasonNumber", "Video_0_Width", "Video_0_Height", "Audio_0_Channels"):
         assert f"{{{{{поле}}}}}" in тело
         assert f"{{{{{{{поле}}}}}}}" not in тело
+
+
+# ---------------------------------------------------------------------------
+#  Разрешение: большая из двух оценок
+# ---------------------------------------------------------------------------
+#  Высота у фильма врёт: 2.39:1 в честном 1080p — это 1920×804, и по высоте
+#  кадр пришлось бы назвать 720p. Но и ширина врёт, только в другую сторону:
+#  1440×1080 — это 1080p, а по ширине выходит 720p. Обе оценки приводятся
+#  к ширине кадра 16:9, и берётся большая.
+
+@pytest.mark.parametrize(
+    ("width", "height", "ожидание", "почему"),
+    [
+        ("1920", "804", "1080p", "кинематографический кадр 2.39:1"),
+        ("1440", "1080", "1080p", "узкий кадр 4:3 — по ширине вышло бы 720p"),
+        ("1920", "1080", "1080p", "обычный 16:9"),
+        ("1280", "720", "720p", "обычный 720p"),
+        ("1280", "536", "720p", "720p с кинематографическим кадром"),
+        ("3840", "1608", "2160p (4K)", "4K 2.39:1"),
+        ("3840", "2160", "2160p (4K)", "обычный 4K"),
+    ],
+)
+def test_разрешение_не_занижается_ни_в_одну_сторону(width, height, ожидание, почему) -> None:
+    payload = json.loads((PACHCA / "samples/jellyfin-transcode.json").read_text(encoding="utf-8"))
+    текст = render(PACHCA / "jellyfin.liquid", {**payload, "width": width, "height": height})
+    assert ожидание in текст, почему
+
+
+def test_звук_виден_при_транскодировании() -> None:
+    """
+    Сообщение предлагает «проверить кодек и субтитры», а звук — самая частая
+    причина транскодирования, и он собирался, но выводился только в двух
+    других ветках.
+    """
+    payload = json.loads((PACHCA / "samples/jellyfin-transcode.json").read_text(encoding="utf-8"))
+    текст = render(PACHCA / "jellyfin.liquid",
+                   {**payload, "playMethod": "Transcode", "audioCodec": "dts", "audioChannels": "6"})
+    assert "транскодирование" in текст
+    assert "DTS 5.1" in текст
+
+
+def test_без_звуковой_дорожки_не_остаётся_запятой() -> None:
+    payload = json.loads((PACHCA / "samples/jellyfin-transcode.json").read_text(encoding="utf-8"))
+    текст = render(PACHCA / "jellyfin.liquid",
+                   {**payload, "playMethod": "Transcode", "audioCodec": "", "audioChannels": ""})
+    assert "целиком." in текст, "пустой звук оставил висящую запятую"
