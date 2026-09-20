@@ -140,6 +140,13 @@ script:
           top_ram: "{{ state_attr('sensor.docker_top_ram', 'container') }}"
           cpu: "{{ states('sensor.ds725_cpu_utilization_total') }}"
           ram: "{{ states('sensor.ds725_memory_usage_real') }}"
+          # Отдельной проверкой на доступность, потому что в общий список
+          # nas_ok этот сенсор не входит и входить не должен: пропавшее
+          # время старта — не повод объявлять, что данных от NAS нет вовсе.
+          # Но и печатать его сырым нельзя: в сводку за 20 сентября уехало
+          # «Работает с unknown». Список nas_ok собран руками, и добавить
+          # в тело новую строку, забыв про него, ничего не мешает — за этим
+          # теперь следит test_summary_never_prints_unknown.
           booted: "{{ states('sensor.ds725_last_boot') }}"
           vol_used: "{{ states('sensor.ds725_volume_1_volume_used') | float(0) }}"
           nas_temp: "{{ states('sensor.ds725_temperature') | float(0) }}"
@@ -188,7 +195,8 @@ script:
             • Процессор {{ cpu }} % · память {{ ram }} % · {{ nas_temp | round | int }} °C
             • Том volume1 занят на {{ vol_used | round | int }} %
             • Диски: {% if disks | count == 0 %}норма{% else %}⛔ {{ disks | join(', ') }}{% endif %}
-            • Работает с {{ booted }}
+            • Работает с {{ booted if booted not in ['unknown', 'unavailable', 'none', '']
+                             else '— нет данных, проверьте sensor.ds725_last_boot' }}
             {%- endif %}
 
             **Контейнеры** — {{ cont_running }} из {{ cont_total }}

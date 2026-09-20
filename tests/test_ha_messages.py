@@ -93,6 +93,38 @@ def summary(**over) -> list[str]:
     return render(script_var("pachca.yaml", "pachca_report", "body"), **data)
 
 
+
+@pytest.mark.parametrize("missing", ["unknown", "unavailable", "none", ""])
+def test_summary_never_prints_unknown(missing: str) -> None:
+    """
+    Сводка за 20 сентября 2026 доложила «Работает с unknown».
+
+    Проверка nas_ok собрана руками из четырёх сенсоров и работает: она
+    ловит отвал интеграции Synology DSM целиком. Но sensor.ds725_last_boot
+    в этот список не входит — и правильно, что не входит: пропавшее время
+    старта не повод объявлять, что данных от NAS нет вовсе. Плата за это —
+    значение печаталось как есть, включая слово unknown.
+
+    Здесь проверяется не одна строка, а всё тело: служебное слово
+    не должно доезжать до человека ни из какой переменной. Поэтому
+    в подстановку уходят все четыре вида «данных нет» сразу.
+    """
+    lines = summary(booted=missing)
+    body = "\n".join(lines)
+    for word in ("unknown", "unavailable"):
+        assert word not in body, f"служебное «{word}» уехало в сообщение: {body}"
+    assert any("Работает с" in line for line in lines), (
+        "строка пропала целиком — молчание прячет сломанный сенсор "
+        "надёжнее, чем честное «нет данных»"
+    )
+
+
+def test_summary_still_prints_a_real_boot_time() -> None:
+    """Обратная сторона: живое значение не должно попасть под ту же гребёнку."""
+    lines = summary(booted="1 сентября, 10:00")
+    assert any(line.lstrip("• ") == "Работает с 1 сентября, 10:00" for line in lines), lines
+
+
 def test_each_down_container_on_its_own_line() -> None:
     lines = summary(cont_down=2, cont_detail=["radarr — Exited (137)", "prowlarr — контейнера нет"])
     down = [s for s in lines if s.startswith("• 🔻")]
