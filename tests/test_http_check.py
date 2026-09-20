@@ -79,7 +79,7 @@ def test_server_error_reports_off(server: str) -> None:
     assert run(f"{server}/500").stdout.strip() == "OFF"
 
 
-def test_второй_аргумент_добавляет_а_не_заменяет(server: str) -> None:
+def test_second_argument_adds_instead_of_replacing(server: str) -> None:
     """
     Здесь было записано обратное: «со вторым аргументом успехом считается
     только перечисленное». Код так и работал, а docstring скрипта обещал
@@ -97,27 +97,27 @@ def test_второй_аргумент_добавляет_а_не_заменяе
     assert run(f"{server}/404").stdout.strip() == "OFF", "набор по умолчанию раздулся"
 
 
-def test_нецифровой_аргумент_не_гасит_проверку(server: str) -> None:
+def test_non_numeric_argument_does_not_disable_the_check(server: str) -> None:
     """Раньше он давал пустой набор кодов, то есть OFF при любом ответе."""
-    готово = run(f"{server}/200", "абв")
-    assert готово.stdout.strip() == "ON"
-    assert "не код ответа" in готово.stderr, "молча проглоченная опечатка не видна в журнале"
-    assert готово.stdout.strip().count("\n") == 0, "stdout читает сенсор, там только одно слово"
+    rendered = run(f"{server}/200", "абв")
+    assert rendered.stdout.strip() == "ON"
+    assert "не код ответа" in rendered.stderr, "молча проглоченная опечатка не видна в журнале"
+    assert rendered.stdout.strip().count("\n") == 0, "stdout читает сенсор, там только одно слово"
 
 
-def test_сенсоры_не_передают_лишних_кодов() -> None:
+def test_sensors_pass_no_redundant_codes() -> None:
     """
     Списки кодов в командах остались бы безвредными, но вводящими
     в заблуждение: перечисление 200 больше ничего не означает.
     """
-    текст = (ROOT / "homeassistant" / "config" / "packages" / "monitoring.yaml").read_text(
+    text = (ROOT / "homeassistant" / "config" / "packages" / "monitoring.yaml").read_text(
         encoding="utf-8"
     )
-    команды = [с for с in текст.splitlines() if "http_check.py" in с and "command:" in с]
-    assert len(команды) == 6
-    for команда in команды:
-        хвост = команда.split("http_check.py", 1)[1].strip().rstrip('"')
-        assert len(хвост.split()) == 1, f"лишний аргумент в команде: {команда.strip()}"
+    commands = [s for s in text.splitlines() if "http_check.py" in s and "command:" in s]
+    assert len(commands) == 6
+    for command in commands:
+        tail = command.split("http_check.py", 1)[1].strip().rstrip('"')
+        assert len(tail.split()) == 1, f"лишний аргумент в команде: {command.strip()}"
 
 
 def test_connection_refused_reports_off() -> None:

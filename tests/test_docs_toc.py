@@ -29,24 +29,24 @@ H2_WITH_TAG = re.compile(r'<h2[^>]*>(?:(?!</h2>).)*?class="tag(?:(?!</h2>).)*?</
 BARE_TEXT = re.compile(r"h2\.textContent(?!\s*\.replace)")
 
 
-def страницы_с_меткой_в_заголовке() -> list[pathlib.Path]:
+def pages_with_label_in_heading() -> list[pathlib.Path]:
     return [p for p in DOCS if H2_WITH_TAG.search(p.read_text(encoding="utf-8"))]
 
 
-def test_метка_в_заголовке_вообще_встречается():
+def test_badge_in_heading_does_occur():
     """
     Защита от пустой проверки.
 
     Если метки уберут из всех h2, тест ниже начнёт проходить просто потому,
     что проверять стало нечего. Пусть об этом скажут прямо, а не тишиной.
     """
-    assert страницы_с_меткой_в_заголовке(), (
+    assert pages_with_label_in_heading(), (
         "ни на одной странице нет метки внутри <h2> — проверка ниже стала пустой"
     )
 
 
-def test_оглавление_не_подхватывает_метку_из_заголовка():
-    for path in страницы_с_меткой_в_заголовке():
+def test_toc_does_not_pick_up_badge_from_heading():
+    for path in pages_with_label_in_heading():
         text = path.read_text(encoding="utf-8")
         assert not BARE_TEXT.search(text), (
             f"{path.relative_to(ROOT)}: в <h2> есть метка, но оглавление строится "

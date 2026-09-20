@@ -356,7 +356,7 @@ def test_jellyfin_payload_valid_json_after_substitution() -> None:
     после замены плейсхолдеров получается разбираемая структура и что
     её поля совпадают с теми, которые ждёт jellyfin.liquid.
     """
-    body = тело_шаблона()
+    body = template_body()
     # Тройные скобки разбираются первыми: иначе выражение для двойных
     # откусит внутреннюю пару и оставит лишние фигурные скобки в значении.
     substituted = re.sub(r"\{\{\{?\w+\}?\}\}", "значение", body)
@@ -387,93 +387,93 @@ def test_jellyfin_payload_valid_json_after_substitution() -> None:
 PAYLOAD = PACHCA / "payloads/jellyfin.handlebars"
 
 # Поля, которые плагин экранирует при любом событии.
-ЭКРАНИРУЕТСЯ_ВСЕГДА = {"Name", "SeriesName", "ItemType", "ServerName"}
+ALWAYS_ESCAPED = {"Name", "SeriesName", "ItemType", "ServerName"}
 
 # Поля, которым тройные скобки противопоказаны, с причиной.
-СЫРЫЕ = {
+RAW = {
     "NotificationUsername": "AuthenticationFailureNotifier кладёт чужой ввод без Escape()",
     "ClientName": "AddPlaybackProgressData кладёт без Escape()",
     "DeviceName": "при неудачном входе не экранируется",
 }
 
 
-def тело_шаблона() -> str:
+def template_body() -> str:
     return re.sub(r"\{\{!--.*?--\}\}", "", PAYLOAD.read_text(encoding="utf-8"), flags=re.S)
 
 
-def как_плагин(значение: str) -> str:
+def as_plugin(value: str) -> str:
     """DataObjectHelpers.Escape(): кавычка → \\кавычка, и больше ничего."""
-    return значение.replace('"', '\\"')
+    return value.replace('"', '\\"')
 
 
-def как_handlebars(шаблон: str, данные: dict[str, str]) -> str:
+def as_handlebars(template: str, data: dict[str, str]) -> str:
     """Тройные скобки — как есть, двойные — с HTML-экранированием."""
-    текст = re.sub(r"\{\{\{(\w+)\}\}\}", lambda m: данные.get(m[1], ""), шаблон)
+    text = re.sub(r"\{\{\{(\w+)\}\}\}", lambda m: data.get(m[1], ""), template)
     return re.sub(
         r"\{\{(\w+)\}\}",
-        lambda m: html.escape(данные.get(m[1], ""), quote=True),
-        текст,
+        lambda m: html.escape(data.get(m[1], ""), quote=True),
+        text,
     )
 
 
-def test_кавычка_в_названии_не_ломает_json() -> None:
+def test_quote_in_title_does_not_break_json() -> None:
     """Регрессия: фильм «Я, „Робот"» не порождал уведомления вовсе."""
-    название = 'Фильм "в кавычках"'
-    данные = {"Name": как_плагин(название), "NotificationType": "PlaybackStart"}
-    разобрано = json.loads(как_handlebars(тело_шаблона(), данные))
-    assert разобрано["item"] == название
+    title = 'Фильм "в кавычках"'
+    data = {"Name": as_plugin(title), "NotificationType": "PlaybackStart"}
+    parsed = json.loads(as_handlebars(template_body(), data))
+    assert parsed["item"] == title
 
 
-def test_двойные_скобки_на_экранированном_поле_дают_битый_json() -> None:
+def test_double_braces_on_escaped_field_break_json() -> None:
     """Причина поломки, зафиксированная исполняемо."""
-    сломанный = тело_шаблона().replace("{{{Name}}}", "{{Name}}")
-    данные = {"Name": как_плагин('Фильм "в кавычках"')}
+    broken = template_body().replace("{{{Name}}}", "{{Name}}")
+    data = {"Name": as_plugin('Фильм "в кавычках"')}
     with pytest.raises(json.JSONDecodeError):
-        json.loads(как_handlebars(сломанный, данные))
+        json.loads(as_handlebars(broken, data))
 
 
-def test_амперсанд_в_названии_приезжает_собой() -> None:
+def test_ampersand_in_title_arrives_as_itself() -> None:
     """«Tom & Jerry», а не «Tom &amp; Jerry»."""
-    данные = {"Name": как_плагин("Tom & Jerry")}
-    assert json.loads(как_handlebars(тело_шаблона(), данные))["item"] == "Tom & Jerry"
+    data = {"Name": as_plugin("Tom & Jerry")}
+    assert json.loads(as_handlebars(template_body(), data))["item"] == "Tom & Jerry"
 
 
-def test_чужой_ввод_при_неудачном_входе_не_ломает_json() -> None:
+def test_foreign_input_on_failed_login_does_not_break_json() -> None:
     """
     Имя из неудачного входа плагин кладёт сырым. Двойные скобки его
     обезвреживают; тройные дали бы дописать в сообщение произвольный JSON.
     """
-    подделка = '", "service": "radarr", "x": "'
-    данные = {"NotificationType": "AuthenticationFailure", "NotificationUsername": подделка}
-    разобрано = json.loads(как_handlebars(тело_шаблона(), данные))
-    assert разобрано["service"] == "jellyfin", "поле service подменили через имя пользователя"
+    fake = '", "service": "radarr", "x": "'
+    data = {"NotificationType": "AuthenticationFailure", "NotificationUsername": fake}
+    parsed = json.loads(as_handlebars(template_body(), data))
+    assert parsed["service"] == "jellyfin", "поле service подменили через имя пользователя"
 
-    опасный = тело_шаблона().replace("{{NotificationUsername}}", "{{{NotificationUsername}}}")
-    подменено = json.loads(как_handlebars(опасный, данные))
-    assert подменено["service"] == "radarr", (
+    dangerous = template_body().replace("{{NotificationUsername}}", "{{{NotificationUsername}}}")
+    patched = json.loads(as_handlebars(dangerous, data))
+    assert patched["service"] == "radarr", (
         "проверка бесполезна: подстановка не сработала даже с тройными скобками"
     )
 
 
-@pytest.mark.parametrize("поле", sorted(ЭКРАНИРУЕТСЯ_ВСЕГДА))
-def test_экранируемые_поля_в_тройных_скобках(поле: str) -> None:
-    assert f"{{{{{{{поле}}}}}}}" in тело_шаблона(), (
-        f"{поле} плагин экранирует всегда — двойные скобки испортят значение"
+@pytest.mark.parametrize("field", sorted(ALWAYS_ESCAPED))
+def test_escaped_fields_use_triple_braces(field: str) -> None:
+    assert f"{{{{{{{field}}}}}}}" in template_body(), (
+        f"{field} плагин экранирует всегда — двойные скобки испортят значение"
     )
 
 
-@pytest.mark.parametrize("поле", sorted(СЫРЫЕ))
-def test_сырые_поля_остаются_в_двойных_скобках(поле: str) -> None:
-    assert f"{{{{{{{поле}}}}}}}" not in тело_шаблона(), f"{поле}: {СЫРЫЕ[поле]}"
-    assert f"{{{{{поле}}}}}" in тело_шаблона()
+@pytest.mark.parametrize("field", sorted(RAW))
+def test_raw_fields_stay_in_double_braces(field: str) -> None:
+    assert f"{{{{{{{field}}}}}}}" not in template_body(), f"{field}: {RAW[field]}"
+    assert f"{{{{{field}}}}}" in template_body()
 
 
-def test_числовые_поля_не_трогали() -> None:
+def test_numeric_fields_were_left_alone() -> None:
     """Кавычек в них не бывает, и тройные скобки им ничего не дают."""
-    тело = тело_шаблона()
-    for поле in ("Year", "SeasonNumber", "Video_0_Width", "Video_0_Height", "Audio_0_Channels"):
-        assert f"{{{{{поле}}}}}" in тело
-        assert f"{{{{{{{поле}}}}}}}" not in тело
+    body = template_body()
+    for field in ("Year", "SeasonNumber", "Video_0_Width", "Video_0_Height", "Audio_0_Channels"):
+        assert f"{{{{{field}}}}}" in body
+        assert f"{{{{{{{field}}}}}}}" not in body
 
 
 # ---------------------------------------------------------------------------
@@ -485,7 +485,7 @@ def test_числовые_поля_не_трогали() -> None:
 #  к ширине кадра 16:9, и берётся большая.
 
 @pytest.mark.parametrize(
-    ("width", "height", "ожидание", "почему"),
+    ("width", "height", "expected", "why"),
     [
         ("1920", "804", "1080p", "кинематографический кадр 2.39:1"),
         ("1440", "1080", "1080p", "узкий кадр 4:3 — по ширине вышло бы 720p"),
@@ -502,27 +502,27 @@ def test_числовые_поля_не_трогали() -> None:
         ("1080", "1080", "1080p", "квадратный кадр"),
     ],
 )
-def test_разрешение_не_занижается_ни_в_одну_сторону(width, height, ожидание, почему) -> None:
+def test_resolution_is_understated_in_neither_direction(width, height, expected, why) -> None:
     payload = json.loads((PACHCA / "samples/jellyfin-transcode.json").read_text(encoding="utf-8"))
-    текст = render(PACHCA / "jellyfin.liquid", {**payload, "width": width, "height": height})
-    assert ожидание in текст, почему
+    text = render(PACHCA / "jellyfin.liquid", {**payload, "width": width, "height": height})
+    assert expected in text, why
 
 
-def test_звук_виден_при_транскодировании() -> None:
+def test_audio_is_visible_when_transcoding() -> None:
     """
     Сообщение предлагает «проверить кодек и субтитры», а звук — самая частая
     причина транскодирования, и он собирался, но выводился только в двух
     других ветках.
     """
     payload = json.loads((PACHCA / "samples/jellyfin-transcode.json").read_text(encoding="utf-8"))
-    текст = render(PACHCA / "jellyfin.liquid",
+    text = render(PACHCA / "jellyfin.liquid",
                    {**payload, "playMethod": "Transcode", "audioCodec": "dts", "audioChannels": "6"})
-    assert "транскодирование" in текст
-    assert "DTS 5.1" in текст
+    assert "транскодирование" in text
+    assert "DTS 5.1" in text
 
 
-def test_без_звуковой_дорожки_не_остаётся_запятой() -> None:
+def test_without_audio_track_no_comma_is_left() -> None:
     payload = json.loads((PACHCA / "samples/jellyfin-transcode.json").read_text(encoding="utf-8"))
-    текст = render(PACHCA / "jellyfin.liquid",
+    text = render(PACHCA / "jellyfin.liquid",
                    {**payload, "playMethod": "Transcode", "audioCodec": "", "audioChannels": ""})
-    assert "целиком." in текст, "пустой звук оставил висящую запятую"
+    assert "целиком." in text, "пустой звук оставил висящую запятую"

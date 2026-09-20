@@ -25,58 +25,58 @@ MEDIA = ROOT / "docs" / "media-stack.html"
 PORTABILITY = ROOT / "docs" / "portability.html"
 
 
-def раздел_про_dts() -> str:
+def dts_section() -> str:
     """Кусок шага 7.5 от заголовка про звук до конца шага."""
-    текст = MEDIA.read_text(encoding="utf-8")
-    начало = текст.index("Звук: почему фильмы с DTS встают")
-    конец = текст.index('data-key="m7-6"', начало)
-    return текст[начало:конец]
+    text = MEDIA.read_text(encoding="utf-8")
+    start = text.index("Звук: почему фильмы с DTS встают")
+    end = text.index('data-key="m7-6"', start)
+    return text[start:end]
 
 
-def test_названа_настройка_которая_снимает_транскод():
+def test_setting_that_removes_transcoding_is_named():
     """
     Имя пункта берём как в клиенте: перевода у него нет, и на экране он
     выглядит по-английски. Без этой строки читателю нечего искать в меню.
     """
-    раздел = раздел_про_dts()
-    assert "Bitstream Digital Theater System" in раздел
-    assert "«Включено»" in раздел, "не сказано, в какое положение переводить переопределение"
+    section = dts_section()
+    assert "Bitstream Digital Theater System" in section
+    assert "«Включено»" in section, "не сказано, в какое положение переводить переопределение"
 
 
-def test_сказано_что_режим_звука_остаётся_прямым():
+def test_audio_mode_stays_direct_is_stated():
     """
     Понижающее микширование ограничивает профиль двумя каналами и выбрасывает
     из него AC-3 — то есть чинит одно и ломает другое. Предупреждение об этом
     важнее самой настройки.
     """
-    раздел = раздел_про_dts()
-    assert "«Напрямую»" in раздел
-    assert "AC-3" in раздел and "микширование" in раздел
+    section = dts_section()
+    assert "«Напрямую»" in section
+    assert "AC-3" in section and "микширование" in section
 
 
-def test_pcm_на_приставке_больше_не_подаётся_как_лечение():
+def test_pcm_is_no_longer_presented_as_the_cure():
     """
     Прежний совет остался в тексте как оговорка про другую ручку — это нормально.
     Недопустимо другое: снова представить его способом убрать транскод.
     """
-    раздел = раздел_про_dts()
-    assert not re.search(r"поставить\s+<b>PCM</b>\s+вместо", раздел), (
+    section = dts_section()
+    assert not re.search(r"поставить\s+<b>PCM</b>\s+вместо", section), (
         "вернулся совет переключать вывод приставки в PCM как лечение транскода"
     )
 
 
-def test_страницы_не_противоречат_друг_другу():
+def test_pages_do_not_contradict_each_other():
     """
     Про отсутствие у приставки своего декодера DTS сказано на обеих страницах,
     и обе должны объяснять это одинаково — встроенным в клиент FFmpeg.
     """
-    раздел = раздел_про_dts()
-    перенос = PORTABILITY.read_text(encoding="utf-8")
-    assert "FFmpeg" in раздел
-    assert "FFmpeg" in перенос, "страница переносимости всё ещё обещает лечение выводом в PCM"
+    section = dts_section()
+    wrap = PORTABILITY.read_text(encoding="utf-8")
+    assert "FFmpeg" in section
+    assert "FFmpeg" in wrap, "страница переносимости всё ещё обещает лечение выводом в PCM"
 
 
-def test_сказано_как_проверить_по_отчёту():
+def test_verification_by_report_is_explained():
     """
     Проверка должна быть по отчёту из шага 7.6, а не «на глаз»: в профиле
     видно и сам кодек, и число каналов.
@@ -90,13 +90,13 @@ def test_сказано_как_проверить_по_отчёту():
     Соседнее переопределение для TrueHD никто включать не просил: если ждать
     <code>truehd</code> в профиле, верная настройка выглядит как провал.
     """
-    раздел = раздел_про_dts()
-    assert "7.6" in раздел
-    assert "DirectPlayProfiles" in раздел and "AudioChannels" in раздел
-    assert "повторно" in раздел or "ещё раз" in раздел, (
+    section = dts_section()
+    assert "7.6" in section
+    assert "DirectPlayProfiles" in section and "AudioChannels" in section
+    assert "повторно" in section or "ещё раз" in section, (
         "не сказано, что отчёт нужно снять второй раз — после настройки"
     )
-    assert "должен появиться <code>dts</code>" in раздел
-    assert not re.search(r"<code>dts</code>\s*и\s*\n?\s*<code>truehd</code>", раздел), (
+    assert "должен появиться <code>dts</code>" in section
+    assert not re.search(r"<code>dts</code>\s*и\s*\n?\s*<code>truehd</code>", section), (
         "проверка требует в профиле truehd, включать который инструкция не просила"
     )

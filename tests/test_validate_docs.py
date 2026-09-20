@@ -21,15 +21,15 @@ from conftest import ROOT, load
 
 vd = load(ROOT / "scripts" / "validate_docs.py")
 
-ЭТОТ_ФАЙЛ = pathlib.Path(__file__)
+THIS_FILE = pathlib.Path(__file__)
 
 
-def найдено(text: str) -> list[str]:
+def found(text: str) -> list[str]:
     """Метки шаблонов, сработавших на тексте."""
     return [label for pattern, label in vd.PERSONAL if pattern.search(text)]
 
 
-def образец_uuid() -> str:
+def uuid_sample() -> str:
     """
     Собираем на лету, а не пишем литералом.
 
@@ -37,26 +37,26 @@ def образец_uuid() -> str:
     пометил бы сам этот файл, а вносить его в SKIP_SELF значило бы
     проделать в обезличивании дыру ровно там, где мы его укрепляем.
     """
-    части = ["1a2b3c4d", "5e6f", "7a8b", "9c0d", "1e2f3a4b5c6d"]
-    return '"uuid": "' + "-".join(части) + '"'
+    parts = ["1a2b3c4d", "5e6f", "7a8b", "9c0d", "1e2f3a4b5c6d"]
+    return '"uuid": "' + "-".join(parts) + '"'
 
 
-def образец_токена() -> str:
+def token_sample() -> str:
     """По той же причине, что и UUID выше."""
     return "?kind=geosite&" + "token=" + "0123456789abcdef" * 4
 
 
-def test_uuid_клиента_ловится():
-    assert "UUID клиента VLESS из конфигурации sing-box" in найдено(образец_uuid())
+def test_client_uuid_is_caught():
+    assert "UUID клиента VLESS из конфигурации sing-box" in found(uuid_sample())
 
 
-def test_нулевой_uuid_пропускается():
+def test_zero_uuid_is_allowed():
     """Заглушка из одних нулей заведена для примеров — как AA:BB:CC для MAC."""
-    заглушка = '"uuid": "00000000-0000-0000-0000-000000000000"'
-    assert найдено(заглушка) == []
+    stub = '"uuid": "00000000-0000-0000-0000-000000000000"'
+    assert found(stub) == []
 
 
-def test_нули_в_первой_группе_не_делают_uuid_заглушкой():
+def test_zeros_in_the_first_group_do_not_make_a_uuid_a_stub():
     """
     Замечание Codex к PR 39, воспроизведённое до правки.
 
@@ -65,29 +65,29 @@ def test_нули_в_первой_группе_не_делают_uuid_заглу
     группа случайно оказалась нулевой, молча проходил мимо проверки.
     Освобождение должно быть ровно на одно значение, а не на диапазон.
     """
-    почти_заглушка = '"uuid": "' + "00000000-1234-5678-9abc-" + "def012345678" + '"'
-    assert "UUID клиента VLESS из конфигурации sing-box" in найдено(почти_заглушка)
+    almost_stub = '"uuid": "' + "00000000-1234-5678-9abc-" + "def012345678" + '"'
+    assert "UUID клиента VLESS из конфигурации sing-box" in found(almost_stub)
 
 
-def test_токен_в_ссылке_ловится():
-    assert "токен доступа в ссылке" in найдено(образец_токена())
+def test_token_in_a_link_is_caught():
+    assert "токен доступа в ссылке" in found(token_sample())
 
 
-def test_разговор_про_uuid_не_считается_утечкой():
+def test_talking_about_uuid_is_not_a_leak():
     """
     Ровно тот абзац, что теперь стоит в документации роутера.
 
     Шаблон, срабатывающий на объяснении «здесь лежат UUID», сделал бы
     предупреждение о секретах невозможным — а оно и есть цель правки.
     """
-    абзац = (
+    paragraph = (
         "Конфигурация sing-box — файл с секретами. В ней лежат UUID "
         "клиентов VLESS, ключи REALITY и токены доступа к локальному API."
     )
-    assert найдено(абзац) == []
+    assert found(paragraph) == []
 
 
-def test_образцы_не_записаны_литералом():
+def test_samples_are_not_written_literally():
     """
     Смысл сборки по частям держится, только пока её не обошли.
 
@@ -95,6 +95,6 @@ def test_образцы_не_записаны_литералом():
     начнёт ругаться на собственные тесты — и это выяснится в CI, а не здесь.
     Тест переносит отказ на место причины.
     """
-    text = ЭТОТ_ФАЙЛ.read_text(encoding="utf-8")
-    assert образец_uuid() not in text
-    assert образец_токена() not in text
+    text = THIS_FILE.read_text(encoding="utf-8")
+    assert uuid_sample() not in text
+    assert token_sample() not in text

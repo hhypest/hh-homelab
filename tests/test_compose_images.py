@@ -58,7 +58,7 @@ def test_every_image_is_pinned(path: str) -> None:
         )
 
 
-def test_сверка_версий_знает_про_каждый_compose_файл() -> None:
+def test_version_check_knows_every_compose_file() -> None:
     """
     Закрепление версий имеет смысл, только если кто-то приносит обновления.
 
@@ -85,22 +85,22 @@ def test_сверка_версий_знает_про_каждый_compose_фай
     )
     assert tracked.returncode == 0, "git ls-files не отработал"
 
-    имена = {"compose.yaml", "compose.yml", "docker-compose.yaml", "docker-compose.yml"}
-    найдено = sorted(
-        путь for путь in tracked.stdout.splitlines()
-        if путь.rsplit("/", 1)[-1] in имена
+    names = {"compose.yaml", "compose.yml", "docker-compose.yaml", "docker-compose.yml"}
+    found = sorted(
+        path_str for path_str in tracked.stdout.splitlines()
+        if path_str.rsplit("/", 1)[-1] in names
     )
-    assert найдено, "в репозитории не нашлось ни одного compose-файла — проверка пуста"
+    assert found, "в репозитории не нашлось ни одного compose-файла — проверка пуста"
 
-    for путь in найдено:
-        assert путь in COMPOSE, (
-            f"{путь} не указан в COMPOSE скрипта scripts/check_image_updates.py — "
+    for path_str in found:
+        assert path_str in COMPOSE, (
+            f"{path_str} не указан в COMPOSE скрипта scripts/check_image_updates.py — "
             f"его версии образов не будут сверяться с реестром ни автоматически, "
             f"ни вручную"
         )
 
 
-def test_dependabot_больше_не_следит_за_образами() -> None:
+def test_dependabot_no_longer_watches_images() -> None:
     """
     Прямое утверждение, а не умолчание.
 
@@ -110,8 +110,8 @@ def test_dependabot_больше_не_следит_за_образами() -> No
     и этого теста.
     """
     config = yaml.safe_load((ROOT / ".github/dependabot.yml").read_text(encoding="utf-8"))
-    экосистемы = {u.get("package-ecosystem") for u in config.get("updates") or []}
-    assert "docker-compose" not in экосистемы, (
+    ecosystems = {u.get("package-ecosystem") for u in config.get("updates") or []}
+    assert "docker-compose" not in ecosystems, (
         "docker-compose вернулся в .github/dependabot.yml. Тогда решите, кто "
         "следит за версиями: он или scripts/check_image_updates.py, — и "
         "поправьте этот тест вместе с документацией"

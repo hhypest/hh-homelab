@@ -28,74 +28,74 @@ README = ROOT / "README.md"
 
 # Больше ряда из двух узлов телефон уже не вмещает. Вертикальная схема
 # растёт вниз, а вниз страница и так прокручивается.
-НАПРАВЛЕНИЕ = "TB"
-УЗЛОВ = 8
-ПОДГРАФОВ = 3
-ПОДПИСЬ = 20
-ЗАГОЛОВОК = 34
+DIRECTION = "TB"
+NODES = 8
+SUBGRAPHS = 3
+CAPTION = 20
+HEADING = 34
 
-УЗЕЛ = re.compile(r"^\s*(\w+)\[(.+?)\]\s*$")
-ПОДГРАФ = re.compile(r"^\s*subgraph\s+\w+\s*\[(.+?)\]\s*$")
+NODE = re.compile(r"^\s*(\w+)\[(.+?)\]\s*$")
+SUBGRAPH = re.compile(r"^\s*subgraph\s+\w+\s*\[(.+?)\]\s*$")
 
 
-def схема() -> list[str]:
+def diagram() -> list[str]:
     """Строки единственного mermaid-блока README."""
-    текст = README.read_text(encoding="utf-8")
-    блоки = re.findall(r"```mermaid\n(.*?)```", текст, re.S)
-    assert len(блоки) == 1, f"ожидался один mermaid-блок, найдено {len(блоки)}"
-    return блоки[0].splitlines()
+    text = README.read_text(encoding="utf-8")
+    blocks = re.findall(r"```mermaid\n(.*?)```", text, re.S)
+    assert len(blocks) == 1, f"ожидался один mermaid-блок, найдено {len(blocks)}"
+    return blocks[0].splitlines()
 
 
-def test_схема_растёт_вниз() -> None:
+def test_diagram_grows_downward() -> None:
     """flowchart LR разложит то же самое в ширину — на телефоне это конец."""
-    первая = схема()[0].strip()
-    assert первая == f"flowchart {НАПРАВЛЕНИЕ}", (
-        f"схема объявлена как «{первая}»: на телефоне её вписывают по ширине, "
+    first = diagram()[0].strip()
+    assert first == f"flowchart {DIRECTION}", (
+        f"схема объявлена как «{first}»: на телефоне её вписывают по ширине, "
         f"поэтому расти она должна вниз"
     )
 
 
-def test_подписи_узлов_короткие() -> None:
-    for строка in схема():
-        совпало = УЗЕЛ.match(строка)
-        if not совпало:
+def test_node_captions_are_short() -> None:
+    for line in diagram():
+        matched = NODE.match(line)
+        if not matched:
             continue
-        for часть in совпало[2].split("<br/>"):
-            assert len(часть) <= ПОДПИСЬ, (
-                f"подпись «{часть}» — {len(часть)} символов при пределе {ПОДПИСЬ}. "
+        for part in matched[2].split("<br/>"):
+            assert len(part) <= CAPTION, (
+                f"подпись «{part}» — {len(part)} символов при пределе {CAPTION}. "
                 f"Узел растянет весь ряд, и схема уедет за край экрана"
             )
 
 
-def test_заголовки_подграфов_короткие() -> None:
-    for строка in схема():
-        совпало = ПОДГРАФ.match(строка)
-        if not совпало:
+def test_subgraph_titles_are_short() -> None:
+    for line in diagram():
+        matched = SUBGRAPH.match(line)
+        if not matched:
             continue
-        assert len(совпало[1]) <= ЗАГОЛОВОК, (
-            f"заголовок «{совпало[1]}» — {len(совпало[1])} символов при пределе "
-            f"{ЗАГОЛОВОК}. Рамка не может быть уже своего заголовка"
+        assert len(matched[1]) <= HEADING, (
+            f"заголовок «{matched[1]}» — {len(matched[1])} символов при пределе "
+            f"{HEADING}. Рамка не может быть уже своего заголовка"
         )
 
 
-def test_узлов_и_подграфов_немного() -> None:
-    строки = схема()
-    узлы = [строка for строка in строки if УЗЕЛ.match(строка)]
-    подграфы = [строка for строка in строки if ПОДГРАФ.match(строка)]
-    assert len(узлы) <= УЗЛОВ, (
-        f"узлов {len(узлы)} при пределе {УЗЛОВ}: подробности принадлежат "
+def test_nodes_and_subgraphs_are_few() -> None:
+    lines = diagram()
+    nodes = [line for line in lines if NODE.match(line)]
+    subgraphs = [line for line in lines if SUBGRAPH.match(line)]
+    assert len(nodes) <= NODES, (
+        f"узлов {len(nodes)} при пределе {NODES}: подробности принадлежат "
         f"обзору проекта, README — указатель"
     )
-    assert len(подграфы) <= ПОДГРАФОВ, (
-        f"подграфов {len(подграфы)} при пределе {ПОДГРАФОВ}: вложенные рамки "
+    assert len(subgraphs) <= SUBGRAPHS, (
+        f"подграфов {len(subgraphs)} при пределе {SUBGRAPHS}: вложенные рамки "
         f"складываются по ширине, и каждая добавляет отступы"
     )
 
 
-def test_подробная_схема_не_потерялась() -> None:
+def test_detailed_diagram_is_not_lost() -> None:
     """Из README убраны контейнеры и порты — читателю сказано, где они."""
-    текст = README.read_text(encoding="utf-8")
-    конец = текст.index("```", текст.index("```mermaid") + 10) + 3
-    assert "overview.html" in текст[конец : конец + 1200], (
+    text = README.read_text(encoding="utf-8")
+    end = text.index("```", text.index("```mermaid") + 10) + 3
+    assert "overview.html" in text[end : end + 1200], (
         "после схемы нет ссылки на подробную: упрощение превратилось в потерю"
     )

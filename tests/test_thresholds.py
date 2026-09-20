@@ -29,7 +29,7 @@ import pytest
 import yaml
 from conftest import ROOT
 
-ПАКЕТЫ = ROOT / "homeassistant" / "config" / "packages"
+PACKAGES = ROOT / "homeassistant" / "config" / "packages"
 
 
 class Loader(yaml.SafeLoader):
@@ -39,124 +39,124 @@ class Loader(yaml.SafeLoader):
 Loader.add_multi_constructor("!", lambda loader, suffix, node: None)
 
 
-def разобрать(файл: str) -> dict:
-    return yaml.load((ПАКЕТЫ / файл).read_text(encoding="utf-8"), Loader=Loader)
+def parse(path: str) -> dict:
+    return yaml.load((PACKAGES / path).read_text(encoding="utf-8"), Loader=Loader)
 
 
-def сенсор(файл: str, unique_id: str) -> dict:
-    данные = разобрать(файл)
-    for блок in данные["template"]:
-        for запись in (блок or {}).get("binary_sensor") or []:
-            if запись.get("unique_id") == unique_id:
-                return запись
-    raise AssertionError(f"{файл}: нет сенсора {unique_id}")
+def sensor(path: str, unique_id: str) -> dict:
+    data = parse(path)
+    for block in data["template"]:
+        for entry in (block or {}).get("binary_sensor") or []:
+            if entry.get("unique_id") == unique_id:
+                return entry
+    raise AssertionError(f"{path}: нет сенсора {unique_id}")
 
 
-def автоматика(файл: str, ident: str) -> dict:
-    for запись in разобрать(файл)["automation"]:
-        if (запись or {}).get("id") == ident:
-            return запись
-    raise AssertionError(f"{файл}: нет автоматизации {ident}")
+def automation(path: str, ident: str) -> dict:
+    for entry in parse(path)["automation"]:
+        if (entry or {}).get("id") == ident:
+            return entry
+    raise AssertionError(f"{path}: нет автоматизации {ident}")
 
 
-def состояние(шаблон: str, значение: str) -> bool:
-    окружение = jinja2.Environment()
-    окружение.globals["states"] = lambda _: значение
-    вывод = окружение.from_string(шаблон).render().strip()
-    assert вывод in ("True", "False"), вывод
-    return вывод == "True"
+def state(template: str, value: str) -> bool:
+    env = jinja2.Environment()
+    env.globals["states"] = lambda _: value
+    output = env.from_string(template).render().strip()
+    assert output in ("True", "False"), output
+    return output == "True"
 
 
-ПОРОГИ = [
+THRESHOLDS = [
     ("nas_hot", "mon_nas_temperature", 60),
     ("nas_cpu_busy", "mon_nas_cpu", 90),
     ("nas_volume_filling", "mon_volume_space", 85),
 ]
 
 
-@pytest.mark.parametrize(("unique_id", "_ident", "порог"), ПОРОГИ)
-def test_порог_срабатывает_выше_и_молчит_ниже(unique_id, _ident, порог) -> None:
-    шаблон = сенсор("monitoring.yaml", unique_id)["state"]
-    assert состояние(шаблон, str(порог + 5)) is True
-    assert состояние(шаблон, str(порог - 5)) is False
+@pytest.mark.parametrize(("unique_id", "_ident", "threshold"), THRESHOLDS)
+def test_threshold_fires_above_and_stays_silent_below(unique_id, _ident, threshold) -> None:
+    template = sensor("monitoring.yaml", unique_id)["state"]
+    assert state(template, str(threshold + 5)) is True
+    assert state(template, str(threshold - 5)) is False
 
 
-@pytest.mark.parametrize(("unique_id", "_ident", "_порог"), ПОРОГИ)
-@pytest.mark.parametrize("плохое", ["unknown", "unavailable", ""])
-def test_недоступный_сенсор_не_поднимает_тревогу(unique_id, _ident, _порог, плохое) -> None:
+@pytest.mark.parametrize(("unique_id", "_ident", "_threshold"), THRESHOLDS)
+@pytest.mark.parametrize("bad", ["unknown", "unavailable", ""])
+def test_unavailable_sensor_raises_no_alarm(unique_id, _ident, _threshold, bad) -> None:
     """
     float(0) превратил бы недоступный сенсор в ноль. Для температуры это
     «холодно» — ложного спокойствия, для места «пусто». Значение по
     умолчанию -1 ниже любого порога, и тревоги не будет ни в ту, ни в другую
     сторону; отсутствие данных ловится отдельной веткой в сводке.
     """
-    assert состояние(сенсор("monitoring.yaml", unique_id)["state"], плохое) is False
+    assert state(sensor("monitoring.yaml", unique_id)["state"], bad) is False
 
 
-@pytest.mark.parametrize(("unique_id", "ident", "_порог"), ПОРОГИ)
-def test_автоматика_ждёт_перехода_сенсора_а_не_числа(unique_id, ident, _порог) -> None:
-    запись = автоматика("monitoring.yaml", ident)
-    виды = {т.get("trigger") for т in запись["triggers"]}
-    assert "numeric_state" not in виды, (
+@pytest.mark.parametrize(("unique_id", "ident", "_threshold"), THRESHOLDS)
+def test_automation_waits_for_a_sensor_transition_not_a_number(unique_id, ident, _threshold) -> None:
+    entry = automation("monitoring.yaml", ident)
+    kinds = {t.get("trigger") for t in entry["triggers"]}
+    assert "numeric_state" not in kinds, (
         f"{ident}: numeric_state не взводится после перезапуска, если значение "
         f"уже за порогом"
     )
-    сущности = {т.get("entity_id") for т in запись["triggers"]}
-    assert f"binary_sensor.{unique_id}" in сущности
+    entities = {t.get("entity_id") for t in entry["triggers"]}
+    assert f"binary_sensor.{unique_id}" in entities
 
 
-@pytest.mark.parametrize(("_uid", "ident", "_порог"), ПОРОГИ)
-def test_о_пороге_напоминают_а_не_говорят_однажды(_uid, ident, _порог) -> None:
+@pytest.mark.parametrize(("_uid", "ident", "_threshold"), THRESHOLDS)
+def test_threshold_is_repeated_not_announced_once(_uid, ident, _threshold) -> None:
     """Заканчивающееся место само не рассасывается — сообщать раз в жизни мало."""
-    запись = автоматика("monitoring.yaml", ident)
-    assert any(т.get("trigger") == "time" for т in запись["triggers"]), (
+    entry = automation("monitoring.yaml", ident)
+    assert any(t.get("trigger") == "time" for t in entry["triggers"]), (
         f"{ident}: нет повторного напоминания"
     )
-    assert запись.get("conditions"), f"{ident}: напоминание сработает и когда порог уже снят"
+    assert entry.get("conditions"), f"{ident}: напоминание сработает и когда порог уже снят"
 
 
-def test_критический_порог_тома_остаётся_отдельным() -> None:
+def test_critical_volume_threshold_stays_separate() -> None:
     """Разница между «пора посмотреть» и «пора чистить» не должна пропасть."""
-    шаблон = сенсор("monitoring.yaml", "nas_volume_critical")["state"]
-    assert состояние(шаблон, "95") is True
-    assert состояние(шаблон, "90") is False
-    действия = автоматика("monitoring.yaml", "mon_volume_space")["actions"]
-    уровень = действия[0]["data"]["level"]
-    assert "nas_volume_critical" in уровень, "уровень сообщения больше не зависит от второго порога"
+    template = sensor("monitoring.yaml", "nas_volume_critical")["state"]
+    assert state(template, "95") is True
+    assert state(template, "90") is False
+    actions = automation("monitoring.yaml", "mon_volume_space")["actions"]
+    level = actions[0]["data"]["level"]
+    assert "nas_volume_critical" in level, "уровень сообщения больше не зависит от второго порога"
 
 
 # --- падения контейнеров ---------------------------------------------------
 
-def test_о_втором_упавшем_контейнере_сообщат() -> None:
+def test_second_down_container_is_reported() -> None:
     """
     numeric_state above: 0 срабатывает на переходе через ноль. Упал Radarr —
     сообщение пришло; через час упал qBittorrent — счётчик идёт с 1 на 2,
     перехода нет, и о втором падении узнаёшь утром из сводки. Список имён
     меняется на каждое новое падение.
     """
-    запись = автоматика("docker.yaml", "docker_container_down")
-    триггеры = запись["triggers"]
-    assert all(т.get("trigger") != "numeric_state" for т in триггеры)
-    assert any(т.get("attribute") == "down_names" for т in триггеры), (
+    entry = automation("docker.yaml", "docker_container_down")
+    triggers = entry["triggers"]
+    assert all(t.get("trigger") != "numeric_state" for t in triggers)
+    assert any(t.get("attribute") == "down_names" for t in triggers), (
         "падение ловится счётчиком, а не списком имён"
     )
-    assert запись.get("conditions"), "без условия сообщение придёт и на восстановление"
+    assert entry.get("conditions"), "без условия сообщение придёт и на восстановление"
 
 
-def test_цикл_перезапуска_ловится_отдельно() -> None:
+def test_restart_loop_is_caught_separately() -> None:
     """
     Контейнер, который поднимается быстрее выдержки, счётчиком не ловится
     вообще: «упавших» почти всегда ноль.
     """
-    запись = сенсор("docker.yaml", "docker_restarting")
-    assert запись["delay_on"] != "00:00:00", (
+    entry = sensor("docker.yaml", "docker_restarting")
+    assert entry["delay_on"] != "00:00:00", (
         "без выдержки одиночный перезапуск будет считаться циклом"
     )
-    авто = автоматика("docker.yaml", "docker_container_restarting")
-    assert авто["triggers"][0]["entity_id"] == "binary_sensor.docker_restarting"
+    auto = automation("docker.yaml", "docker_container_restarting")
+    assert auto["triggers"][0]["entity_id"] == "binary_sensor.docker_restarting"
 
 
-def test_цикл_перезапуска_берётся_из_минутного_источника() -> None:
+def test_restart_loop_is_taken_from_the_minute_source() -> None:
     """
     Замечание Codex. Первая версия считала возраст контейнера
     по sensor.docker_*_uptime, а у Monitor Docker scan_interval 3600:
@@ -164,19 +164,19 @@ def test_цикл_перезапуска_берётся_из_минутного_
     и десятиминутной выдержки не набирает никогда. Проверка не могла
     сработать в принципе.
     """
-    шаблон = сенсор("docker.yaml", "docker_restarting")["state"]
-    assert "_uptime" not in шаблон, "признак снова построен на часовых данных"
-    assert "sensor.docker_down" in шаблон, (
+    template = sensor("docker.yaml", "docker_restarting")["state"]
+    assert "_uptime" not in template, "признак снова построен на часовых данных"
+    assert "sensor.docker_down" in template, (
         "источник не command_line-сенсор — а обновляется раз в минуту только он"
     )
 
     # Тот сенсор действительно опрашивается раз в минуту.
-    данные = разобрать("docker.yaml")
-    команда = next(
-        з["sensor"] for з in данные["command_line"]
-        if "docker_state.py" in (з.get("sensor") or {}).get("command", "")
+    data = parse("docker.yaml")
+    command = next(
+        z["sensor"] for z in data["command_line"]
+        if "docker_state.py" in (z.get("sensor") or {}).get("command", "")
     )
-    assert команда["scan_interval"] <= 60
+    assert command["scan_interval"] <= 60
 
     # А Monitor Docker — раз в час, и это осознанный размен, см. шапку файла.
-    assert данные["monitor_docker"][0]["scan_interval"] == 3600
+    assert data["monitor_docker"][0]["scan_interval"] == 3600

@@ -24,7 +24,7 @@ import pytest
 from conftest import ROOT
 
 # Что не должно попасть в публичный репозиторий ни при каких обстоятельствах.
-ЗАПРЕЩЕНО = [
+FORBIDDEN = [
     "homeassistant/config/secrets.yaml",
     "homeassistant/config/ip_bans.yaml",
     "homeassistant/config/known_devices.yaml",
@@ -45,7 +45,7 @@ from conftest import ROOT
 ]
 
 # Что обязано остаться под версией, несмотря на соседние правила.
-РАЗРЕШЕНО = [
+ALLOWED = [
     "media/.env.example",
     "homeassistant/config/secrets.yaml.example",
     "homeassistant/config/configuration.yaml",
@@ -53,30 +53,30 @@ from conftest import ROOT
 ]
 
 
-def игнорируется(путь: str) -> bool:
-    готово = subprocess.run(
-        ["git", "check-ignore", "-q", путь], cwd=ROOT, capture_output=True, check=False
+def ignored(path_str: str) -> bool:
+    rendered = subprocess.run(
+        ["git", "check-ignore", "-q", path_str], cwd=ROOT, capture_output=True, check=False
     )
-    assert готово.returncode in (0, 1), f"git check-ignore не отработал: {готово.stderr!r}"
-    return готово.returncode == 0
+    assert rendered.returncode in (0, 1), f"git check-ignore не отработал: {rendered.stderr!r}"
+    return rendered.returncode == 0
 
 
-@pytest.mark.parametrize("путь", ЗАПРЕЩЕНО)
-def test_секреты_и_копии_игнорируются(путь: str) -> None:
-    assert игнорируется(путь), f"{путь} попадёт в коммит"
+@pytest.mark.parametrize("path_str", FORBIDDEN)
+def test_secrets_and_backups_are_ignored(path_str: str) -> None:
+    assert ignored(path_str), f"{path_str} попадёт в коммит"
 
 
-@pytest.mark.parametrize("путь", РАЗРЕШЕНО)
-def test_нужные_файлы_не_игнорируются(путь: str) -> None:
-    assert not игнорируется(путь), f"{путь} выпал из репозитория — правило слишком широкое"
+@pytest.mark.parametrize("path_str", ALLOWED)
+def test_required_files_are_not_ignored(path_str: str) -> None:
+    assert not ignored(path_str), f"{path_str} выпал из репозитория — правило слишком широкое"
 
 
-def test_ни_один_отслеживаемый_файл_не_игнорируется() -> None:
+def test_no_tracked_file_is_ignored() -> None:
     """Правило, закрывшее лишнее, тише и опаснее незакрытого."""
-    готово = subprocess.run(
+    rendered = subprocess.run(
         ["git", "ls-files", "-i", "-c", "--exclude-standard"],
         cwd=ROOT, capture_output=True, text=True, check=False,
     )
-    assert готово.returncode == 0, готово.stderr
-    затенённые = готово.stdout.split()
-    assert not затенённые, f"эти файлы под версией, но подпадают под .gitignore: {затенённые}"
+    assert rendered.returncode == 0, rendered.stderr
+    shadowed = rendered.stdout.split()
+    assert not shadowed, f"эти файлы под версией, но подпадают под .gitignore: {shadowed}"

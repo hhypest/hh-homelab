@@ -228,13 +228,13 @@ def test_watched_matches_compose_files() -> None:
     from conftest import load
 
     module = load(SCRIPT)
-    из_compose = container_names_from_compose()
+    from_compose = container_names_from_compose()
     watched = set(module.WATCHED)
 
-    assert watched == из_compose, (
+    assert watched == from_compose, (
         f"WATCHED разошёлся с compose-файлами. "
-        f"Нет под надзором: {sorted(из_compose - watched) or '—'}. "
-        f"Под надзором, но нет в compose: {sorted(watched - из_compose) or '—'}"
+        f"Нет под надзором: {sorted(from_compose - watched) or '—'}. "
+        f"Под надзором, но нет в compose: {sorted(watched - from_compose) or '—'}"
     )
 
 
@@ -261,7 +261,7 @@ def test_total_equals_requested_count(names: tuple[str, ...]) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_объект_вместо_списка_не_роняет_скрипт() -> None:
+def test_object_instead_of_list_does_not_crash_the_script() -> None:
     """200 и {"message": ...} — обратный прокси, ошибка маршрутизации, смена API."""
     url, httpd = make_server({"message": "permission denied"})
     try:
@@ -272,7 +272,7 @@ def test_объект_вместо_списка_не_роняет_скрипт()
     assert data["down_names"] == []
 
 
-def test_список_строк_вместо_контейнеров_не_роняет_скрипт() -> None:
+def test_list_of_strings_does_not_crash_the_script() -> None:
     """Список есть, но элементы не словари — .get() по строке падал так же."""
     url, httpd = make_server(["jellyfin", "radarr"])
     try:
@@ -282,7 +282,7 @@ def test_список_строк_вместо_контейнеров_не_рон
     assert data["error"] != ""
 
 
-def test_нечисловой_таймаут_не_роняет_скрипт() -> None:
+def test_non_numeric_timeout_does_not_crash_the_script() -> None:
     """DOCKER_PROXY_TIMEOUT=8s ронял файл первым же исполняемым выражением."""
     url, httpd = make_server([RUNNING])
     try:
@@ -298,7 +298,7 @@ def test_нечисловой_таймаут_не_роняет_скрипт() ->
     assert "DOCKER_PROXY_TIMEOUT" in data["error"], "молчаливая подстановка умолчания скрыла бы опечатку"
 
 
-def test_исправный_ответ_по_прежнему_без_ошибки() -> None:
+def test_valid_response_still_has_no_error() -> None:
     """Контроль: проверки выше не превратили нормальный ответ в отказ."""
     url, httpd = make_server([RUNNING])
     try:
@@ -320,7 +320,7 @@ def test_исправный_ответ_по_прежнему_без_ошибки
 RESTARTING = {"Names": ["/radarr"], "State": "restarting", "Status": "Restarting (3) 8 seconds ago"}
 
 
-def test_цикл_перезапуска_считается_отдельно() -> None:
+def test_restart_loop_is_counted_separately() -> None:
     url, httpd = make_server([RESTARTING, RUNNING])
     try:
         data = run(url, "radarr", "jellyfin")
@@ -331,7 +331,7 @@ def test_цикл_перезапуска_считается_отдельно() -
     assert data["running"] == 1
 
 
-def test_здоровый_стек_не_считается_мечущимся() -> None:
+def test_healthy_stack_is_not_restarting() -> None:
     url, httpd = make_server([RUNNING])
     try:
         data = run(url, "jellyfin")
@@ -340,7 +340,7 @@ def test_здоровый_стек_не_считается_мечущимся() 
     assert data["restarting"] == 0
 
 
-def test_остановленный_контейнер_не_считается_мечущимся() -> None:
+def test_stopped_container_is_not_restarting() -> None:
     """Exited — это падение, а не цикл: разные сообщения и разные выдержки."""
     url, httpd = make_server([STOPPED])
     try:
@@ -351,7 +351,7 @@ def test_остановленный_контейнер_не_считается_�
     assert data["down"] == 1
 
 
-def test_поле_есть_и_при_отказе_прокси() -> None:
+def test_field_is_present_even_when_proxy_fails() -> None:
     """Сенсор читает одни и те же ключи в обоих случаях."""
     data = run("http://127.0.0.1:9", "jellyfin")
     assert data["restarting"] == 0
