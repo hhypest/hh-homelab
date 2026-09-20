@@ -92,12 +92,18 @@ command_line:
       # Скрипт печатает JSON и никогда не завершается ошибкой, поэтому
       # сенсор не уходит в unavailable даже когда прокси лежит.
       value_template: "{{ value_json.down }}"
+      # Каждый атрибут, который читают шаблоны, обязан быть здесь: Home
+      # Assistant выбрасывает из JSON всё, что не объявлено. Признак
+      # binary_sensor.docker_restarting год стоял бы на None именно
+      # поэтому — скрипт печатал restarting, а сенсор его не забирал.
+      # Сверяется тестом test_json_attributes.py.
       json_attributes:
         - running
         - total
         - down_names
         - down_detail
         - oom
+        - restarting
         - error
 
 # -----------------------------------------------------------------------------
