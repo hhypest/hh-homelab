@@ -30,8 +30,8 @@ import re
 import yaml
 from conftest import ROOT
 
-ПАКЕТЫ = ROOT / "homeassistant" / "config" / "packages"
-ДАШБОРД = ROOT / "homeassistant" / "dashboard-infrastructure.yaml"
+PACKAGES = ROOT / "homeassistant" / "config" / "packages"
+DASHBOARD = ROOT / "homeassistant" / "dashboard-infrastructure.yaml"
 BIN = ROOT / "homeassistant" / "config" / "bin"
 
 
@@ -42,92 +42,92 @@ class Loader(yaml.SafeLoader):
 Loader.add_multi_constructor("!", lambda loader, suffix, node: None)
 
 
-def слаг(имя: str) -> str:
+def slug(name: str) -> str:
     """Имя сенсора → entity_id, как это делает Home Assistant."""
-    return re.sub(r"[^a-z0-9]+", "_", имя.lower()).strip("_")
+    return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
 
 
-def командные_сенсоры() -> dict[str, set[str]]:
+def command_line_sensors() -> dict[str, set[str]]:
     """entity_id → объявленные json_attributes."""
-    найдено: dict[str, set[str]] = {}
-    for файл in sorted(ПАКЕТЫ.glob("*.yaml")):
-        данные = yaml.load(файл.read_text(encoding="utf-8"), Loader) or {}
-        for запись in данные.get("command_line") or []:
-            for вид in ("sensor", "binary_sensor"):
-                блок = (запись or {}).get(вид)
-                if not isinstance(блок, dict) or not блок.get("name"):
+    found: dict[str, set[str]] = {}
+    for path in sorted(PACKAGES.glob("*.yaml")):
+        data = yaml.load(path.read_text(encoding="utf-8"), Loader) or {}
+        for entry in data.get("command_line") or []:
+            for kind in ("sensor", "binary_sensor"):
+                block = (entry or {}).get(kind)
+                if not isinstance(block, dict) or not block.get("name"):
                     continue
-                найдено[f"{вид}.{слаг(блок['name'])}"] = set(
-                    блок.get("json_attributes") or []
+                found[f"{kind}.{slug(block['name'])}"] = set(
+                    block.get("json_attributes") or []
                 )
-    return найдено
+    return found
 
 
-def прочитанные_атрибуты() -> set[tuple[str, str]]:
+def read_attributes() -> set[tuple[str, str]]:
     """Все пары (сущность, атрибут) из state_attr() в конфигурации."""
-    шаблон = re.compile(r"state_attr\(\s*['\"]([\w.]+)['\"]\s*,\s*['\"]([\w]+)['\"]")
-    пары: set[tuple[str, str]] = set()
-    файлы = [*sorted(ПАКЕТЫ.glob("*.yaml")), ДАШБОРД]
-    for файл in файлы:
-        пары.update(шаблон.findall(файл.read_text(encoding="utf-8")))
-    return пары
+    template = re.compile(r"state_attr\(\s*['\"]([\w.]+)['\"]\s*,\s*['\"]([\w]+)['\"]")
+    pairs: set[tuple[str, str]] = set()
+    paths = [*sorted(PACKAGES.glob("*.yaml")), DASHBOARD]
+    for path in paths:
+        pairs.update(template.findall(path.read_text(encoding="utf-8")))
+    return pairs
 
 
-def test_читаемые_атрибуты_объявлены():
+def test_read_attributes_are_declared():
     """
     Главная проверка: шаблон читает атрибут, которого сенсор не забирает.
     Молчаливее ошибки не бывает — вместо значения приходит None.
     """
-    сенсоры = командные_сенсоры()
-    assert сенсоры, "не нашли ни одного сенсора command_line — проверка стала пустой"
-    пары = прочитанные_атрибуты()
-    assert пары, "не нашли ни одного state_attr() — проверка стала пустой"
+    sensors = command_line_sensors()
+    assert sensors, "не нашли ни одного сенсора command_line — проверка стала пустой"
+    pairs = read_attributes()
+    assert pairs, "не нашли ни одного state_attr() — проверка стала пустой"
 
-    сверено = 0
-    for сущность, атрибут in sorted(пары):
-        if сущность not in сенсоры:
+    checked = 0
+    for entity, attribute in sorted(pairs):
+        if entity not in sensors:
             continue  # сущность из интеграции, а не наша — судить не можем
-        сверено += 1
-        assert атрибут in сенсоры[сущность], (
-            f"шаблон читает {сущность}.{атрибут}, но в json_attributes его нет — "
-            f"Home Assistant вернёт None. Объявлено: {sorted(сенсоры[сущность])}"
+        checked += 1
+        assert attribute in sensors[entity], (
+            f"шаблон читает {entity}.{attribute}, но в json_attributes его нет — "
+            f"Home Assistant вернёт None. Объявлено: {sorted(sensors[entity])}"
         )
-    assert сверено >= 3, f"сверено всего {сверено} пар — проверка почти пустая"
+    assert checked >= 3, f"сверено всего {checked} пар — проверка почти пустая"
 
 
-def test_скрипт_печатает_то_что_забирают():
+def test_script_prints_what_is_read():
     """
     Обратная сторона: ключ печатается, но не объявлен. Это не всегда
     ошибка — поле может быть никому не нужно, — поэтому здесь проверяется
     только то, что объявленного нет сверх напечатанного: объявить ключ,
     которого скрипт не печатает, значит ждать атрибут, который не придёт.
     """
-    скрипт = (BIN / "docker_state.py").read_text(encoding="utf-8")
-    ключи = set(re.findall(r'"(\w+)":', скрипт))
-    assert ключи, "в docker_state.py не нашлось ни одного ключа JSON"
+    script = (BIN / "docker_state.py").read_text(encoding="utf-8")
+    keys = set(re.findall(r'"(\w+)":', script))
+    assert keys, "в docker_state.py не нашлось ни одного ключа JSON"
 
-    объявлено = командные_сенсоры().get("sensor.docker_down")
-    assert объявлено, "пропал сенсор sensor.docker_down"
-    лишние = объявлено - ключи
-    assert not лишние, (
+    declared = command_line_sensors().get("sensor.docker_down")
+    assert declared, "пропал сенсор sensor.docker_down"
+    extra = declared - keys
+    assert not extra, (
         f"в json_attributes объявлены ключи, которых docker_state.py "
-        f"не печатает: {sorted(лишние)}"
+        f"не печатает: {sorted(extra)}"
     )
 
 
-def test_путь_к_скрипту_существует():
+def test_script_path_exists():
     """
     Команда сенсора указывает на файл в /config/bin — в репозитории это
     homeassistant/config/bin. Опечатка в пути даёт сенсор, который всегда
     отдаёт пустую строку.
     """
-    for файл in sorted(ПАКЕТЫ.glob("*.yaml")):
-        данные = yaml.load(файл.read_text(encoding="utf-8"), Loader) or {}
-        for запись in данные.get("command_line") or []:
-            for вид in ("sensor", "binary_sensor"):
-                блок = (запись or {}).get(вид)
-                if not isinstance(блок, dict):
+    for path in sorted(PACKAGES.glob("*.yaml")):
+        data = yaml.load(path.read_text(encoding="utf-8"), Loader) or {}
+        for entry in data.get("command_line") or []:
+            for kind in ("sensor", "binary_sensor"):
+                block = (entry or {}).get(kind)
+                if not isinstance(block, dict):
                     continue
-                for путь in re.findall(r"/config/(bin/[\w.]+)", блок.get("command", "")):
-                    цель = ROOT / "homeassistant" / "config" / pathlib.Path(путь)
-                    assert цель.exists(), f"{файл.name}: команда зовёт {путь}, которого нет"
+                for path_str in re.findall(r"/config/(bin/[\w.]+)", block.get("command", "")):
+                    target = ROOT / "homeassistant" / "config" / pathlib.Path(path_str)
+                    assert target.exists(), f"{path.name}: команда зовёт {path_str}, которого нет"

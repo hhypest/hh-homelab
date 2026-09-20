@@ -188,19 +188,19 @@ def media_ports() -> set[str]:
     сузьте BIND_ADDR — его опрос по 127.0.0.1 продолжит отвечать.
     """
     ports = set()
-    свои_адреса = set()
-    строки = [
+    own_addresses = set()
+    lines = [
         line.split("=", 1)
         for line in (ROOT / "media" / ".env.example").read_text(encoding="utf-8").splitlines()
         if "=" in line and not line.lstrip().startswith("#")
     ]
-    for name, _ in строки:
+    for name, _ in lines:
         if name.endswith("_BIND_ADDR"):
-            свои_адреса.add(name.removesuffix("_BIND_ADDR"))
-    for name, value in строки:
+            own_addresses.add(name.removesuffix("_BIND_ADDR"))
+    for name, value in lines:
         if "PORT" in name and value.strip().isdigit():
-            сервис = name.split("_PORT", 1)[0]
-            if сервис not in свои_адреса:
+            service = name.split("_PORT", 1)[0]
+            if service not in own_addresses:
                 ports.add(value.strip())
     return ports
 
@@ -264,52 +264,52 @@ def test_the_check_above_actually_finds_something() -> None:
 #  В локальной сети порт не нужен никому: Prowlarr обращается к контейнеру
 #  по имени внутри сети Docker, Home Assistant — по петле.
 
-ПЕТЛЯ = {"127.0.0.1", "::1", "[::1]"}
+LOOPBACK_HOSTS = {"127.0.0.1", "::1", "[::1]"}
 
 
-def строка_публикации(порт: str) -> str:
-    текст = (ROOT / "media" / "compose.yaml").read_text(encoding="utf-8")
-    строки = [с.strip() for с in текст.splitlines() if f":{порт}\"" in с and с.strip().startswith("-")]
-    assert len(строки) == 1, f"ожидалась одна публикация порта {порт}, найдено: {строки}"
-    return строки[0]
+def publish_line(port: str) -> str:
+    text = (ROOT / "media" / "compose.yaml").read_text(encoding="utf-8")
+    lines = [s.strip() for s in text.splitlines() if f":{port}\"" in s and s.strip().startswith("-")]
+    assert len(lines) == 1, f"ожидалась одна публикация порта {port}, найдено: {lines}"
+    return lines[0]
 
 
-def значение_переменной(имя: str) -> str:
-    for строка in (ROOT / "media" / ".env.example").read_text(encoding="utf-8").splitlines():
-        if строка.startswith(f"{имя}="):
-            return строка.split("=", 1)[1].strip()
-    raise AssertionError(f"в media/.env.example нет {имя}")
+def variable_value(name: str) -> str:
+    for line in (ROOT / "media" / ".env.example").read_text(encoding="utf-8").splitlines():
+        if line.startswith(f"{name}="):
+            return line.split("=", 1)[1].strip()
+    raise AssertionError(f"в media/.env.example нет {name}")
 
 
-def test_flaresolverr_публикуется_не_на_общем_адресе() -> None:
-    строка = строка_публикации("8191")
-    assert "${BIND_ADDR" not in строка, (
+def test_flaresolverr_is_not_published_on_the_shared_address() -> None:
+    line = publish_line("8191")
+    assert "${BIND_ADDR" not in line, (
         "FlareSolverr снова публикуется общим адресом стека: безголовый браузер "
         "без аутентификации виден всей домашней сети"
     )
-    assert "FLARESOLVERR_BIND_ADDR" in строка
+    assert "FLARESOLVERR_BIND_ADDR" in line
 
 
-def test_адрес_flaresolverr_петлевой() -> None:
-    assert значение_переменной("FLARESOLVERR_BIND_ADDR") in ПЕТЛЯ
+def test_flaresolverr_address_is_loopback() -> None:
+    assert variable_value("FLARESOLVERR_BIND_ADDR") in LOOPBACK_HOSTS
 
 
-def test_остальные_сервисы_остались_на_общем_адресе() -> None:
+def test_other_services_stay_on_the_shared_address() -> None:
     """Разводить по сервисам всё подряд не нужно: у этих пяти есть вход по паролю."""
-    for порт in ("9080", "9696", "7878", "8096", "5055"):
-        assert "${BIND_ADDR" in строка_публикации(порт), f"порт {порт} ушёл со своим адресом"
+    for port in ("9080", "9696", "7878", "8096", "5055"):
+        assert "${BIND_ADDR" in publish_line(port), f"порт {port} ушёл со своим адресом"
 
 
-def test_home_assistant_опрашивает_flaresolverr_по_петле() -> None:
+def test_home_assistant_polls_flaresolverr_over_loopback() -> None:
     """Публикация на петле имеет смысл ровно потому, что опрос идёт оттуда же."""
-    текст = (ROOT / HA_PACKAGES / "monitoring.yaml").read_text(encoding="utf-8")
-    assert "127.0.0.1:8191" in текст
+    text = (ROOT / HA_PACKAGES / "monitoring.yaml").read_text(encoding="utf-8")
+    assert "127.0.0.1:8191" in text
 
 
-def test_prowlarr_ходит_к_flaresolverr_по_имени_контейнера() -> None:
+def test_prowlarr_reaches_flaresolverr_by_container_name() -> None:
     """Если бы он ходил по адресу NAS, петлевая публикация сломала бы обход Cloudflare."""
-    страница = (ROOT / "docs" / "media-stack.html").read_text(encoding="utf-8")
-    assert "http://flaresolverr:8191" in страница
+    page = (ROOT / "docs" / "media-stack.html").read_text(encoding="utf-8")
+    assert "http://flaresolverr:8191" in page
 
 
 # ---------------------------------------------------------------------------
@@ -323,36 +323,36 @@ def test_prowlarr_ходит_к_flaresolverr_по_имени_контейнер�
 #  строка в .env. Добавить её в .env.example мало — это помогает только
 #  новой установке.
 
-ОБНОВЛЕНИЕ = ROOT / "docs" / "index.html"
+UPGRADE = ROOT / "docs" / "index.html"
 
 
-def test_шаг_обновления_сверяет_env_с_образцом() -> None:
+def test_upgrade_step_compares_env_with_the_sample() -> None:
     """
     Проверка не про одну переменную, а про способ: в шаге обновления должна
     быть команда, которая сама показывает, чего не хватает. Тогда следующая
     новая переменная не потребует ни отдельного теста, ни памяти автора.
     """
-    текст = ОБНОВЛЕНИЕ.read_text(encoding="utf-8")
-    начало = текст.index("11.4")
-    шаг = текст[начало:начало + 4000]
-    assert ".env.example" in шаг and ".env" in шаг, "шаг обновления не сверяет .env с образцом"
-    assert "diff" in шаг, "нет команды, которая покажет недостающие переменные"
+    text = UPGRADE.read_text(encoding="utf-8")
+    start = text.index("11.4")
+    step = text[start:start + 4000]
+    assert ".env.example" in step and ".env" in step, "шаг обновления не сверяет .env с образцом"
+    assert "diff" in step, "нет команды, которая покажет недостающие переменные"
 
 
-def test_новая_переменная_названа_в_шаге_обновления() -> None:
+def test_new_variable_is_named_in_the_upgrade_step() -> None:
     """А эта — про конкретную: без неё docker compose up -d не отработает."""
-    текст = ОБНОВЛЕНИЕ.read_text(encoding="utf-8")
-    начало = текст.index("11.4")
-    assert "FLARESOLVERR_BIND_ADDR" in текст[начало:начало + 4000]
+    text = UPGRADE.read_text(encoding="utf-8")
+    start = text.index("11.4")
+    assert "FLARESOLVERR_BIND_ADDR" in text[start:start + 4000]
 
 
-def test_разнесение_стеков_учитывает_отдельный_адрес() -> None:
+def test_stack_split_accounts_for_the_separate_address() -> None:
     """
     Второе замечание Codex: при Home Assistant на другой машине сужение
     BIND_ADDR описано, а FlareSolverr остаётся петлевым — и проверка одного
     порта из шести молча получает «connection refused».
     """
-    текст = (ROOT / "docs" / "portability.html").read_text(encoding="utf-8")
-    assert "FLARESOLVERR_BIND_ADDR" in текст, (
+    text = (ROOT / "docs" / "portability.html").read_text(encoding="utf-8")
+    assert "FLARESOLVERR_BIND_ADDR" in text, (
         "в разборе переноса на другое железо нет ни слова про отдельный адрес"
     )

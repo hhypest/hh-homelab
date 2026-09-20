@@ -42,7 +42,7 @@ find_conflicts = check_ports.find_conflicts
         ("[::]", "0.0.0.0"),
     ],
 )
-def test_перекрываются(a, b):
+def test_ranges_overlap(a, b):
     assert overlaps(a, b), f"{a} и {b} займут один порт, но проверка этого не видит"
 
 
@@ -55,11 +55,11 @@ def test_перекрываются(a, b):
         ("0.0.0.0", "::1"),
     ],
 )
-def test_не_перекрываются(a, b):
+def test_ranges_do_not_overlap(a, b):
     assert not overlaps(a, b), f"{a} и {b} уживаются, а проверка считает иначе"
 
 
-def test_wildcard_против_конкретного_это_конфликт():
+def test_wildcard_against_specific_is_a_conflict():
     entries = [
         ("2375", "tcp", "0.0.0.0", "media:alpha"),
         ("2375", "tcp", "127.0.0.1", "homeassistant:dockerproxy"),
@@ -67,7 +67,7 @@ def test_wildcard_против_конкретного_это_конфликт():
     assert len(find_conflicts(entries)) == 1
 
 
-def test_один_номер_в_tcp_и_udp_не_конфликт():
+def test_same_number_in_tcp_and_udp_is_no_conflict():
     """Штатная конфигурация qBittorrent: порт раздачи публикуется дважды."""
     entries = [
         ("6881", "tcp", "0.0.0.0", "media:qbittorrent"),
@@ -76,7 +76,7 @@ def test_один_номер_в_tcp_и_udp_не_конфликт():
     assert find_conflicts(entries) == []
 
 
-def test_разные_конкретные_адреса_не_конфликт():
+def test_different_specific_addresses_are_no_conflict():
     entries = [
         ("8096", "tcp", "127.0.0.1", "a:one"),
         ("8096", "tcp", "192.168.3.53", "b:two"),
@@ -84,7 +84,7 @@ def test_разные_конкретные_адреса_не_конфликт():
     assert find_conflicts(entries) == []
 
 
-def test_точный_дубль_остаётся_конфликтом():
+def test_exact_duplicate_stays_a_conflict():
     entries = [
         ("9080", "tcp", "0.0.0.0", "a:one"),
         ("9080", "tcp", "0.0.0.0", "b:two"),
@@ -92,7 +92,7 @@ def test_точный_дубль_остаётся_конфликтом():
     assert len(find_conflicts(entries)) == 1
 
 
-def test_wildcard_спорит_с_каждым_а_конкретные_между_собой_нет():
+def test_wildcard_conflicts_with_all_while_specific_do_not():
     """
     Три претендента на один порт дают две конфликтующие пары, а не три:
     wildcard перекрывает оба конкретных адреса, но 127.0.0.1 и адрес
@@ -108,7 +108,7 @@ def test_wildcard_спорит_с_каждым_а_конкретные_межд�
     assert all("0.0.0.0" in (a[0], b[0]) for _, _, a, b in pairs)
 
 
-def test_набор_портов_репозитория_не_конфликтует():
+def test_repository_port_set_has_no_conflicts():
     """Регрессия: то, что мы предлагаем чужому человеку, само с собой не спорит."""
     entries = [
         ("9080", "tcp", "0.0.0.0", "media:qbittorrent"),

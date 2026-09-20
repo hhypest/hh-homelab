@@ -25,7 +25,7 @@ import pytest
 import yaml
 from conftest import ROOT
 
-ПАКЕТЫ = ROOT / "homeassistant" / "config" / "packages"
+PACKAGES = ROOT / "homeassistant" / "config" / "packages"
 
 
 class Loader(yaml.SafeLoader):
@@ -35,11 +35,11 @@ class Loader(yaml.SafeLoader):
 Loader.add_multi_constructor("!", lambda loader, suffix, node: None)
 
 
-def разобрать(файл: str) -> dict:
-    return yaml.load((ПАКЕТЫ / файл).read_text(encoding="utf-8"), Loader=Loader)
+def parse(path: str) -> dict:
+    return yaml.load((PACKAGES / path).read_text(encoding="utf-8"), Loader=Loader)
 
 
-def переменная_скрипта(файл: str, скрипт: str, имя: str) -> str:
+def script_var(path: str, script: str, name: str) -> str:
     """
     Значение переменной внутри конкретного скрипта.
 
@@ -50,33 +50,34 @@ def переменная_скрипта(файл: str, скрипт: str, имя
     по имени скрипта: где лежит шаблон, здесь такая же часть проверки,
     как и то, что он печатает.
     """
-    шаги = разобрать(файл)["script"][скрипт]["sequence"]
-    for шаг in шаги:
-        переменные = (шаг or {}).get("variables") or {}
-        if имя in переменные:
-            return переменные[имя]
-    raise AssertionError(f"{файл}: в скрипте {скрипт} нет переменной {имя}")
+    steps = parse(path)["script"][script]["sequence"]
+    for step in steps:
+        variables = (step or {}).get("variables") or {}
+        if name in variables:
+            return variables[name]
+    raise AssertionError(f"{path}: в скрипте {script} нет переменной {name}")
 
 
-def текст_автоматизации(файл: str, ident: str) -> str:
+def automation_text(path: str, ident: str) -> str:
     """Текст сообщения из автоматизации с указанным id."""
-    for запись in разобрать(файл)["automation"]:
-        if (запись or {}).get("id") != ident:
+    for entry in parse(path)["automation"]:
+        if (entry or {}).get("id") != ident:
             continue
-        for шаг in запись["actions"]:
-            данные = (шаг or {}).get("data") or {}
-            if "text" in данные:
-                return данные["text"]
-    raise AssertionError(f"{файл}: не нашлось сообщение автоматизации {ident}")
+        for step in entry["actions"]:
+            data = (step or {}).get("data") or {}
+            if "text" in data:
+                return data["text"]
+    raise AssertionError(f"{path}: не нашлось сообщение автоматизации {ident}")
 
 
-def отрисовать(текст: str, **данные) -> list[str]:
-    return jinja2.Environment().from_string(текст).render(**данные).splitlines()
+def render(source: str, **data) -> list[str]:
+    # Имя параметра не «text»: вызывающие передают в шаблон переменную text.
+    return jinja2.Environment().from_string(source).render(**data).splitlines()
 
 
 # --- сводка за сутки -------------------------------------------------------
 
-СВОДКА = {
+SUMMARY = {
     "verdict": "✅ Всё в порядке", "cpu": "12", "ram": "40",
     "nas_temp": 38.2, "vol_used": 62.4,
     "cont_running": 6, "cont_total": 8, "cont_down_min": 0,
@@ -87,101 +88,101 @@ def отрисовать(текст: str, **данные) -> list[str]:
 }
 
 
-def сводка(**поверх) -> list[str]:
-    данные = {**СВОДКА, "cont_down": 0, "cont_detail": [], "svc_down": [], **поверх}
-    return отрисовать(переменная_скрипта("pachca.yaml", "pachca_report", "body"), **данные)
+def summary(**over) -> list[str]:
+    data = {**SUMMARY, "cont_down": 0, "cont_detail": [], "svc_down": [], **over}
+    return render(script_var("pachca.yaml", "pachca_report", "body"), **data)
 
 
-def test_каждый_упавший_контейнер_на_своей_строке() -> None:
-    строки = сводка(cont_down=2, cont_detail=["radarr — Exited (137)", "prowlarr — контейнера нет"])
-    упавшие = [с for с in строки if с.startswith("• 🔻")]
-    assert len(упавшие) == 2, f"контейнеры слиплись: {строки}"
+def test_each_down_container_on_its_own_line() -> None:
+    lines = summary(cont_down=2, cont_detail=["radarr — Exited (137)", "prowlarr — контейнера нет"])
+    down = [s for s in lines if s.startswith("• 🔻")]
+    assert len(down) == 2, f"контейнеры слиплись: {lines}"
 
 
-def test_простой_не_прилипает_к_списку_контейнеров() -> None:
-    строки = сводка(cont_down=1, cont_detail=["radarr — Exited (1)"])
-    assert "• Простой за сутки: 0 мин" in строки
+def test_idle_does_not_stick_to_the_container_list() -> None:
+    lines = summary(cont_down=1, cont_detail=["radarr — Exited (1)"])
+    assert "• Простой за сутки: 0 мин" in lines
 
 
-def test_разделы_отделены_пустой_строкой() -> None:
+def test_sections_are_separated_by_a_blank_line() -> None:
     """
     В свёрнутом скаляре пустая строка превращалась в одиночный перенос,
     поэтому абзацев в сообщении не было вовсе. Пустая строка стоит перед
     заголовком раздела и не стоит после — список идёт сразу под ним.
     """
-    строки = сводка()
-    for заголовок in ("**Железо**", "**Контейнеры** — 6 из 8", "**Сервисы** — 6 из 6 отвечают"):
-        место = строки.index(заголовок)
-        assert строки[место - 1] == "", f"перед «{заголовок}» нет пустой строки"
-        assert строки[место + 1].startswith("•"), f"после «{заголовок}» лишняя пустая строка"
+    lines = summary()
+    for heading in ("**Железо**", "**Контейнеры** — 6 из 8", "**Сервисы** — 6 из 6 отвечают"):
+        place = lines.index(heading)
+        assert lines[place - 1] == "", f"перед «{heading}» нет пустой строки"
+        assert lines[place + 1].startswith("•"), f"после «{heading}» лишняя пустая строка"
 
 
-def test_сводка_совпадает_с_примером_в_документации() -> None:
+def test_summary_matches_the_documentation_sample() -> None:
     """
     Шаг 5.6 чек-листа показывает, что придёт в чат. Пример писался от руки
     и показывал задуманное, а не то, что выходило на самом деле: блок
     контейнеров в жизни слипался в одну строку. Теперь это один и тот же
     текст, и разойтись они молча больше не могут.
     """
-    страница = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
-    начало = страница.index("📊 <b>DS725+")
-    пример = страница[начало:страница.index("</code>", начало)]
-    пример = html.unescape(re.sub(r"</?b>", "**", пример)).rstrip()
+    page = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
+    start = page.index("📊 <b>DS725+")
+    sample = page[start:page.index("</code>", start)]
+    sample = html.unescape(re.sub(r"</?b>", "**", sample)).rstrip()
 
-    данные = {
-        **СВОДКА,
+    data = {
+        **SUMMARY,
         "cont_down": 0, "cont_detail": [], "svc_down": [],
         "cpu": "11", "ram": "47", "nas_temp": 41.0, "vol_used": 63.2,
         "cont_running": 8, "cont_total": 8, "top_cpu": "Jellyfin", "top_ram": "Radarr",
         "booted": "2026-08-24T03:11:00",
-        "states": lambda имя: {
+        "states": lambda name: {
             "sensor.docker_top_cpu": "7.2", "sensor.docker_top_ram": "312",
-        }.get(имя, "0"),
+        }.get(name, "0"),
     }
-    получилось = отрисовать(переменная_скрипта("pachca.yaml", "pachca_report", "body"), **данные)
-    assert получилось == пример.splitlines(), (
+    result = render(script_var("pachca.yaml", "pachca_report", "body"), **data)
+    assert result == sample.splitlines(), (
         "сводка разошлась с примером из шага 5.6:\n"
         + "\n".join(f"{'  ' if a == b else '≠ '}{a!r} | {b!r}"
-                     for a, b in zip(получилось, пример.splitlines(), strict=False))
+                     for a, b in zip(result, sample.splitlines(), strict=False))
     )
 
 
-def test_ни_одна_строка_не_начинается_с_пробела() -> None:
+def test_no_line_starts_with_a_space() -> None:
     """Раньше блоки сервисов и контейнеров приезжали с ведущим пробелом."""
-    for строка in сводка(cont_down=1, cont_detail=["radarr"], svc_down=["Radarr"]):
-        assert строка == строка.lstrip(), f"строка с ведущим пробелом: {строка!r}"
+    for line in summary(cont_down=1, cont_detail=["radarr"], svc_down=["Radarr"]):
+        assert line == line.lstrip(), f"строка с ведущим пробелом: {line!r}"
 
 
-def test_когда_всё_работает_видно_одной_строкой() -> None:
-    строки = сводка()
-    assert "• Все запущены" in строки
-    assert "• Все отвечают" in строки
+def test_all_running_is_shown_in_one_line() -> None:
+    lines = summary()
+    assert "• Все запущены" in lines
+    assert "• Все отвечают" in lines
 
 
-def test_простой_печатается_целым_числом() -> None:
+def test_idle_is_printed_as_an_integer() -> None:
     """round(0) в Jinja возвращает дробное: в сводку уезжало «0.0 мин»."""
-    текст = (ПАКЕТЫ / "pachca.yaml").read_text(encoding="utf-8")
-    for имя in ("svc_down_min", "cont_down_min"):
-        строка = next(с for с in текст.splitlines() if с.strip().startswith(f"{имя}:"))
-        assert "| round | int" in строка, f"{имя}: {строка.strip()}"
+    text = (PACKAGES / "pachca.yaml").read_text(encoding="utf-8")
+    for name in ("svc_down_min", "cont_down_min"):
+        line = next(s for s in text.splitlines() if s.strip().startswith(f"{name}:"))
+        assert "| round | int" in line, f"{name}: {line.strip()}"
 
 
-def test_без_данных_от_nas_сводка_не_печатает_нули() -> None:
+def test_without_nas_data_the_summary_prints_no_zeros() -> None:
     """
     Приведение | float(0) превращало недоступные сенсоры в нули, и сводка
     докладывала «0 °C» и «Всё в порядке» ровно тогда, когда данных нет.
     Худший вид ошибки в мониторинге: уверенный отчёт о норме.
     """
-    строки = сводка(nas_ok=False)
-    assert any("Метрики NAS недоступны" in с for с in строки)
-    assert not any("°C" in с for с in строки), "напечатаны метрики, которых нет"
-    assert not any("Том volume1" in с for с in строки)
+    lines = summary(nas_ok=False)
+    assert any("Метрики NAS недоступны" in s for s in lines)
+    assert not any("°C" in s for s in lines), "напечатаны метрики, которых нет"
+    assert not any("Том volume1" in s for s in lines)
     # Остальные разделы на месте: контейнеры и сервисы живут без DSM.
-    assert "**Контейнеры** — 6 из 8" in строки
-    assert any("Простой за сутки" in с for с in строки)
+    assert "**Контейнеры** — 6 из 8" in lines
+    assert any("Простой за сутки" in s for s in lines)
 
 
-def test_признак_данных_от_nas_считается_сам() -> None:
+def test_nas_data_flag_is_computed_by_itself() -> None:
     """
     Замечание Codex P1. Шаблон nas_ok заканчивался лишней кавычкой —
     остатком от строки, с которой его копировали. В свёрнутом скаляре она
@@ -192,84 +193,84 @@ def test_признак_данных_от_nas_считается_сам() -> Non
     Остальные тесты этого не ловили: они подставляли nas_ok готовым булевым
     значением, то есть проверяли ветвление, а не сам признак.
     """
-    шаблон = переменная_скрипта("pachca.yaml", "pachca_report", "nas_ok")
-    живые = {
+    template = script_var("pachca.yaml", "pachca_report", "nas_ok")
+    live = {
         "sensor.ds725_temperature": "41.2",
         "sensor.ds725_cpu_utilization_total": "11",
         "sensor.ds725_memory_usage_real": "47",
         "sensor.ds725_volume_1_volume_used": "63",
     }
-    def посчитать(состояния: dict[str, str]) -> str:
+    def count(states: dict[str, str]) -> str:
         # Home Assistant обрезает пробелы у значения переменной, а свёрнутый
         # скаляр оставляет перенос после {% set %} — сравниваем по существу.
-        return "\n".join(отрисовать(шаблон, states=lambda имя: состояния.get(имя, "unknown"))).strip()
+        return "\n".join(render(template, states=lambda name: states.get(name, "unknown"))).strip()
 
-    assert посчитать(живые) == "True"
+    assert count(live) == "True"
 
-    for отвалившийся in живые:
-        assert посчитать({**живые, отвалившийся: "unavailable"}) == "False", (
-            f"отвал {отвалившийся} не замечен"
+    for dropped in live:
+        assert count({**live, dropped: "unavailable"}) == "False", (
+            f"отвал {dropped} не замечен"
         )
-        assert посчитать({**живые, отвалившийся: "unknown"}) == "False", (
-            f"{отвалившийся} в unknown не замечен"
+        assert count({**live, dropped: "unknown"}) == "False", (
+            f"{dropped} в unknown не замечен"
         )
 
 
 @pytest.mark.parametrize(
-    ("nas_ok", "ожидание"),
+    ("nas_ok", "expected"),
     [(True, "✅ Всё в порядке"), (False, "⚠️ Нет данных от NAS")],
 )
-def test_вердикт_знает_про_отвал_интеграции(nas_ok: bool, ожидание: str) -> None:
+def test_verdict_knows_about_integration_loss(nas_ok: bool, expected: str) -> None:
     """Вердикт считался из нулей и потому был бодрым при отсутствии данных."""
-    шаблон = переменная_скрипта("pachca.yaml", "pachca_report", "verdict")
-    итог = "\n".join(отрисовать(шаблон, cont_down=0, svc_down=[], disks=[],
+    template = script_var("pachca.yaml", "pachca_report", "verdict")
+    total = "\n".join(render(template, cont_down=0, svc_down=[], disks=[],
                                 svc_down_min=0, cont_down_min=0,
                                 vol_used=42.0, nas_temp=38.0, nas_ok=nas_ok))
-    assert ожидание in итог
+    assert expected in total
 
 
 # --- уведомление об упавшем контейнере -------------------------------------
 
-def падение(детали: list[str], oom: bool = False) -> list[str]:
-    return отрисовать(
-        текст_автоматизации("docker.yaml", "docker_container_down"),
-        running=8 - len(детали), total=8,
-        state_attr=lambda e, a: {"down_detail": детали, "oom": oom}.get(a),
+def outage(details: list[str], oom: bool = False) -> list[str]:
+    return render(
+        automation_text("docker.yaml", "docker_container_down"),
+        running=8 - len(details), total=8,
+        state_attr=lambda e, a: {"down_detail": details, "oom": oom}.get(a),
     )
 
 
-def test_два_упавших_контейнера_на_двух_строках() -> None:
-    строки = падение(["radarr — Exited (137)", "prowlarr — контейнера нет"])
-    assert len([с for с in строки if с.startswith("🔻")]) == 2, строки
+def test_two_down_containers_on_two_lines() -> None:
+    lines = outage(["radarr — Exited (137)", "prowlarr — контейнера нет"])
+    assert len([s for s in lines if s.startswith("🔻")]) == 2, lines
 
 
-def test_счётчик_и_подсказка_отдельными_абзацами() -> None:
-    строки = падение(["radarr — Exited (1)"])
-    assert "Работает 7 из 8." in строки
-    assert any(с.startswith("Поднять:") for с in строки)
-    assert "" in строки, "абзацы слиплись"
+def test_counter_and_hint_are_separate_paragraphs() -> None:
+    lines = outage(["radarr — Exited (1)"])
+    assert "Работает 7 из 8." in lines
+    assert any(s.startswith("Поднять:") for s in lines)
+    assert "" in lines, "абзацы слиплись"
 
 
-def test_предупреждение_о_нехватке_памяти_появляется_только_при_oom() -> None:
-    без = "\n".join(падение(["radarr — Exited (1)"], oom=False))
-    с_ним = "\n".join(падение(["radarr — Exited (137)"], oom=True))
-    assert "137" not in без
-    assert "нехватки памяти" in с_ним
+def test_memory_warning_appears_only_on_oom() -> None:
+    without = "\n".join(outage(["radarr — Exited (1)"], oom=False))
+    with_it = "\n".join(outage(["radarr — Exited (137)"], oom=True))
+    assert "137" not in without
+    assert "нехватки памяти" in with_it
 
 
-@pytest.mark.parametrize("файл,шаблон", [
+@pytest.mark.parametrize("path,template", [
     ("pachca.yaml", "📊 **DS725+ — сводка за сутки**"),
     ("docker.yaml", "🔻 **{{ line }}**"),
 ])
-def test_многострочные_тела_записаны_литеральным_скаляром(файл, шаблон) -> None:
+def test_multiline_bodies_use_a_literal_scalar(path, template) -> None:
     """
     Прямая проверка причины: свёрнутый скаляр для сообщения с циклом
     неверен всегда, сколько бы правильно ни выглядел исходник.
     """
-    строки = (ПАКЕТЫ / файл).read_text(encoding="utf-8").splitlines()
-    место = next(i for i, с in enumerate(строки) if шаблон in с)
-    объявление = next(с for с in reversed(строки[:место]) if с.rstrip().endswith(("|-", ">-", '"')))
-    assert объявление.rstrip().endswith("|-"), f"{файл}: {объявление.strip()}"
+    lines = (PACKAGES / path).read_text(encoding="utf-8").splitlines()
+    place = next(i for i, s in enumerate(lines) if template in s)
+    declaration = next(s for s in reversed(lines[:place]) if s.rstrip().endswith(("|-", ">-", '"')))
+    assert declaration.rstrip().endswith("|-"), f"{path}: {declaration.strip()}"
 
 
 # --- общий шаблон уведомлений ----------------------------------------------
@@ -279,24 +280,24 @@ def test_многострочные_тела_записаны_литеральн
 #  Assistant это означало бы отказ рендеринга в каждом уведомлении —
 #  от «упал контейнер» до сообщения о перезапуске.
 
-ПОЛЯ_NOTIFY = {"icon", "title", "text", "level", "now"}
+NOTIFY_FIELDS = {"icon", "title", "text", "level", "now"}
 
 
-def test_общий_шаблон_не_знает_чужих_переменных() -> None:
-    тело = переменная_скрипта("pachca.yaml", "pachca_notify", "body")
-    имена = set(re.findall(r"\{\{\s*([a-z_]+)", тело))
-    чужие = имена - ПОЛЯ_NOTIFY
-    assert not чужие, (
-        f"pachca_notify обращается к {sorted(чужие)} — вызывающие передают "
-        f"только {sorted(ПОЛЯ_NOTIFY - {'icon', 'now'})}, и рендеринг откажет"
+def test_shared_template_knows_no_foreign_variables() -> None:
+    body = script_var("pachca.yaml", "pachca_notify", "body")
+    names = set(re.findall(r"\{\{\s*([a-z_]+)", body))
+    foreign = names - NOTIFY_FIELDS
+    assert not foreign, (
+        f"pachca_notify обращается к {sorted(foreign)} — вызывающие передают "
+        f"только {sorted(NOTIFY_FIELDS - {'icon', 'now'})}, и рендеринг откажет"
     )
 
 
-def test_общий_шаблон_собирает_заголовок_и_текст() -> None:
-    тело = переменная_скрипта("pachca.yaml", "pachca_notify", "body")
-    строки = отрисовать(
-        тело, icon="🔴", title="Упал контейнер", text="🔻 **radarr**",
+def test_shared_template_joins_title_and_text() -> None:
+    body = script_var("pachca.yaml", "pachca_notify", "body")
+    lines = render(
+        body, icon="🔴", title="Упал контейнер", text="🔻 **radarr**",
         now=lambda: __import__("datetime").datetime(2026, 9, 18, 9, 0),
     )
-    assert строки[0] == "🔴 **Упал контейнер**"
-    assert "🔻 **radarr**" in строки
+    assert lines[0] == "🔴 **Упал контейнер**"
+    assert "🔻 **radarr**" in lines

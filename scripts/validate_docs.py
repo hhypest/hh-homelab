@@ -251,17 +251,17 @@ def tracked_files() -> list[str]:
     и validate_docs.py — все трое читают индекс одинаково.
     """
     try:
-        готово = subprocess.run(
+        rendered = subprocess.run(
             ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=False,
         )
     except OSError as err:
         sys.exit(f"git недоступен: {err}")
-    if готово.returncode != 0:
-        sys.exit(f"git ls-files вернул {готово.returncode}: {готово.stderr.strip()}")
-    файлы = готово.stdout.splitlines()
-    if not файлы:
+    if rendered.returncode != 0:
+        sys.exit(f"git ls-files вернул {rendered.returncode}: {rendered.stderr.strip()}")
+    paths = rendered.stdout.splitlines()
+    if not paths:
         sys.exit("git ls-files не вернул ни одного файла — проверять нечего, это не успех")
-    return файлы
+    return paths
 
 
 def main() -> int:

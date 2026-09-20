@@ -69,18 +69,18 @@ IMAGE_ENV = ("DOCKER_MODS", "UNIVERSAL_MODS")
 
 # Слова, по которым тег опознаётся как не-релиз. Форма отсеивает почти всё,
 # но в разделе «форма изменилась» фильтровать приходится явно.
-ПРЕДРЕЛИЗ = re.compile(
+PRERELEASE = re.compile(
     r"(?:^|[-._])(?:nightly|develop|dev|beta|alpha|rc|pre|unstable|test|edge|"
     r"snapshot|canary|master|main|latest)(?:[-._]|\d|$)",
     re.I,
 )
 # Хвост вида 2026.9.0b2 — бета Home Assistant.
-БЕТА_ХВОСТ = re.compile(r"\d+[ab]\d+$")
+BETA_SUFFIX = re.compile(r"\d+[ab]\d+$")
 # Теги-дайджесты и теги по коммиту: реестр отдаёт их вперемешку с обычными,
 # а числа в них к версии отношения не имеют.
-ДАЙДЖЕСТ = re.compile(r"^sha\d*[-.]")
+DIGEST = re.compile(r"^sha\d*[-.]")
 
-ТАЙМАУТ = 30
+TIMEOUT = 30
 
 
 def images(path: str) -> dict[str, str]:
@@ -107,30 +107,30 @@ def images(path: str) -> dict[str, str]:
     return found
 
 
-def разобрать(ссылка: str) -> tuple[str, str, str]:
+def parse(link: str) -> tuple[str, str, str]:
     """`lscr.io/linuxserver/jellyfin:10.11.11ubu2604-ls47` → реестр, репозиторий, тег."""
-    голова, _, хвост = ссылка.rpartition("/")
-    if ":" not in хвост:
-        raise ValueError(f"у образа {ссылка} нет тега")
-    имя, тег = хвост.rsplit(":", 1)
-    if "/" not in голова or "." not in голова.split("/", 1)[0]:
+    head, _, tail = link.rpartition("/")
+    if ":" not in tail:
+        raise ValueError(f"у образа {link} нет тега")
+    name, tag = tail.rsplit(":", 1)
+    if "/" not in head or "." not in head.split("/", 1)[0]:
         raise ValueError(
-            f"в ссылке {ссылка} не указан реестр — поддерживаются только полные ссылки"
+            f"в ссылке {link} не указан реестр — поддерживаются только полные ссылки"
         )
-    реестр, _, путь = голова.partition("/")
-    return реестр, f"{путь}/{имя}", тег
+    registry, _, path_str = head.partition("/")
+    return registry, f"{path_str}/{name}", tag
 
 
-def форма(тег: str) -> str:
+def shape(tag: str) -> str:
     """Все цепочки цифр заменяются на N: «5.2.3-ls474» → «N.N.N-lsN»."""
-    return re.sub(r"\d+", "N", тег)
+    return re.sub(r"\d+", "N", tag)
 
 
-def числа(тег: str) -> tuple[int, ...]:
-    return tuple(int(x) for x in re.findall(r"\d+", тег))
+def numbers(tag: str) -> tuple[int, ...]:
+    return tuple(int(x) for x in re.findall(r"\d+", tag))
 
 
-def скелет(тег: str) -> str:
+def skeleton(tag: str) -> str:
     """
     Форма без учёта того, сколько в версии числовых частей.
 
@@ -142,30 +142,30 @@ def скелет(тег: str) -> str:
     Заодно отсекает похожее по числам, но чужое по природе:
     у `sha-8253831` скелет «sha-», у `3.4-pr-186` — «.-pr-».
     """
-    return re.sub(r"\.{2,}", ".", re.sub(r"\d+", "", тег))
+    return re.sub(r"\.{2,}", ".", re.sub(r"\d+", "", tag))
 
 
-def релиз(тег: str) -> bool:
+def release(tag: str) -> bool:
     """Похож ли тег на выпуск, а не на ночную сборку или дайджест."""
-    if ДАЙДЖЕСТ.match(тег) or БЕТА_ХВОСТ.search(тег):
+    if DIGEST.match(tag) or BETA_SUFFIX.search(tag):
         return False
-    return not ПРЕДРЕЛИЗ.search(тег)
+    return not PRERELEASE.search(tag)
 
 
-def _токен(вызов: str) -> str | None:
+def _token(call: str) -> str | None:
     """Разбирает заголовок WWW-Authenticate и забирает анонимный токен."""
-    if not вызов.lower().startswith("bearer "):
+    if not call.lower().startswith("bearer "):
         return None
-    поля = dict(re.findall(r'(\w+)="([^"]*)"', вызов))
-    realm = поля.pop("realm", None)
+    fields = dict(re.findall(r'(\w+)="([^"]*)"', call))
+    realm = fields.pop("realm", None)
     if not realm:
         return None
-    адрес = f"{realm}?{urllib.parse.urlencode(поля)}" if поля else realm
-    with urllib.request.urlopen(адрес, timeout=ТАЙМАУТ) as ответ:
-        return json.load(ответ).get("token")
+    address = f"{realm}?{urllib.parse.urlencode(fields)}" if fields else realm
+    with urllib.request.urlopen(address, timeout=TIMEOUT) as answer:
+        return json.load(answer).get("token")
 
 
-def теги(реестр: str, репозиторий: str) -> list[str]:
+def tags(registry: str, repo: str) -> list[str]:
     """
     Все теги репозитория, со страницами.
 
@@ -174,105 +174,111 @@ def теги(реестр: str, репозиторий: str) -> list[str]:
     тысяч, и нужный лежит на последней странице — без обхода проверка
     честно отвечала бы «обновлений нет».
     """
-    путь = f"/v2/{репозиторий}/tags/list?n=1000"
-    токен: str | None = None
-    собрано: list[str] = []
+    path_str = f"/v2/{repo}/tags/list?n=1000"
+    token: str | None = None
+    collected: list[str] = []
 
-    while путь:
-        запрос = urllib.request.Request(f"https://{реестр}{путь}")
-        if токен:
-            запрос.add_header("Authorization", f"Bearer {токен}")
+    while path_str:
+        request = urllib.request.Request(f"https://{registry}{path_str}")
+        if token:
+            request.add_header("Authorization", f"Bearer {token}")
         try:
-            with urllib.request.urlopen(запрос, timeout=ТАЙМАУТ) as ответ:
-                собрано += json.load(ответ).get("tags") or []
-                следующая = ответ.headers.get("Link")
-        except urllib.error.HTTPError as ошибка:
-            if ошибка.code == 401 and токен is None:
-                токен = _токен(ошибка.headers.get("WWW-Authenticate", ""))
-                if токен:
+            with urllib.request.urlopen(request, timeout=TIMEOUT) as answer:
+                collected += json.load(answer).get("tags") or []
+                next_one = answer.headers.get("Link")
+        except urllib.error.HTTPError as error:
+            if error.code == 401 and token is None:
+                token = _token(error.headers.get("WWW-Authenticate", ""))
+                if token:
                     continue
             raise
-        путь = re.sub(r".*<([^>]*)>.*", r"\1", следующая) if следующая else ""
-    return собрано
+        path_str = re.sub(r".*<([^>]*)>.*", r"\1", next_one) if next_one else ""
+    return collected
 
 
-def сравнить(закреплён: str, доступные: list[str]) -> tuple[list[str], list[str]]:
+def compare(pinned: str, available: list[str]) -> tuple[list[str], list[str]]:
     """
     Возвращает (новее той же формы, теги изменившейся формы).
 
     Вторая половина заполняется, только когда обновлений своей формы нет:
     иначе она была бы шумом на каждом образе.
     """
-    наша = форма(закреплён)
-    эталон = числа(закреплён)
+    ours = shape(pinned)
+    reference = numbers(pinned)
 
-    новее = sorted(
-        (т for т in доступные if форма(т) == наша and числа(т) > эталон),
-        key=числа,
+    newer = sorted(
+        (t for t in available if shape(t) == ours and numbers(t) > reference),
+        key=numbers,
     )
-    if новее:
-        return новее, []
+    if newer:
+        return newer, []
 
-    наш_скелет = скелет(закреплён)
-    иные = sorted(
+    our_skeleton = skeleton(pinned)
+    others = sorted(
         {
-            т for т in доступные
-            if форма(т) != наша
-            and скелет(т) == наш_скелет
-            and релиз(т)
-            and числа(т) > эталон
+            t for t in available
+            if shape(t) != ours
+            and skeleton(t) == our_skeleton
+            and release(t)
+            and numbers(t) > reference
         },
-        key=числа,
+        key=numbers,
     )
-    return [], иные
+    return [], others
 
 
 def main() -> int:
-    разбор = argparse.ArgumentParser(description="Сверка версий образов с реестром")
-    разбор.add_argument("--образ", help="проверить только образы, чьё имя содержит эту строку")
-    доводы = разбор.parse_args()
+    parser = argparse.ArgumentParser(description="Сверка версий образов с реестром")
+    # Ключ остаётся русским: это интерфейс, а не имя в коде. А вот dest
+    # обязателен — иначе argparse выведет имя атрибута из самого ключа
+    # и положит в namespace «образ», тогда как читается args.image.
+    parser.add_argument(
+        "--образ", dest="image",
+        help="проверить только образы, чьё имя содержит эту строку",
+    )
+    args = parser.parse_args()
 
-    отстали: list[str] = []
-    внимание: list[str] = []
+    behind: list[str] = []
+    attention: list[str] = []
 
-    for файл in COMPOSE:
-        for имя, ссылка in images(файл).items():
-            if доводы.образ and доводы.образ.lower() not in ссылка.lower():
+    for path in COMPOSE:
+        for name, link in images(path).items():
+            if args.image and args.image.lower() not in link.lower():
                 continue
             try:
-                реестр, репозиторий, закреплён = разобрать(ссылка)
-                доступные = теги(реестр, репозиторий)
-            except (urllib.error.URLError, ValueError, OSError) as ошибка:
-                print(f"  ОШИБКА {имя}: {ошибка}")
+                registry, repo, pinned = parse(link)
+                available = tags(registry, repo)
+            except (urllib.error.URLError, ValueError, OSError) as error:
+                print(f"  ОШИБКА {name}: {error}")
                 return 2
 
-            новее, иные = сравнить(закреплён, доступные)
-            if новее:
-                отстали.append(f"{имя}: {закреплён} → {новее[-1]}")
-                хвост = f"новее: {', '.join(новее[-3:])}"
-                print(f"  ОТСТАЛ  {имя:<28} {закреплён:<26} {хвост}")
-            elif иные:
-                внимание.append(f"{имя}: форма тега изменилась")
-                примеры = ", ".join(иные[-3:])
-                print(f"  СМОТРЕТЬ {имя:<27} {закреплён:<26} другая форма: {примеры}")
+            newer, others = compare(pinned, available)
+            if newer:
+                behind.append(f"{name}: {pinned} → {newer[-1]}")
+                tail = f"новее: {', '.join(newer[-3:])}"
+                print(f"  ОТСТАЛ  {name:<28} {pinned:<26} {tail}")
+            elif others:
+                attention.append(f"{name}: форма тега изменилась")
+                samples = ", ".join(others[-3:])
+                print(f"  СМОТРЕТЬ {name:<27} {pinned:<26} другая форма: {samples}")
             else:
-                print(f"  свежий  {имя:<28} {закреплён}")
+                print(f"  свежий  {name:<28} {pinned}")
 
     print()
-    if not отстали and not внимание:
+    if not behind and not attention:
         print(f"Все образы на свежих версиях. Проверено: "
               f"{sum(len(images(f)) for f in COMPOSE)}.")
         return 0
 
-    if отстали:
-        print(f"Отстали ({len(отстали)}):")
-        for строка in отстали:
-            print(f"  · {строка}")
-    if внимание:
-        print(f"\nТребуют человека ({len(внимание)}): форма тега изменилась, "
+    if behind:
+        print(f"Отстали ({len(behind)}):")
+        for line in behind:
+            print(f"  · {line}")
+    if attention:
+        print(f"\nТребуют человека ({len(attention)}): форма тега изменилась, "
               f"машине ранжировать нельзя.")
-        for строка in внимание:
-            print(f"  · {строка}")
+        for line in attention:
+            print(f"  · {line}")
         print("  Схема нумерации могла поменяться — прочитайте release notes,")
         print("  прежде чем поднимать версию.")
     return 1

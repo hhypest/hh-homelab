@@ -38,7 +38,7 @@ def test_parse_alone_misses_unknown_filter():
         plain.from_string(BROKEN)
 
 
-def test_окружение_отвергает_неизвестный_фильтр():
+def test_environment_rejects_an_unknown_filter():
     with pytest.raises(jinja2.TemplateAssertionError):
         vc.ha_environment().from_string(BROKEN)
 
@@ -46,7 +46,7 @@ def test_окружение_отвергает_неизвестный_фильт
 BROKEN_TEST = "{% if x is definitely_missing_test %}да{% endif %}"
 
 
-def test_компиляция_одна_не_ловит_неизвестный_тест():
+def test_compilation_alone_misses_an_unknown_test():
     """
     Вторая половина той же дыры, найденная упавшим тестом.
 
@@ -60,11 +60,11 @@ def test_компиляция_одна_не_ловит_неизвестный_т
         env.from_string(BROKEN_TEST).render(x=1)
 
 
-def test_неизвестный_тест_находится_по_дереву():
+def test_unknown_test_is_found_via_the_tree():
     assert vc.unknown_tests(vc.ha_environment(), BROKEN_TEST) == ["definitely_missing_test"]
 
 
-def test_известные_тесты_не_считаются_неизвестными():
+def test_known_tests_are_not_reported_as_unknown():
     env = vc.ha_environment()
     assert vc.unknown_tests(env, "{% if name is search('radarr') %}да{% endif %}") == []
     assert vc.unknown_tests(env, "{% if x is defined %}да{% endif %}") == []
@@ -80,12 +80,12 @@ def test_известные_тесты_не_считаются_неизвест�
         "{{ '%02d' % (number | int(0)) }}",
     ],
 )
-def test_настоящие_шаблоны_компилируются(template):
+def test_real_templates_compile(template):
     """Заглушки не должны мешать: имена Home Assistant и обычный Jinja проходят."""
     vc.ha_environment().from_string(template)
 
 
-def test_все_шаблоны_репозитория_компилируются():
+def test_all_repository_templates_compile():
     """
     Регрессия на случай, если список HA_FILTERS отстанет от конфигурации:
     здесь падает та же проверка, что и в CI, но с именем файла под рукой.

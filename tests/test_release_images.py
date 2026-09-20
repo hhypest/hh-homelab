@@ -21,56 +21,56 @@ import subprocess
 
 from conftest import ROOT, load
 
-СКРИПТ = ROOT / "scripts" / "release_images.sh"
+SCRIPT = ROOT / "scripts" / "release_images.sh"
 WORKFLOW = ROOT / ".github" / "workflows" / "release.yml"
 
 ci = load(ROOT / "scripts" / "check_image_updates.py")
 COMPOSE = ci.COMPOSE
 
-СТРОКА = re.compile(r"^\| `(?P<имя>[^`]+)` \| `(?P<тег>[^`]+)` \|$")
+LINE = re.compile(r"^\| `(?P<имя>[^`]+)` \| `(?P<тег>[^`]+)` \|$")
 
 
-def собрать(*файлы: str) -> str:
-    готово = subprocess.run(
-        ["sh", str(СКРИПТ), *файлы],
+def build(*paths: str) -> str:
+    rendered = subprocess.run(
+        ["sh", str(SCRIPT), *paths],
         cwd=ROOT,
         capture_output=True,
         text=True,
         check=False,
     )
-    assert готово.returncode == 0, f"скрипт упал: {готово.stderr}"
-    return готово.stdout
+    assert rendered.returncode == 0, f"скрипт упал: {rendered.stderr}"
+    return rendered.stdout
 
 
-def образы(вывод: str) -> set[str]:
+def images(output: str) -> set[str]:
     """Строки таблицы обратно в ссылки вида репозиторий:тег."""
-    найдено = set()
-    for строка in вывод.splitlines()[2:]:
-        совпало = СТРОКА.match(строка)
-        assert совпало, f"строка таблицы не разобралась: {строка!r}"
-        найдено.add(f"{совпало['имя']}:{совпало['тег']}")
-    return найдено
+    found = set()
+    for line in output.splitlines()[2:]:
+        matched = LINE.match(line)
+        assert matched, f"строка таблицы не разобралась: {line!r}"
+        found.add(f"{matched['имя']}:{matched['тег']}")
+    return found
 
 
-def test_таблица_совпадает_с_разбором_через_pyyaml() -> None:
+def test_table_matches_the_pyyaml_parse() -> None:
     """Два разбора — на awk и на pyyaml — видят один и тот же список."""
-    через_yaml = set()
-    for путь in COMPOSE:
-        через_yaml.update(ci.images(путь).values())
-    assert образы(собрать(*COMPOSE)) == через_yaml
+    via_yaml = set()
+    for path_str in COMPOSE:
+        via_yaml.update(ci.images(path_str).values())
+    assert images(build(*COMPOSE)) == via_yaml
 
 
-def test_заголовок_таблицы_на_месте() -> None:
-    строки = собрать(*COMPOSE).splitlines()
-    assert строки[0] == "| Образ | Версия |"
-    assert строки[1] == "|---|---|"
-    assert len(строки) > 2, "таблица без единого образа — описание выпуска будет пустым"
+def test_table_header_is_present() -> None:
+    lines = build(*COMPOSE).splitlines()
+    assert lines[0] == "| Образ | Версия |"
+    assert lines[1] == "|---|---|"
+    assert len(lines) > 2, "таблица без единого образа — описание выпуска будет пустым"
 
 
-def test_слово_image_в_комментарии_не_образ(tmp_path) -> None:
+def test_word_image_in_a_comment_is_not_an_image(tmp_path) -> None:
     """Регрессия выпуска 1.1.0: в таблицу попала запятая из комментария."""
-    файл = tmp_path / "compose.yaml"
-    файл.write_text(
+    path = tmp_path / "compose.yaml"
+    path.write_text(
         "services:\n"
         "  app:\n"
         "    # он ищет поля image:, а здесь образ спрятан в переменной\n"
@@ -78,13 +78,13 @@ def test_слово_image_в_комментарии_не_образ(tmp_path) ->
         "    image: example.org/app:1.2.3\n",
         encoding="utf-8",
     )
-    assert образы(собрать(str(файл))) == {"example.org/app:1.2.3"}
+    assert images(build(str(path))) == {"example.org/app:1.2.3"}
 
 
-def test_моды_из_окружения_попадают_в_таблицу(tmp_path) -> None:
+def test_mods_from_environment_reach_the_table(tmp_path) -> None:
     """DOCKER_MODS скачивается при каждом старте — в составе выпуска он нужен."""
-    файл = tmp_path / "compose.yaml"
-    файл.write_text(
+    path = tmp_path / "compose.yaml"
+    path.write_text(
         "services:\n"
         "  app:\n"
         "    image: example.org/app:1.2.3\n"
@@ -94,7 +94,7 @@ def test_моды_из_окружения_попадают_в_таблицу(tmp
         "      - NOT_A_MOD=example.org/nope:4.0.0\n",
         encoding="utf-8",
     )
-    assert образы(собрать(str(файл))) == {
+    assert images(build(str(path))) == {
         "example.org/app:1.2.3",
         "example.org/first:1.0.0",
         "example.org/second:2.0.0",
@@ -102,43 +102,43 @@ def test_моды_из_окружения_попадают_в_таблицу(tmp
     }
 
 
-def test_хвостовой_комментарий_не_прилипает_к_тегу(tmp_path) -> None:
-    файл = tmp_path / "compose.yaml"
-    файл.write_text(
+def test_trailing_comment_does_not_stick_to_the_tag(tmp_path) -> None:
+    path = tmp_path / "compose.yaml"
+    path.write_text(
         "services:\n  app:\n    image: example.org/app:1.2.3  # см. выпуски\n",
         encoding="utf-8",
     )
-    assert образы(собрать(str(файл))) == {"example.org/app:1.2.3"}
+    assert images(build(str(path))) == {"example.org/app:1.2.3"}
 
 
-def test_образ_без_тега_останавливает_выпуск(tmp_path) -> None:
+def test_image_without_tag_stops_the_release(tmp_path) -> None:
     """Молча выпустить «версию latest» нельзя: пусть падает здесь."""
-    файл = tmp_path / "compose.yaml"
-    файл.write_text("services:\n  app:\n    image: example.org/app\n", encoding="utf-8")
-    готово = subprocess.run(
-        ["sh", str(СКРИПТ), str(файл)],
+    path = tmp_path / "compose.yaml"
+    path.write_text("services:\n  app:\n    image: example.org/app\n", encoding="utf-8")
+    rendered = subprocess.run(
+        ["sh", str(SCRIPT), str(path)],
         cwd=ROOT,
         capture_output=True,
         text=True,
         check=False,
     )
-    assert готово.returncode != 0
-    assert "нет тега" in готово.stderr
+    assert rendered.returncode != 0
+    assert "нет тега" in rendered.stderr
 
 
-def test_без_аргументов_скрипт_не_делает_пустую_таблицу() -> None:
-    готово = subprocess.run(
-        ["sh", str(СКРИПТ)], cwd=ROOT, capture_output=True, text=True, check=False
+def test_without_arguments_the_script_makes_no_empty_table() -> None:
+    rendered = subprocess.run(
+        ["sh", str(SCRIPT)], cwd=ROOT, capture_output=True, text=True, check=False
     )
-    assert готово.returncode == 2
+    assert rendered.returncode == 2
 
 
-def test_выпуск_собирает_таблицу_этим_скриптом() -> None:
+def test_release_builds_the_table_with_this_script() -> None:
     """Однострочник в workflow разошёлся с тестами один раз — хватит."""
-    текст = WORKFLOW.read_text(encoding="utf-8")
-    assert "scripts/release_images.sh" in текст, (
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "scripts/release_images.sh" in text, (
         "описание выпуска собирается мимо scripts/release_images.sh — "
         "значит, разбор снова написан дважды и снова может разойтись"
     )
-    for путь in COMPOSE:
-        assert путь in текст, f"{путь} не передан скрипту — его образы не попадут в выпуск"
+    for path_str in COMPOSE:
+        assert path_str in text, f"{path_str} не передан скрипту — его образы не попадут в выпуск"

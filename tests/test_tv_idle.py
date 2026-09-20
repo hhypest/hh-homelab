@@ -47,14 +47,14 @@ import pytest
 import yaml
 from conftest import ROOT
 
-ПАКЕТ = ROOT / "homeassistant" / "config" / "packages" / "media_tv.yaml"
+PACKAGE = ROOT / "homeassistant" / "config" / "packages" / "media_tv.yaml"
 
-ТВ = "media_player.lg_tv"
+TV = "media_player.lg_tv"
 CAST = "media_player.rocktek_gx1_cast"
-ПУЛЬТ = "media_player.rocktek_gx1"
+REMOTE = "media_player.rocktek_gx1"
 JELLYFIN = "media_player.jellyfin_rocktek_gx1"
-ЧУЖОЙ_JELLYFIN = "media_player.jellyfin_phone"
-ПРОСМОТР = "binary_sensor.tv_watching"
+OTHER_JELLYFIN = "media_player.jellyfin_phone"
+WATCHING = "binary_sensor.tv_watching"
 
 
 class Loader(yaml.SafeLoader):
@@ -64,59 +64,59 @@ class Loader(yaml.SafeLoader):
 Loader.add_multi_constructor("!", lambda loader, suffix, node: None)
 
 
-def шаблон_сенсора(unique_id: str) -> str:
+def sensor_template(unique_id: str) -> str:
     """Шаблон состояния сенсора по его unique_id, а не по подстроке в файле."""
-    данные = yaml.load(ПАКЕТ.read_text(encoding="utf-8"), Loader=Loader)
-    for блок in данные["template"]:
-        for запись in (блок or {}).get("binary_sensor") or []:
-            if запись.get("unique_id") == unique_id:
-                return запись["state"]
-    raise AssertionError(f"в {ПАКЕТ.name} нет сенсора с unique_id={unique_id}")
+    data = yaml.load(PACKAGE.read_text(encoding="utf-8"), Loader=Loader)
+    for block in data["template"]:
+        for entry in (block or {}).get("binary_sensor") or []:
+            if entry.get("unique_id") == unique_id:
+                return entry["state"]
+    raise AssertionError(f"в {PACKAGE.name} нет сенсора с unique_id={unique_id}")
 
 
-def отрисовать(шаблон: str, состояния: dict[str, str], просмотр: str | None = None) -> str:
-    окружение = jinja2.Environment()
-    окружение.globals["states"] = lambda имя: состояния.get(имя, "unknown")
-    окружение.globals["is_state"] = lambda имя, знач: (
-        просмотр == знач if имя == ПРОСМОТР else состояния.get(имя) == знач
+def render(template: str, states: dict[str, str], watching: str | None = None) -> str:
+    env = jinja2.Environment()
+    env.globals["states"] = lambda name: states.get(name, "unknown")
+    env.globals["is_state"] = lambda name, val: (
+        watching == val if name == WATCHING else states.get(name) == val
     )
     # Заглушка отдаёт все сессии Jellyfin, какие есть в состояниях: иначе
     # прежний обход integration_entities вёл бы себя в тесте безупречно
     # ровно потому, что ему нечего обходить.
-    окружение.globals["integration_entities"] = lambda домен: (
-        [и for и in состояния if и.startswith("media_player.jellyfin")]
-        if домен == "jellyfin" else []
+    env.globals["integration_entities"] = lambda domain: (
+        [i for i in states if i.startswith("media_player.jellyfin")]
+        if domain == "jellyfin" else []
     )
-    return окружение.from_string(шаблон).render().strip()
+    return env.from_string(template).render().strip()
 
 
-def булево(вывод: str) -> bool:
-    assert вывод in ("True", "False"), f"сенсор вернул не булево: {вывод!r}"
-    return вывод == "True"
+def as_bool(output: str) -> bool:
+    assert output in ("True", "False"), f"сенсор вернул не булево: {output!r}"
+    return output == "True"
 
 
-def просмотр(тв: str, cast: str, jellyfin: str | None = None,
-             чужой_jellyfin: str | None = None) -> bool:
+def watching(tv: str, cast: str, jellyfin: str | None = None,
+             other_jellyfin: str | None = None) -> bool:
     """binary_sensor.tv_watching — общий признак «на этом телевизоре смотрят»."""
-    состояния = {ТВ: тв, CAST: cast, ПУЛЬТ: "on"}
+    states = {TV: tv, CAST: cast, REMOTE: "on"}
     if jellyfin is not None:
-        состояния[JELLYFIN] = jellyfin
-    if чужой_jellyfin is not None:
-        состояния[ЧУЖОЙ_JELLYFIN] = чужой_jellyfin
-    return булево(отрисовать(шаблон_сенсора("tv_watching"), состояния))
+        states[JELLYFIN] = jellyfin
+    if other_jellyfin is not None:
+        states[OTHER_JELLYFIN] = other_jellyfin
+    return as_bool(render(sensor_template("tv_watching"), states))
 
 
-def простой(тв: str, cast: str, jellyfin: str | None = None,
-            чужой_jellyfin: str | None = None) -> bool:
+def idle(tv: str, cast: str, jellyfin: str | None = None,
+            other_jellyfin: str | None = None) -> bool:
     """binary_sensor.tv_idle — он же, но с оглядкой на состояние телевизора."""
-    идёт = просмотр(тв, cast, jellyfin, чужой_jellyfin)
-    return булево(отрисовать(
-        шаблон_сенсора("tv_idle_20min"), {ТВ: тв}, просмотр="on" if идёт else "off",
+    playing = watching(tv, cast, jellyfin, other_jellyfin)
+    return as_bool(render(
+        sensor_template("tv_idle_20min"), {TV: tv}, watching="on" if playing else "off",
     ))
 
 
 @pytest.mark.parametrize(
-    ("тв", "cast", "ожидание", "почему"),
+    ("tv", "cast", "expected", "why"),
     [
         ("on", "playing", False, "фильм через приставку — тот самый случай, ради которого всё"),
         ("on", "buffering", False, "буферизация — это тоже просмотр"),
@@ -131,92 +131,92 @@ def простой(тв: str, cast: str, jellyfin: str | None = None,
         ("unknown", "off", False, "состояние ещё не пришло"),
     ],
 )
-def test_таблица_простоя(тв: str, cast: str, ожидание: bool, почему: str) -> None:
-    assert простой(тв, cast) is ожидание, почему
+def test_idle_table(tv: str, cast: str, expected: bool, why: str) -> None:
+    assert idle(tv, cast) is expected, why
 
 
-@pytest.mark.parametrize("состояние", ["playing", "buffering"])
-def test_сессия_jellyfin_считается_просмотром(состояние: str) -> None:
+@pytest.mark.parametrize("state", ["playing", "buffering"])
+def test_jellyfin_session_counts_as_watching(state: str) -> None:
     """
     Измеренный случай: Jellyfin на приставке идёт, а Cast в idle — он этой
     медиасессии не видит. Без этой строки самый частый сценарий дома
     считался бы простоем.
     """
-    assert простой("on", "idle", jellyfin=состояние) is False
+    assert idle("on", "idle", jellyfin=state) is False
 
 
-@pytest.mark.parametrize("состояние", ["paused", "idle", "off"])
-def test_неиграющая_сессия_jellyfin_просмотром_не_считается(состояние: str) -> None:
-    assert простой("on", "idle", jellyfin=состояние) is True
+@pytest.mark.parametrize("state", ["paused", "idle", "off"])
+def test_non_playing_jellyfin_session_is_not_watching(state: str) -> None:
+    assert idle("on", "idle", jellyfin=state) is True
 
 
-def test_признак_просмотра_не_спрашивает_пульт() -> None:
+def test_watching_flag_does_not_query_the_remote() -> None:
     """
     Регрессия: пульт не выдаёт playing никогда, и условие
     «states(пульт) != 'playing'» было истинным всегда — то есть
     третьим условием, которое ничего не проверяет.
     """
-    шаблон = шаблон_сенсора("tv_watching")
-    assert f"'{ПУЛЬТ}'" not in шаблон and f'"{ПУЛЬТ}"' not in шаблон, (
+    template = sensor_template("tv_watching")
+    assert f"'{REMOTE}'" not in template and f'"{REMOTE}"' not in template, (
         "признак просмотра снова спрашивает пульт приставки"
     )
-    assert CAST in шаблон, "признак не спрашивает Cast — просмотр определить нечем"
+    assert CAST in template, "признак не спрашивает Cast — просмотр определить нечем"
 
 
-def test_простой_опирается_на_общий_признак() -> None:
+def test_idle_relies_on_the_shared_flag() -> None:
     """Два места с одним предикатом однажды разошлись — пусть будет одно."""
-    шаблон = шаблон_сенсора("tv_idle_20min")
-    assert ПРОСМОТР in шаблон
-    assert CAST not in шаблон, "предикат просмотра снова записан дважды"
+    template = sensor_template("tv_idle_20min")
+    assert WATCHING in template
+    assert CAST not in template, "предикат просмотра снова записан дважды"
 
 
-def test_чужая_сессия_jellyfin_не_держит_телевизор() -> None:
+def test_foreign_jellyfin_session_does_not_hold_the_tv() -> None:
     """
     Замечание Codex P2. Обход всех сессий интеграции считал просмотром
     Jellyfin на телефоне или в браузере: сенсор простоя не взводился,
     и забытый телевизор горел до конца чужого сеанса.
     """
-    assert простой("on", "idle", чужой_jellyfin="playing") is True
-    assert просмотр("on", "idle", чужой_jellyfin="playing") is False
+    assert idle("on", "idle", other_jellyfin="playing") is True
+    assert watching("on", "idle", other_jellyfin="playing") is False
 
 
-def test_признак_не_обходит_все_сессии_подряд() -> None:
+def test_flag_does_not_scan_every_session() -> None:
     """Прямая проверка причины: сессия берётся одна и именно этой приставки."""
-    шаблон = шаблон_сенсора("tv_watching")
-    assert "integration_entities" not in шаблон, (
+    template = sensor_template("tv_watching")
+    assert "integration_entities" not in template, (
         "признак снова считает просмотром любую сессию Jellyfin в доме"
     )
-    assert JELLYFIN in шаблон
+    assert JELLYFIN in template
 
 
-def test_ночная_проверка_знает_про_jellyfin_без_cast() -> None:
+def test_night_check_knows_jellyfin_without_cast() -> None:
     """
     Замечание Codex P2. Условие 4.3 смотрело только на Cast, а сенсор
     простоя учитывал ещё и Jellyfin. Просмотр без Cast-сессии не выключался
     ни по простою (сенсор не взводился), ни ночной проверкой (условие
     не выполнялось) — уснувший зритель оставлял телевизор до утра.
     """
-    данные = yaml.load(ПАКЕТ.read_text(encoding="utf-8"), Loader=Loader)
-    ночная = next(a for a in данные["automation"] if a.get("id") == "tv_night_sleep_check")
+    data = yaml.load(PACKAGE.read_text(encoding="utf-8"), Loader=Loader)
+    night = next(a for a in data["automation"] if a.get("id") == "tv_night_sleep_check")
 
-    условия = [у for у in ночная["conditions"] if у.get("entity_id") == ПРОСМОТР]
-    assert условия, "4.3 проверяет просмотр не тем же признаком, что сенсор простоя"
-    assert условия[0]["state"] == "on"
+    conditions = [u for u in night["conditions"] if u.get("entity_id") == WATCHING]
+    assert conditions, "4.3 проверяет просмотр не тем же признаком, что сенсор простоя"
+    assert conditions[0]["state"] == "on"
 
-    ожидание = [ш for ш in ночная["actions"] if "wait_for_trigger" in ш]
-    assert ожидание, "пропало ожидание возврата к просмотру"
-    триггер = ожидание[0]["wait_for_trigger"][0]
-    assert триггер["entity_id"] == ПРОСМОТР and триггер["to"] == "on", (
+    expected = [tpl for tpl in night["actions"] if "wait_for_trigger" in tpl]
+    assert expected, "пропало ожидание возврата к просмотру"
+    trigger = expected[0]["wait_for_trigger"][0]
+    assert trigger["entity_id"] == WATCHING and trigger["to"] == "on", (
         "ждём возврата не того признака, по которому решили, что просмотр шёл"
     )
 
 
-def test_пауза_отправляется_пультом() -> None:
+def test_pause_is_sent_with_the_remote() -> None:
     """Кнопка работает в любом приложении — в отличие от команды Cast."""
-    данные = yaml.load(ПАКЕТ.read_text(encoding="utf-8"), Loader=Loader)
-    ночная = next(a for a in данные["automation"] if a.get("id") == "tv_night_sleep_check")
-    пауза = [ш for ш in ночная["actions"] if ш.get("action") == "media_player.media_pause"]
-    assert пауза and пауза[0]["target"]["entity_id"] == ПУЛЬТ
+    data = yaml.load(PACKAGE.read_text(encoding="utf-8"), Loader=Loader)
+    night = next(a for a in data["automation"] if a.get("id") == "tv_night_sleep_check")
+    pause = [tpl for tpl in night["actions"] if tpl.get("action") == "media_player.media_pause"]
+    assert pause and pause[0]["target"]["entity_id"] == REMOTE
 
 
 # ---------------------------------------------------------------------------
@@ -237,49 +237,49 @@ def test_пауза_отправляется_пультом() -> None:
 #  То есть автоматика обрывалась на первом шаге: ни предупреждения, ни паузы,
 #  ни выключения. Home Assistant сообщал об этом как о «неизвестном действии».
 
-СЛУЖБЫ_ПО_ЗАГОЛОВКУ = ("notify.lg", "notify.webos", "notify.tv")
+SERVICES_BY_HEADING = ("notify.lg", "notify.webos", "notify.tv")
 
 
-def действия(ident: str) -> list[str]:
-    данные = yaml.load(ПАКЕТ.read_text(encoding="utf-8"), Loader=Loader)
-    запись = next(a for a in данные["automation"] if a.get("id") == ident)
-    return [ш["action"] for ш in запись["actions"] if isinstance(ш, dict) and "action" in ш]
+def actions(ident: str) -> list[str]:
+    data = yaml.load(PACKAGE.read_text(encoding="utf-8"), Loader=Loader)
+    entry = next(a for a in data["automation"] if a.get("id") == ident)
+    return [tpl["action"] for tpl in entry["actions"] if isinstance(tpl, dict) and "action" in tpl]
 
 
-def test_ночная_проверка_не_зовёт_службу_по_имени_устройства() -> None:
-    for служба in действия("tv_night_sleep_check"):
-        assert not служба.startswith(СЛУЖБЫ_ПО_ЗАГОЛОВКУ), (
-            f"{служба}: имя этой службы зависит от заголовка записи интеграции, "
+def test_night_check_calls_no_service_by_device_name() -> None:
+    for svc in actions("tv_night_sleep_check"):
+        assert not svc.startswith(SERVICES_BY_HEADING), (
+            f"{svc}: имя этой службы зависит от заголовка записи интеграции, "
             f"а не от сущности — на чужой системе её не существует, и вся "
             f"автоматика оборвётся на этом шаге"
         )
 
 
-def test_предупреждение_уходит_тостом_webos() -> None:
+def test_warning_goes_out_as_a_webos_toast() -> None:
     """Имя webostv.command фиксировано, а адресуется она сущностью."""
-    данные = yaml.load(ПАКЕТ.read_text(encoding="utf-8"), Loader=Loader)
-    запись = next(a for a in данные["automation"] if a.get("id") == "tv_night_sleep_check")
-    тост = [ш for ш in запись["actions"] if ш.get("action") == "webostv.command"]
-    assert тост, "предупреждение на экране пропало"
-    данные_шага = тост[0]["data"]
-    assert данные_шага["entity_id"] == ТВ
-    assert данные_шага["command"] == "system.notifications/createToast"
-    assert "message" in данные_шага["payload"]
-    assert тост[0].get("continue_on_error") is True, (
+    data = yaml.load(PACKAGE.read_text(encoding="utf-8"), Loader=Loader)
+    entry = next(a for a in data["automation"] if a.get("id") == "tv_night_sleep_check")
+    toast = [tpl for tpl in entry["actions"] if tpl.get("action") == "webostv.command"]
+    assert toast, "предупреждение на экране пропало"
+    step_data = toast[0]["data"]
+    assert step_data["entity_id"] == TV
+    assert step_data["command"] == "system.notifications/createToast"
+    assert "message" in step_data["payload"]
+    assert toast[0].get("continue_on_error") is True, (
         "выключенный телевизор не должен ронять автоматику — эту ошибку "
         "continue_on_error как раз подавляет"
     )
 
 
-def test_ни_одна_автоматика_не_зовёт_notify_по_имени_устройства() -> None:
+def test_no_automation_calls_notify_by_device_name() -> None:
     """Та же ошибка в другом файле стоила бы столько же."""
-    найдено = []
-    for путь in sorted(ПАКЕТ.parent.glob("*.yaml")):
-        текст = путь.read_text(encoding="utf-8")
-        for строка in текст.splitlines():
-            голое = строка.strip()
-            if голое.startswith(("- action:", "action:", "- service:", "service:")):
-                значение = голое.split(":", 1)[1].strip()
-                if значение.startswith(СЛУЖБЫ_ПО_ЗАГОЛОВКУ):
-                    найдено.append(f"{путь.name}: {значение}")
-    assert not найдено, найдено
+    found = []
+    for path_str in sorted(PACKAGE.parent.glob("*.yaml")):
+        text = path_str.read_text(encoding="utf-8")
+        for line in text.splitlines():
+            bare = line.strip()
+            if bare.startswith(("- action:", "action:", "- service:", "service:")):
+                value = bare.split(":", 1)[1].strip()
+                if value.startswith(SERVICES_BY_HEADING):
+                    found.append(f"{path_str.name}: {value}")
+    assert not found, found

@@ -27,30 +27,30 @@ from conftest import ROOT, load
 
 rp = load(ROOT / "scripts" / "render_pachca.py")
 
-СКРИПТЫ_С_GIT = ["check_files.py", "validate_config.py", "validate_docs.py"]
+SCRIPTS_WITH_GIT = ["check_files.py", "validate_config.py", "validate_docs.py"]
 
 
-def test_ноль_примеров_это_провал(tmp_path, monkeypatch) -> None:
+def test_zero_samples_is_a_failure(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(rp, "SAMPLES", tmp_path)
     monkeypatch.setattr(sys, "argv", ["render_pachca.py", "--check"])
     assert rp.main() == 1
 
 
-def test_пропажа_примеров_одного_сервиса_видна(tmp_path, monkeypatch, capsys) -> None:
+def test_missing_samples_of_one_service_are_noticed(tmp_path, monkeypatch, capsys) -> None:
     """Общий счётчик остаётся ненулевым — поэтому считать надо по сервисам."""
-    for имя in ("radarr-test.json", "prowlarr-health.json", "jellyfin-4k.json"):
-        (tmp_path / имя).write_text(
-            (rp.SAMPLES / имя).read_text(encoding="utf-8"), encoding="utf-8"
+    for name in ("radarr-test.json", "prowlarr-health.json", "jellyfin-4k.json"):
+        (tmp_path / name).write_text(
+            (rp.SAMPLES / name).read_text(encoding="utf-8"), encoding="utf-8"
         )
     monkeypatch.setattr(rp, "SAMPLES", tmp_path)
     monkeypatch.setattr(sys, "argv", ["render_pachca.py", "--check"])
     assert rp.main() == 1
-    вывод = capsys.readouterr().out
-    assert "seerr" in вывод
-    assert "Отрендерено: 0" not in вывод, "отрендерено не ноль — ловится именно пропажа сервиса"
+    output = capsys.readouterr().out
+    assert "seerr" in output
+    assert "Отрендерено: 0" not in output, "отрендерено не ноль — ловится именно пропажа сервиса"
 
 
-def test_битый_пример_не_роняет_скрипт(tmp_path, monkeypatch, capsys) -> None:
+def test_broken_sample_does_not_crash_the_script(tmp_path, monkeypatch, capsys) -> None:
     """Раньше JSONDecodeError вылетал трассировкой мимо списка проблем."""
     (tmp_path / "radarr-broken.json").write_text("{битый", encoding="utf-8")
     monkeypatch.setattr(rp, "SAMPLES", tmp_path)
@@ -59,35 +59,35 @@ def test_битый_пример_не_роняет_скрипт(tmp_path, monkey
     assert "не разбирается" in capsys.readouterr().out
 
 
-def test_правильные_примеры_по_прежнему_проходят(monkeypatch) -> None:
+def test_correct_samples_still_pass(monkeypatch) -> None:
     """Контроль: на настоящем каталоге примеров проверка остаётся зелёной."""
     monkeypatch.setattr(sys, "argv", ["render_pachca.py", "--check"])
     assert rp.main() == 0
 
 
-@pytest.mark.parametrize("скрипт", СКРИПТЫ_С_GIT)
-def test_без_git_проверка_не_печатает_успех(скрипт: str) -> None:
+@pytest.mark.parametrize("script", SCRIPTS_WITH_GIT)
+def test_without_git_the_check_prints_no_success(script: str) -> None:
     """
     PATH без git — то же, что git, вернувший ошибку: списка файлов нет.
 
     python3 берётся по абсолютному пути, поэтому пустой PATH ломает
     ровно то, что нужно сломать.
     """
-    готово = subprocess.run(
-        [sys.executable, f"scripts/{скрипт}"],
+    rendered = subprocess.run(
+        [sys.executable, f"scripts/{script}"],
         cwd=ROOT,
         capture_output=True,
         text=True,
         env={"PATH": "/несуществующий-каталог", "LANG": "C.UTF-8"},
         check=False,
     )
-    assert готово.returncode != 0, f"{скрипт} отчитался об успехе без git"
-    assert "git" in (готово.stdout + готово.stderr).lower(), (
-        f"{скрипт} упал, но не сказал, что виноват git"
+    assert rendered.returncode != 0, f"{script} отчитался об успехе без git"
+    assert "git" in (rendered.stdout + rendered.stderr).lower(), (
+        f"{script} упал, но не сказал, что виноват git"
     )
 
 
-def test_поиск_секретов_в_двух_скриптах_не_разъедется() -> None:
+def test_secret_patterns_stay_in_sync_between_scripts() -> None:
     """
     validate_config ищет секреты своим коротким списком, validate_docs —
     длинным. Пока первый список вложен во второй, дыра в одном закрыта
@@ -97,36 +97,36 @@ def test_поиск_секретов_в_двух_скриптах_не_разъ�
     """
     vc = load(ROOT / "scripts" / "validate_config.py")
     vd = load(ROOT / "scripts" / "validate_docs.py")
-    только_в_config = {ш.pattern for ш, _ in vc.FORBIDDEN} - {ш.pattern for ш, _ in vd.PERSONAL}
-    assert not только_в_config, (
-        f"эти выражения знает только validate_config.py: {только_в_config}. "
+    config_only = {tpl.pattern for tpl, _ in vc.FORBIDDEN} - {tpl.pattern for tpl, _ in vd.PERSONAL}
+    assert not config_only, (
+        f"эти выражения знает только validate_config.py: {config_only}. "
         f"Перенесите их в PERSONAL, иначе файлы вне YAML_GLOBS останутся непроверенными"
     )
 
 
-def test_образец_секретов_больше_не_освобождён() -> None:
+def test_secret_sample_is_no_longer_exempt() -> None:
     """Исключение освобождало ровно тот файл, который правят руками."""
-    исходник = (ROOT / "scripts" / "validate_config.py").read_text(encoding="utf-8")
-    assert "ALLOWED_IN_EXAMPLES = {" not in исходник
+    source = (ROOT / "scripts" / "validate_config.py").read_text(encoding="utf-8")
+    assert "ALLOWED_IN_EXAMPLES = {" not in source
 
 
-def test_настоящий_mac_в_образце_находится(tmp_path) -> None:
+def test_real_mac_in_a_sample_is_found(tmp_path) -> None:
     """Сценарий утечки целиком: копия образца с боевым MAC-адресом."""
     vc = load(ROOT / "scripts" / "validate_config.py")
-    текст = (ROOT / "homeassistant" / "config" / "secrets.yaml.example").read_text(encoding="utf-8")
+    text = (ROOT / "homeassistant" / "config" / "secrets.yaml.example").read_text(encoding="utf-8")
     # Адрес собирается по частям: в виде литерала он выглядел бы настоящим
     # MAC-адресом, и на этом файле срабатывал бы поиск личных данных
     # в validate_docs.py — тот самый, который тест и проверяет.
     mac = ":".join(["3c", "22", "fb", "9a", "11", "07"])
-    подделка = текст + f'\ntv_mac: "{mac}"\n'
-    найдено = [метка for шаблон, метка in vc.FORBIDDEN if шаблон.search(подделка)]
-    assert найдено == ["похоже на реальный MAC-адрес"]
-    assert not [метка for шаблон, метка in vc.FORBIDDEN if шаблон.search(текст)], (
+    fake = text + f'\ntv_mac: "{mac}"\n'
+    found = [label for template, label in vc.FORBIDDEN if template.search(fake)]
+    assert found == ["похоже на реальный MAC-адрес"]
+    assert not [label for template, label in vc.FORBIDDEN if template.search(text)], (
         "в самом образце срабатываний быть не должно — заглушки на то и заглушки"
     )
 
 
-def test_длина_строк_действительно_проверяется(tmp_path) -> None:
+def test_line_length_is_really_checked(tmp_path) -> None:
     """
     Комментарий в ruff.toml утверждал, что длину строк сторожит line-length,
     и на этом основании E501 стояло в исключениях. Но line-length влияет
@@ -134,25 +134,25 @@ def test_длина_строк_действительно_проверяется
     в триста символов проходила проверку молча. Исключение снято, предел —
     те же 120, что у yamllint.
     """
-    длинная = tmp_path / "длинная.py"
-    длинная.write_text('x = "' + "я" * 130 + '"\n', encoding="utf-8")
-    готово = subprocess.run(
-        [sys.executable, "-m", "ruff", "check", "--config", "ruff.toml", str(длинная)],
+    long_side = tmp_path / "длинная.py"
+    long_side.write_text('x = "' + "я" * 130 + '"\n', encoding="utf-8")
+    rendered = subprocess.run(
+        [sys.executable, "-m", "ruff", "check", "--config", "ruff.toml", str(long_side)],
         cwd=ROOT, capture_output=True, text=True, check=False,
     )
-    assert готово.returncode != 0, "длинная строка прошла проверку"
-    assert "E501" in готово.stdout
+    assert rendered.returncode != 0, "длинная строка прошла проверку"
+    assert "E501" in rendered.stdout
 
-    короткая = tmp_path / "короткая.py"
-    короткая.write_text('x = "' + "я" * 100 + '"\n', encoding="utf-8")
-    готово = subprocess.run(
-        [sys.executable, "-m", "ruff", "check", "--config", "ruff.toml", str(короткая)],
+    short_side = tmp_path / "короткая.py"
+    short_side.write_text('x = "' + "я" * 100 + '"\n', encoding="utf-8")
+    rendered = subprocess.run(
+        [sys.executable, "-m", "ruff", "check", "--config", "ruff.toml", str(short_side)],
         cwd=ROOT, capture_output=True, text=True, check=False,
     )
-    assert готово.returncode == 0, f"строка в пределах лимита отвергнута: {готово.stdout}"
+    assert rendered.returncode == 0, f"строка в пределах лимита отвергнута: {rendered.stdout}"
 
 
-def test_исключения_recorder_совпадают_с_настоящими_сенсорами() -> None:
+def test_recorder_exclusions_match_real_sensors() -> None:
     """
     В списке исключений recorder стояли маски sensor.docker_*_image
     и sensor.docker_*_status, не совпадающие ни с чем: в monitored_conditions
@@ -166,20 +166,20 @@ def test_исключения_recorder_совпадают_с_настоящим�
 
     Loader.add_multi_constructor("!", lambda loader, suffix, node: None)
 
-    конфиг = yaml.load(
+    config = yaml.load(
         (ROOT / "homeassistant" / "config" / "configuration.yaml").read_text(encoding="utf-8"),
         Loader=Loader,
     )
-    маски = [м for м in конфиг["recorder"]["exclude"]["entity_globs"] if м.startswith("sensor.docker_")]
-    пакет = yaml.load(
+    masks = [m for m in config["recorder"]["exclude"]["entity_globs"] if m.startswith("sensor.docker_")]
+    package = yaml.load(
         (ROOT / "homeassistant" / "config" / "packages" / "docker.yaml").read_text(encoding="utf-8"),
         Loader=Loader,
     )
-    условия = set(пакет["monitor_docker"][0]["monitored_conditions"])
+    conditions = set(package["monitor_docker"][0]["monitored_conditions"])
 
-    for маска in маски:
-        хвост = маска.removeprefix("sensor.docker_*_")
-        assert хвост in условия, (
-            f"маска {маска} не совпадает ни с одним сенсором: в monitored_conditions "
-            f"есть {sorted(условия)}"
+    for mask in masks:
+        tail = mask.removeprefix("sensor.docker_*_")
+        assert tail in conditions, (
+            f"маска {mask} не совпадает ни с одним сенсором: в monitored_conditions "
+            f"есть {sorted(conditions)}"
         )

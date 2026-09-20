@@ -36,11 +36,11 @@ import pytest
 import yaml
 from conftest import ROOT
 
-ПАКЕТ = ROOT / "homeassistant" / "config" / "packages" / "media_tv.yaml"
+PACKAGE = ROOT / "homeassistant" / "config" / "packages" / "media_tv.yaml"
 
-ПУЛЬТ = "media_player.rocktek_gx1"
-ПАКЕТ_JELLYFIN = "org.jellyfin.androidtv"
-ЛАУНЧЕР = "com.google.android.apps.tv.launcherx"
+REMOTE = "media_player.rocktek_gx1"
+JELLYFIN_PACKAGE = "org.jellyfin.androidtv"
+LAUNCHER = "com.google.android.apps.tv.launcherx"
 
 
 class Loader(yaml.SafeLoader):
@@ -50,103 +50,103 @@ class Loader(yaml.SafeLoader):
 Loader.add_multi_constructor("!", lambda loader, suffix, node: None)
 
 
-def сценарий(имя: str) -> list[dict]:
+def scenario(name: str) -> list[dict]:
     """Шаги сценария по его имени, а не по подстроке в файле."""
-    данные = yaml.load(ПАКЕТ.read_text(encoding="utf-8"), Loader=Loader)
-    скрипты = данные["script"]
-    assert имя in скрипты, f"в {ПАКЕТ.name} нет сценария {имя}"
-    return скрипты[имя]["sequence"]
+    data = yaml.load(PACKAGE.read_text(encoding="utf-8"), Loader=Loader)
+    scripts = data["script"]
+    assert name in scripts, f"в {PACKAGE.name} нет сценария {name}"
+    return scripts[name]["sequence"]
 
 
-def отрисовать(шаблон: str, app_id: str | None, index: int = 1) -> str:
-    окружение = jinja2.Environment()
-    окружение.globals["state_attr"] = lambda сущность, атрибут: (
-        app_id if (сущность, атрибут) == (ПУЛЬТ, "app_id") else None
+def render(template: str, app_id: str | None, index: int = 1) -> str:
+    env = jinja2.Environment()
+    env.globals["state_attr"] = lambda entity, attribute: (
+        app_id if (entity, attribute) == (REMOTE, "app_id") else None
     )
-    return окружение.from_string(шаблон).render(
-        repeat={"index": index}, jellyfin_app=ПАКЕТ_JELLYFIN,
+    return env.from_string(template).render(
+        repeat={"index": index}, jellyfin_app=JELLYFIN_PACKAGE,
     ).strip()
 
 
-def булево(вывод: str) -> bool:
-    assert вывод in ("True", "False"), f"шаблон вернул не булево: {вывод!r}"
-    return вывод == "True"
+def as_bool(output: str) -> bool:
+    assert output in ("True", "False"), f"шаблон вернул не булево: {output!r}"
+    return output == "True"
 
 
-def шаг_повтора() -> dict:
-    for шаг in сценарий("tv_jellyfin"):
-        if "repeat" in шаг:
-            return шаг["repeat"]
+def repeat_step() -> dict:
+    for step in scenario("tv_jellyfin"):
+        if "repeat" in step:
+            return step["repeat"]
     raise AssertionError("в tv_jellyfin нет повторной отправки запуска")
 
 
-def test_запуск_отправляется_только_готовой_приставке():
+def test_launch_is_sent_only_to_a_ready_box():
     """
     Ожидание готовности обязано стоять до первой отправки. Отправка,
     ушедшая раньше, пропадает молча — именно этим сценарий и был сломан.
     """
-    шаги = сценарий("tv_jellyfin")
-    ожидания = [i for i, ш in enumerate(шаги)
-                if "app_id" in str(ш.get("wait_template", ""))]
-    повтор = [i for i, ш in enumerate(шаги) if "repeat" in ш]
-    assert ожидания, "перед запуском нет ожидания готовности приставки"
-    assert повтор, "запуск не обёрнут в повтор"
-    assert min(ожидания) < min(повтор), (
+    steps = scenario("tv_jellyfin")
+    expectations = [i for i, tpl in enumerate(steps)
+                if "app_id" in str(tpl.get("wait_template", ""))]
+    repeat = [i for i, tpl in enumerate(steps) if "repeat" in tpl]
+    assert expectations, "перед запуском нет ожидания готовности приставки"
+    assert repeat, "запуск не обёрнут в повтор"
+    assert min(expectations) < min(repeat), (
         "ожидание готовности стоит после отправки запуска — толку от него нет"
     )
 
 
-def test_запуск_повторяется_а_не_отправляется_однажды():
+def test_launch_is_retried_not_sent_once():
     """Одна отправка и была прежним поведением: успех сценария без результата."""
-    повтор = шаг_повтора()
-    отправки = [ш for ш in повтор["sequence"] if ш.get("action") == "remote.turn_on"]
-    assert отправки, "в повторе нет самой команды запуска"
-    assert повтор.get("until"), "у повтора нет условия выхода — он не проверяет результат"
+    repeat = repeat_step()
+    sends = [tpl for tpl in repeat["sequence"] if tpl.get("action") == "remote.turn_on"]
+    assert sends, "в повторе нет самой команды запуска"
+    assert repeat.get("until"), "у повтора нет условия выхода — он не проверяет результат"
 
 
 @pytest.mark.parametrize(
-    ("app_id", "попытка", "выход", "почему"),
+    ("app_id", "attempt", "exit_code", "why"),
     [
-        (ПАКЕТ_JELLYFIN, 1, True, "открылось с первой попытки — повторять нечего"),
-        (ЛАУНЧЕР, 1, False, "приставка на домашнем экране — пробуем ещё раз"),
-        (ЛАУНЧЕР, 2, False, "вторая попытка мимо — остаётся третья"),
-        (ПАКЕТ_JELLYFIN, 2, True, "открылось со второй — выходим сразу"),
-        (ЛАУНЧЕР, 3, True, "три попытки мимо — выходим и жалуемся"),
+        (JELLYFIN_PACKAGE, 1, True, "открылось с первой попытки — повторять нечего"),
+        (LAUNCHER, 1, False, "приставка на домашнем экране — пробуем ещё раз"),
+        (LAUNCHER, 2, False, "вторая попытка мимо — остаётся третья"),
+        (JELLYFIN_PACKAGE, 2, True, "открылось со второй — выходим сразу"),
+        (LAUNCHER, 3, True, "три попытки мимо — выходим и жалуемся"),
         (None, 1, False, "передний план ещё не собран — это не повод сдаваться"),
     ],
 )
-def test_условие_выхода_из_повтора(app_id, попытка, выход, почему):
-    условие = шаг_повтора()["until"][0]["value_template"]
-    assert булево(отрисовать(условие, app_id, попытка)) is выход, почему
+def test_repeat_exit_condition(app_id, attempt, exit_code, why):
+    condition = repeat_step()["until"][0]["value_template"]
+    assert as_bool(render(condition, app_id, attempt)) is exit_code, why
 
 
-def test_неудача_не_остаётся_молчаливой():
+def test_failure_does_not_stay_silent():
     """
     Сценарий, закончившийся ничем, обязан сказать об этом: иначе снаружи
     он неотличим от сломанного — что и происходило.
     """
-    хвост = сценарий("tv_jellyfin")[-1]
-    assert "if" in хвост, "после повтора нет проверки результата"
-    условие = хвост["if"][0]["value_template"]
-    assert булево(отрисовать(условие, ЛАУНЧЕР)), "не жалуется, когда приложение не открылось"
-    assert not булево(отрисовать(условие, ПАКЕТ_JELLYFIN)), "жалуется на успешный запуск"
-    действия = [ш.get("action") for ш in хвост["then"]]
-    assert "persistent_notification.create" in действия
+    tail = scenario("tv_jellyfin")[-1]
+    assert "if" in tail, "после повтора нет проверки результата"
+    condition = tail["if"][0]["value_template"]
+    assert as_bool(render(condition, LAUNCHER)), "не жалуется, когда приложение не открылось"
+    assert not as_bool(render(condition, JELLYFIN_PACKAGE)), "жалуется на успешный запуск"
+    actions = [tpl.get("action") for tpl in tail["then"]]
+    assert "persistent_notification.create" in actions
 
 
-def test_продолжение_не_ждёт_сессию_несуществующего_приложения():
+def test_resume_does_not_wait_for_a_missing_app_session():
     """
     «Продолжить просмотр» ждал сессию полторы минуты и заканчивал советом
     проверить учётную запись Jellyfin. Если приложение не открылось,
     совет уводит в сторону: проверять надо запуск.
     """
-    шаги = сценарий("tv_jellyfin_resume")
-    остановки = [i for i, ш in enumerate(шаги) if "if" in ш
-                 and any("stop" in д for д in ш.get("then", []))]
-    ожидания = [i for i, ш in enumerate(шаги) if "wait_template" in ш]
-    assert остановки, "нет досрочного выхода, когда Jellyfin не открылся"
-    assert ожидания, "пропало ожидание сессии"
-    assert min(остановки) < min(ожидания), "выход стоит после ожидания — оно всё равно отсидится"
-    условие = шаги[min(остановки)]["if"][0]["value_template"]
-    assert булево(отрисовать(условие, ЛАУНЧЕР)), "не останавливается без Jellyfin"
-    assert not булево(отрисовать(условие, ПАКЕТ_JELLYFIN)), "останавливается при открытом Jellyfin"
+    steps = scenario("tv_jellyfin_resume")
+    stops = [i for i, tpl in enumerate(steps) if "if" in tpl
+                 and any("stop" in d for d in tpl.get("then", []))]
+    expectations = [i for i, tpl in enumerate(steps) if "wait_template" in tpl]
+    assert stops, "нет досрочного выхода, когда Jellyfin не открылся"
+    assert expectations, "пропало ожидание сессии"
+    assert min(stops) < min(expectations), "выход стоит после ожидания — оно всё равно отсидится"
+    condition = steps[min(stops)]["if"][0]["value_template"]
+    assert as_bool(render(condition, LAUNCHER)), "не останавливается без Jellyfin"
+    assert not as_bool(render(condition, JELLYFIN_PACKAGE)), "останавливается при открытом Jellyfin"
