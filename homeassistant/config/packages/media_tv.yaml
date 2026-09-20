@@ -330,18 +330,75 @@ script:
       # команда. Ожидание живёт в шаге 3 сценария tv_on — здесь оно
       # получается само собой.
       #
-      # Если приставка не поднялась, tv_on оставит уведомление, а команда
-      # ниже уйдёт в никуда. Это осознанно: сценарий не угадывает за вас,
-      # а сообщает, что произошло.
+      # Если приставка не поднялась, tv_on оставит уведомление, а шаги ниже
+      # честно доложат, что запуск не состоялся.
       - action: script.tv_on
-      - action: remote.turn_on
-        target:
-          entity_id: remote.rocktek_gx1
-        data:
-          # Пакет официального клиента Jellyfin для Android TV.
-          # Проверить фактический: откройте приложение вручную и посмотрите
-          # атрибут app_id у media_player.rocktek_gx1.
-          activity: "org.jellyfin.androidtv"
+
+      # Пакет официального клиента Jellyfin для Android TV. Проверить
+      # фактический: откройте приложение вручную и посмотрите атрибут
+      # app_id у media_player.rocktek_gx1. Второе место с этим же именем —
+      # проверка в сценарии tv_jellyfin_resume ниже.
+      - variables:
+          jellyfin_app: "org.jellyfin.androidtv"
+
+      # Шаг 2. Ждём, пока приставка будет готова принимать запуск приложения.
+      #
+      # «Включена» и «готова» — разные вещи. media_player переходит в on,
+      # как только отвечает сервис пульта, а это происходит задолго до того,
+      # как поднимется лаунчер. Запуск, отправленный в эту щель, пропадает
+      # молча: приставка включилась, приложение не открылось, и снаружи
+      # сценарий выглядит сломанным.
+      #
+      # Признак готовности — приставка назвала текущее приложение: атрибут
+      # app_id появляется, когда сервис пульта видит передний план.
+      - wait_template: >-
+          {{ state_attr('media_player.rocktek_gx1', 'app_id') not in [none, ''] }}
+        timeout: "00:00:30"
+        continue_on_timeout: true
+
+      # Шаг 3. Запускаем и проверяем, что запустилось.
+      #
+      # Запуск по имени пакета уходит на приставку ссылкой вида
+      # market://launch?id=..., её разбирает Play Store. На холодном старте
+      # он может быть ещё не готов — тогда команда теряется без всякой
+      # ошибки. Поэтому не «отправили и забыли», а до трёх попыток
+      # с проверкой по тому же app_id.
+      - repeat:
+          sequence:
+            - action: remote.turn_on
+              target:
+                entity_id: remote.rocktek_gx1
+              data:
+                activity: "{{ jellyfin_app }}"
+              continue_on_error: true
+            - wait_template: >-
+                {{ state_attr('media_player.rocktek_gx1', 'app_id') == jellyfin_app }}
+              timeout: "00:00:12"
+              continue_on_timeout: true
+          until:
+            - condition: template
+              value_template: >-
+                {{ repeat.index >= 3
+                   or state_attr('media_player.rocktek_gx1', 'app_id') == jellyfin_app }}
+
+      # Шаг 4. Три попытки мимо — говорим вслух. Молчать здесь нельзя
+      # по той же причине, что и в tv_on: следующий сценарий будет ждать
+      # сессию приложения, которого нет.
+      - if:
+          - condition: template
+            value_template: >-
+              {{ state_attr('media_player.rocktek_gx1', 'app_id') != jellyfin_app }}
+        then:
+          - action: persistent_notification.create
+            data:
+              title: "ТВ: Jellyfin не открылся"
+              message: >-
+                Команда запуска ушла на приставку трижды, но приложение
+                не вышло на передний план. Проверьте по порядку: имя пакета
+                в сценарии совпадает с атрибутом app_id (откройте Jellyfin
+                пультом и посмотрите), приложение установлено из Play Store,
+                сам Play Store на приставке рабочий — запуск по имени пакета
+                идёт через него.
 
   # ---------------------------------------------------------------------------
   # 3.4 YouTube
@@ -373,6 +430,17 @@ script:
     mode: single
     sequence:
       - action: script.tv_jellyfin
+
+      # Приложение не открылось — tv_jellyfin уже сказал почему. Ждать после
+      # этого сессию ещё полторы минуты и жаловаться на учётную запись
+      # значит увести разбирательство в сторону.
+      - if:
+          - condition: template
+            value_template: >-
+              {{ state_attr('media_player.rocktek_gx1', 'app_id')
+                 != 'org.jellyfin.androidtv' }}
+        then:
+          - stop: "Jellyfin не открылся — продолжать нечего"
 
       # Ждём появления активной сессии Jellyfin. Полторы минуты — с запасом
       # на холодный старт приложения.
