@@ -2145,8 +2145,9 @@ system configuration save</code></pre></div>
               </tr>
               <tr>
                 <td><b>Гостиная</b></td>
-                <td>оба плеера, пять сценариев просмотра, «продолжить» из Jellyfin
-                  и переключатель ночного автоотключения</td>
+                <td>оба плеера, пять сценариев просмотра и «продолжить» из Jellyfin;
+                  отдельной карточкой «Ночь» — переключатель автоотключения
+                  и два признака, идёт просмотр и копится ли простой</td>
               </tr>
             </tbody>
           </table>
@@ -2575,14 +2576,16 @@ sudo docker compose config &gt;/dev/null &amp;&amp; sudo docker compose up -d</c
         <tr>
           <td><code>packages/monitoring.yaml</code></td>
           <td><code class="path">config/packages/</code></td>
-          <td>шесть HTTP-проверок, сводные сенсоры, статистика простоя за сутки, шесть автоматизаций-сторожей</td>
+          <td>шесть HTTP-проверок, сводные сенсоры, четыре пороговых признака
+            (перегрев, процессор, место на томе — предупреждение и критика),
+            статистика простоя за сутки, шесть автоматизаций-сторожей</td>
         </tr>
         <tr>
           <td><code>packages/docker.yaml</code></td>
           <td><code class="path">config/packages/</code></td>
           <td>Monitor Docker: по 5 сенсоров на контейнер раз в час, быстрая проверка
             состояния раз в минуту, сводные «кто ест процессор и память»,
-            четыре автоматизации</td>
+            пять автоматизаций</td>
         </tr>
         <tr>
           <td><code>packages/alice.yaml</code></td>
@@ -2594,7 +2597,9 @@ sudo docker compose config &gt;/dev/null &amp;&amp; sudo docker compose up -d</c
           <td><code>packages/media_tv.yaml</code></td>
           <td><code class="path">config/packages/</code></td>
           <td>пять сценариев просмотра, Wake-on-LAN для LG, опрос «продолжить
-            просмотр» у Jellyfin, два ночных автоотключения</td>
+            просмотр» у Jellyfin, признаки просмотра и простоя, четыре
+            автоматизации — два ночных автоотключения, Wake-on-LAN
+            и утренний сброс флага</td>
         </tr>
         <tr>
           <td><code>bin/http_check.py</code></td>
