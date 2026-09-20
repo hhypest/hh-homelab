@@ -228,16 +228,22 @@ def compare(pinned: str, available: list[str]) -> tuple[list[str], list[str]]:
 
 
 def main() -> int:
-    parsing = argparse.ArgumentParser(description="Сверка версий образов с реестром")
-    parsing.add_argument("--образ", help="проверить только образы, чьё имя содержит эту строку")
-    reasons = parsing.parse_args()
+    parser = argparse.ArgumentParser(description="Сверка версий образов с реестром")
+    # Ключ остаётся русским: это интерфейс, а не имя в коде. А вот dest
+    # обязателен — иначе argparse выведет имя атрибута из самого ключа
+    # и положит в namespace «образ», тогда как читается args.image.
+    parser.add_argument(
+        "--образ", dest="image",
+        help="проверить только образы, чьё имя содержит эту строку",
+    )
+    args = parser.parse_args()
 
     behind: list[str] = []
     attention: list[str] = []
 
     for path in COMPOSE:
         for name, link in images(path).items():
-            if reasons.image and reasons.image.lower() not in link.lower():
+            if args.image and args.image.lower() not in link.lower():
                 continue
             try:
                 registry, repo, pinned = parse(link)

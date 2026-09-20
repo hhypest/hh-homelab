@@ -12,6 +12,8 @@
 
 from __future__ import annotations
 
+import sys
+
 import pytest
 from conftest import ROOT, load
 
@@ -171,3 +173,30 @@ def test_finds_all_images_of_both_stacks():
     )
     for link in found.values():
         ci.parse(link)  # каждая ссылка разбирается без исключений
+
+
+# --- запуск скрипта -----------------------------------------------------
+
+def test_filter_key_reaches_main(capsys, monkeypatch):
+    """
+    До этого теста main() не запускал ни один тест — и там сидела ошибка.
+
+    Ключ командной строки называется «--образ», а argparse выводит имя
+    атрибута из самого ключа, если не задан dest. После перевода имён
+    на латиницу код читал args.image, которого в namespace не было,
+    и любой запуск падал с AttributeError на первом же образе — раньше,
+    чем скрипт успевал обратиться к реестру.
+
+    Фильтр здесь нарочно не совпадает ни с чем: цикл проходит все образы
+    и пропускает каждый, так что сети проверка не касается.
+    """
+    monkeypatch.setattr(sys, "argv", ["check_image_updates.py", "--образ", "такого-образа-нет"])
+    assert ci.main() == 0
+    assert "Все образы на свежих версиях" in capsys.readouterr().out
+
+
+def test_filter_key_is_still_spelled_in_russian():
+    """dest поменял имя атрибута, но не ключ: он часть интерфейса."""
+    source = (ROOT / "scripts" / "check_image_updates.py").read_text(encoding="utf-8")
+    assert '"--образ"' in source, "ключ переименован — README и история версий зовут его так"
+    assert 'dest="image"' in source, "без dest argparse снова положит в namespace «образ»"
