@@ -337,7 +337,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
       <button type="button" data-theme-set="light" aria-pressed="false">Светлая</button>
       <button type="button" data-theme-set="dark" aria-pressed="false">Тёмная</button>
     </div>
-    <div class="eyebrow">Обзор проекта · DS725+ · 31 августа 2026</div>
+    <div class="eyebrow">Обзор проекта · DS725+ · 20 сентября 2026</div>
     <h1>Как устроен hh-homelab</h1>
     <p class="lede">
       Один документ на весь проект: из чего он состоит, как складывался,
@@ -506,23 +506,26 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <table>
       <thead><tr><th>Область</th><th>Что содержит</th><th class="num-col">Строк</th><th class="num-col">Файлов</th></tr></thead>
       <tbody>
-        <tr><td><code class="path">docs/</code></td><td>чек-листы, гайды, справочники, дорожная карта, история версий</td><td class="num-col">10442</td><td class="num-col">8</td></tr>
-        <tr><td><code class="path">homeassistant/</code></td><td>compose, образец <code>.env</code>, пакеты, дашборд, скрипты</td><td class="num-col">2239</td><td class="num-col">15</td></tr>
-        <tr><td><code class="path">scripts/</code></td><td>проверки конфигурации и документации</td><td class="num-col">1009</td><td class="num-col">6</td></tr>
-        <tr><td><code class="path">pachca/</code></td><td>Liquid-шаблоны уведомлений и примеры payload</td><td class="num-col">677</td><td class="num-col">22</td></tr>
-        <tr><td><code class="path">tests/</code></td><td>pytest на скрипты, шаблоны, workflow, образцы <code>.env</code> и версии образов</td><td class="num-col">1073</td><td class="num-col">7</td></tr>
-        <tr><td><code class="path">.github/</code></td><td>workflow проверок, workflow выпуска и настройка Dependabot</td><td class="num-col">395</td><td class="num-col">3</td></tr>
-        <tr><td><code class="path">media/</code></td><td>compose медиа-стека и образец <code>.env</code></td><td class="num-col">325</td><td class="num-col">2</td></tr>
+        <tr><td><code class="path">docs/</code></td><td>чек-листы, гайды, справочники, дорожная карта, история версий</td><td class="num-col">13247</td><td class="num-col">9</td></tr>
+        <tr><td><code class="path">tests/</code></td><td>pytest на скрипты, шаблоны, сценарии, workflow, образцы <code>.env</code>, версии образов и сами страницы</td><td class="num-col">4584</td><td class="num-col">25</td></tr>
+        <tr><td><code class="path">homeassistant/</code></td><td>compose, образец <code>.env</code>, пакеты, дашборд, скрипты</td><td class="num-col">2778</td><td class="num-col">15</td></tr>
+        <tr><td><code class="path">scripts/</code></td><td>проверки конфигурации и документации</td><td class="num-col">1719</td><td class="num-col">8</td></tr>
+        <tr><td><code class="path">pachca/</code></td><td>Liquid-шаблоны уведомлений и примеры payload</td><td class="num-col">832</td><td class="num-col">23</td></tr>
+        <tr><td><code class="path">.github/</code></td><td>workflow проверок, workflow выпуска и настройка Dependabot</td><td class="num-col">477</td><td class="num-col">3</td></tr>
+        <tr><td><code class="path">media/</code></td><td>compose медиа-стека и образец <code>.env</code></td><td class="num-col">377</td><td class="num-col">2</td></tr>
       </tbody>
     </table>
   </div>
 
   <div class="note why"><b>Что здесь необычного.</b> Отношение «документация и
-    проверки» к «собственно конфигурации» — 12 919 строк против 3241,
-    то есть примерно 4 к 1. Для домашнего
-    сервера это выглядит перекосом, пока не вспомнить, что настраивается он
-    раз в год, а разбираться в нём приходится в тот вечер, когда что-то
-    сломалось и половина деталей забыта.</div>
+    проверки» к «собственно конфигурации» — 20 134 строки против 3987,
+    то есть примерно 5 к 1. За три недели перекос стал заметнее, чем был
+    (4 к 1 на выпуске 1.0.0), и вырос он не за счёт новых сервисов:
+    конфигурация прибавила семь с небольшим сотен строк, тесты — три с
+    половиной тысячи. Для домашнего сервера это выглядит странно, пока
+    не вспомнить, что настраивается он раз в год, а разбираться в нём
+    приходится в тот вечер, когда что-то сломалось и половина деталей
+    забыта.</div>
 </section>
 
 <section id="s1">
@@ -530,9 +533,11 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <div class="kicker">Раздел 1</div>
     <h2>Как это складывалось</h2>
     <p>
-      Проект молодой: первый коммит — 30 августа 2026, 08:44. Всё, что описано
-      ниже, уместилось в двое суток. Порядок, в котором оно появлялось,
-      объясняет структуру репозитория лучше, чем её описание.
+      Первый коммит — 30 августа 2026, 08:44. Костяк уместился в двое суток,
+      остальное — три недели и два выпуска: перенос на чужое железо, роутер,
+      лицензии, первое обновление образов и внешний разбор кода, из которого
+      вышли четыре волны правок. Порядок, в котором оно появлялось, объясняет
+      структуру репозитория лучше, чем её описание.
     </p>
   </div>
 
@@ -600,9 +605,10 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
       страница истории версий, workflow выпуска и пара примеров payload,
       тогда как документация за то же время выросла почти на три тысячи
       строк. Форма кривой от этого не меняется: рост идёт вглубь,
-      а не вширь. Это подтвердилось и дальше: за следующие двенадцать дней
-      файлов стало 80 — прибавилось девять, — тогда как документация
-      выросла ещё на две с лишним тысячи строк.
+      а не вширь. Это подтвердилось и дальше: к 18 сентября файлов стало 80,
+      к 20-му — 98, то есть за три недели прибавилось тридцать пять, и почти
+      все они — тесты. Строк за то же время стало вдвое больше: 25 273
+      против примерно двенадцати тысяч на первом выпуске.
     </figcaption>
   </figure>
 
@@ -737,6 +743,84 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
               выпуск стало нельзя сделать в обход истории версий — workflow
               откажется, если версия не описана</td>
         </tr>
+        <tr>
+          <td class="num-col">06.09<br>11:16</td>
+          <td>Граница восстановления записана прямо</td>
+          <td>Репозиторий восстанавливает конфигурацию, но не состояние:
+              базы Radarr и Jellyfin, историю Home Assistant и настройки,
+              которые живут в интерфейсе. Пока это не написано,
+              оно читается как «клонировал — и всё вернулось»</td>
+        </tr>
+        <tr>
+          <td class="num-col">08.09<br>07:19</td>
+          <td>Включение связки развёрнуто: телевизор ведёт, приставка следует</td>
+          <td>Прежняя схема будила приставку и ждала, что она поднимет
+              телевизор. На деле приставка на Wi-Fi и по сети не будится
+              вовсе — направление CEC в документации было записано
+              наоборот</td>
+        </tr>
+        <tr>
+          <td class="num-col">09.09<br>17:35</td>
+          <td>Разбор DTS и честный <code>DirectStream</code> в уведомлениях</td>
+          <td>Два случая одной породы: сервер пережимал то, что мог отдать
+              как есть, а уведомление называло пережатое прямым
+              воспроизведением</td>
+        </tr>
+        <tr>
+          <td class="num-col">12–14.09</td>
+          <td>Страница переноса на другое железо, разбор DNS на роутере</td>
+          <td>Отделить то, что держится на конкретной коробке, от того,
+              что переносится куда угодно. Заодно выяснилось, что часть
+              решений объяснялась неверно — их переписали вместе
+              с реестром зависимостей от железа</td>
+        </tr>
+        <tr>
+          <td class="num-col">15.09<br>04:47</td>
+          <td>Лицензии: код под MIT, текст под CC BY 4.0</td>
+          <td>Публичный репозиторий без лицензии не разрешает ничего.
+              Две лицензии, а не одна, потому что страницы — не код
+              и живут по другим правилам</td>
+        </tr>
+        <tr>
+          <td class="num-col">16–17.09</td>
+          <td>Обновление образов вручную, сверка тегов с реестром</td>
+          <td>Dependabot присылал по семь пул-реквестов от одного
+              и того же <code>main</code>. Теперь версии сверяет
+              отдельная проверка, а поднимает их человек — и сразу
+              все, одним заходом</td>
+        </tr>
+        <tr>
+          <td class="num-col">18.09<br>09:47</td>
+          <td>Выпуск 1.1.0</td>
+          <td>Шесть образов из девяти подняты, среди них Jellyfin
+              с необратимой миграцией базы. Таблицу версий в описании
+              релиза собирает скрипт — человек её больше не набирает</td>
+        </tr>
+        <tr>
+          <td class="num-col">18.09<br>16:18</td>
+          <td>Внешний разбор кода: двадцать находок, четыре волны правок</td>
+          <td>Поворотный день после тестов и <code class="path">.env</code>.
+              Нашлось то, чего не видели ни проверки, ни глаз: ночное
+              выключение спрашивало о просмотре не ту сущность, пороги
+              мониторинга не срабатывали после перезагрузки, уведомления
+              Jellyfin исчезали на кавычке в названии фильма, а часть
+              проверок не могла провалиться в принципе</td>
+        </tr>
+        <tr>
+          <td class="num-col">19.09</td>
+          <td>Отчёт о медиавозможностях приставки вместо догадок</td>
+          <td>Разбор DTS девятого сентября объяснял симптом правдоподобно
+              и неверно. Отчёт клиента показал, что декодера DTS
+              у приставки нет вовсе, а транскод снимается настройкой
+              профиля — и раздел переписан по механизму</td>
+        </tr>
+        <tr>
+          <td class="num-col">20.09</td>
+          <td>Сценарий запуска приложения проверяет результат</td>
+          <td>Отправить команду и считать это успехом — та же ошибка,
+              что и «проверка, которая не может провалиться»,
+              только в сценарии</td>
+        </tr>
       </tbody>
     </table>
   </div>
@@ -811,6 +895,31 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     на домашний адрес. Поэтому <code>validate_docs.py</code> ищет их в каждом
     отслеживаемом файле на каждый push.</div>
 
+  <div class="note warn"><b>Проверка, которая не может провалиться, хуже
+    её отсутствия.</b> Внешний разбор кода нашёл несколько таких сразу.
+    Список отслеживаемых файлов собирался вызовом <code>git ls-files</code>,
+    и при любой ошибке возвращался пустым — проверка честно сообщала, что
+    обошла ноль файлов, и завершалась успехом. Рендер шаблонов Пачки
+    объявлял «проблем 0», даже когда не отрисовал ни одного. Тест на
+    сводку в Пачку искал шаблон подстрокой и продолжал проходить после
+    того, как правка сломала совсем другой шаблон. С тех пор каждая
+    проверка обязана уметь провалиться, а каждый новый тест — сначала
+    упасть на коде до правки; это записано в
+    <a href="https://github.com/hhypest/hh-homelab/blob/main/CONTRIBUTING.md">условиях приёма правок</a>. Сюда же
+    относятся числа, написанные словом: «пять автоматизаций» в таблице
+    сверяется с пакетом так же, как цифра в плашке.</div>
+
+  <div class="note warn"><b>Отправил — проверь, что дошло.</b> Сценарий
+    «смотреть Jellyfin» посылал приставке команду запуска и заканчивался
+    успехом, что бы на приставке ни произошло. Снаружи это выглядело
+    сломанным: телевизор и приставка включаются, приложение не открывается.
+    Та же ошибка, что и выше, только в сценарии: успехом считался факт
+    отправки, а не результат. Теперь сценарий ждёт готовности приставки,
+    проверяет, что приложение вышло на передний план, повторяет попытку
+    и при неудаче говорит об этом вслух. Правило общее: у команды,
+    отправленной по сети в устройство, нет ответа «не смог» — значит
+    результат надо спрашивать отдельно.</div>
+
   <div class="note"><b>Отказы записываются вместе с причиной.</b>
     В дорожной карте есть раздел «Сознательно не делаем» — Kubernetes,
     4K-библиотека, аппаратное транскодирование, локальный доступ Алисы.
@@ -838,25 +947,27 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
 
   <h3 style="margin-top:30px;font-size:18px">Проверки репозитория — измерено</h3>
   <p style="color:var(--ink-2);max-width:70ch;margin-top:10px">
-    Лучшее из трёх прогонов, машина — 4 ядра Xeon 2,8 ГГц, 16 ГБ, Python 3.11.15.
+    Лучшее из трёх прогонов, машина — 4 ядра Xeon 2,1 ГГц, 16 ГБ, Python 3.11.15.
     Это <b>не</b> NAS: на двухъядерном R1600 числа будут заметно больше.
     Ценность не в абсолютных величинах, а в пропорции между проверками —
-    она от машины почти не зависит.
+    она от машины почти не зависит. Замер переснят на 468 тестах;
+    прошлый, на 449, стоял на машине с другой тактовой частотой,
+    и сравнивать их между собой бессмысленно.
   </p>
 
   <div class="tablewrap">
     <table>
       <thead><tr><th>Проверка</th><th>Что делает</th><th class="num-col">Время</th></tr></thead>
       <tbody>
-        <tr><td><code>pytest</code></td><td>449 тестов</td><td class="num-col">17,21 с</td></tr>
-        <tr><td><code>yamllint</code></td><td>4 каталога YAML</td><td class="num-col">0,35 с</td></tr>
-        <tr><td><code>render_pachca.py --check</code></td><td>32 пары «шаблон × payload»</td><td class="num-col">0,25 с</td></tr>
-        <tr><td><code>validate_config.py</code></td><td>12 файлов, Jinja, секреты</td><td class="num-col">0,34 с</td></tr>
-        <tr><td><code>validate_entities.py</code></td><td>сверка entity_id</td><td class="num-col">0,12 с</td></tr>
-        <tr><td><code>validate_docs.py</code></td><td>9 страниц, ссылки на шаги и счётчики, 94 файла</td><td class="num-col">0,24 с</td></tr>
-        <tr><td><code>check_files.py</code></td><td>96 файлов на переводы строк</td><td class="num-col">0,05 с</td></tr>
-        <tr><td><code>ruff check .</code></td><td>32 файла Python</td><td class="num-col">0,01 с</td></tr>
-        <tr><td><b>Всего последовательно</b></td><td></td><td class="num-col"><b>18,57 с</b></td></tr>
+        <tr><td><code>pytest</code></td><td>468 тестов</td><td class="num-col">15,09 с</td></tr>
+        <tr><td><code>yamllint</code></td><td>4 каталога YAML</td><td class="num-col">0,28 с</td></tr>
+        <tr><td><code>render_pachca.py --check</code></td><td>32 пары «шаблон × payload»</td><td class="num-col">0,19 с</td></tr>
+        <tr><td><code>validate_config.py</code></td><td>12 файлов, Jinja, секреты</td><td class="num-col">0,25 с</td></tr>
+        <tr><td><code>validate_entities.py</code></td><td>сверка entity_id</td><td class="num-col">0,09 с</td></tr>
+        <tr><td><code>validate_docs.py</code></td><td>9 страниц, ссылки на шаги и счётчики, 96 файлов</td><td class="num-col">0,20 с</td></tr>
+        <tr><td><code>check_files.py</code></td><td>98 файлов на переводы строк</td><td class="num-col">0,04 с</td></tr>
+        <tr><td><code>ruff check .</code></td><td>34 файла Python</td><td class="num-col">0,01 с</td></tr>
+        <tr><td><b>Всего последовательно</b></td><td></td><td class="num-col"><b>16,15 с</b></td></tr>
       </tbody>
     </table>
   </div>
@@ -868,114 +979,121 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
   </p>
 
   <figure>
-    <svg viewBox="0 0 900 1088" role="img"
-         aria-label="Стоимость одного теста по файлам: test_docker_state 468 миллисекунд, test_docs_counters 316, test_http_check 178, test_docs_toc 107, test_checks_fail_loudly 104, test_compose_images 69, test_tv_idle 61, test_readme_diagram 45, test_validate_config 41, test_release_images 38, test_thresholds 37, test_validate_docs 35, test_ha_messages 31, test_license 24, test_validate_entities 20, test_workflow 19, test_env_example 14, test_check_ports 12, test_gitignore 12, test_restore_boundary 12, test_check_image_updates 9, test_pachca_templates 7 миллисекунд.">
+    <svg viewBox="0 0 900 1184" role="img"
+         aria-label="Стоимость одного теста по файлам: test_docker_state 445 миллисекунд, test_docs_counters 172 миллисекунды, test_http_check 117 миллисекунд, test_checks_fail_loudly 53 миллисекунды, test_tv_idle 32 миллисекунды, test_tv_launch 25 миллисекунд, test_validate_config 16 миллисекунд, test_thresholds 14 миллисекунд, test_ha_messages 13 миллисекунд, test_compose_images 12 миллисекунд, test_release_images 8 миллисекунд, test_workflow 7 миллисекунд, test_docs_toc 5 миллисекунд, test_validate_entities 5 миллисекунд, test_gitignore 3 миллисекунды, test_pachca_templates 3 миллисекунды, test_restore_boundary 3 миллисекунды, test_check_image_updates 2 миллисекунды, test_dts_docs 2 миллисекунды, test_license 2 миллисекунды, test_readme_diagram 2 миллисекунды, test_validate_docs 2 миллисекунды, test_check_ports 1 миллисекунда, test_env_example 1 миллисекунда.">
       <text x="0" y="18" fill="currentColor" opacity=".6"
             font-family="IBM Plex Sans, sans-serif" font-size="11.5">Миллисекунд на один тест</text>
-      <line x1="200" y1="34" x2="200" y2="1070" stroke="currentColor" stroke-width="1" opacity=".25"></line>
+      <line x1="200" y1="34" x2="200" y2="1166" stroke="currentColor" stroke-width="1" opacity=".25"></line>
 
       <g fill="var(--home)">
-        <rect x="200" y="40" width="660" height="22" rx="4"><title>test_docker_state.py — 21 тест, 9,83 с, 468 мс на тест</title></rect>
-        <rect x="200" y="88" width="446" height="22" rx="4"><title>test_docs_counters.py — 4 теста, 1,26 с, 316 мс на тест</title></rect>
-        <rect x="200" y="136" width="251" height="22" rx="4"><title>test_http_check.py — 11 тестов, 1,96 с, 178 мс на тест</title></rect>
-        <rect x="200" y="184" width="151" height="22" rx="4"><title>test_docs_toc.py — 2 теста, 0,21 с, 107 мс на тест</title></rect>
-        <rect x="200" y="232" width="147" height="22" rx="4"><title>test_checks_fail_loudly.py — 12 тестов, 1,25 с, 104 мс на тест</title></rect>
-        <rect x="200" y="280" width="97" height="22" rx="4"><title>test_compose_images.py — 4 теста, 0,28 с, 69 мс на тест</title></rect>
-        <rect x="200" y="328" width="86" height="22" rx="4"><title>test_tv_idle.py — 25 тестов, 1,53 с, 61 мс на тест</title></rect>
-        <rect x="200" y="376" width="63" height="22" rx="4"><title>test_readme_diagram.py — 5 тестов, 0,23 с, 45 мс на тест</title></rect>
-        <rect x="200" y="424" width="58" height="22" rx="4"><title>test_validate_config.py — 15 тестов, 0,62 с, 41 мс на тест</title></rect>
-        <rect x="200" y="472" width="54" height="22" rx="4"><title>test_release_images.py — 8 тестов, 0,30 с, 38 мс на тест</title></rect>
-        <rect x="200" y="520" width="52" height="22" rx="4"><title>test_thresholds.py — 22 теста, 0,81 с, 37 мс на тест</title></rect>
-        <rect x="200" y="568" width="49" height="22" rx="4"><title>test_validate_docs.py — 6 тестов, 0,21 с, 35 мс на тест</title></rect>
-        <rect x="200" y="616" width="44" height="22" rx="4"><title>test_ha_messages.py — 18 тестов, 0,55 с, 31 мс на тест</title></rect>
-        <rect x="200" y="664" width="34" height="22" rx="4"><title>test_license.py — 10 тестов, 0,24 с, 24 мс на тест</title></rect>
-        <rect x="200" y="712" width="28" height="22" rx="4"><title>test_validate_entities.py — 16 тестов, 0,33 с, 20 мс на тест</title></rect>
-        <rect x="200" y="760" width="27" height="22" rx="4"><title>test_workflow.py — 23 теста, 0,43 с, 19 мс на тест</title></rect>
-        <rect x="200" y="808" width="20" height="22" rx="4"><title>test_env_example.py — 18 тестов, 0,24 с, 14 мс на тест</title></rect>
-        <rect x="200" y="856" width="17" height="22" rx="4"><title>test_check_ports.py — 20 тестов, 0,23 с, 12 мс на тест</title></rect>
-        <rect x="200" y="904" width="17" height="22" rx="4"><title>test_gitignore.py — 22 теста, 0,27 с, 12 мс на тест</title></rect>
-        <rect x="200" y="952" width="17" height="22" rx="4"><title>test_restore_boundary.py — 22 теста, 0,28 с, 12 мс на тест</title></rect>
-        <rect x="200" y="1000" width="13" height="22" rx="4"><title>test_check_image_updates.py — 32 теста, 0,28 с, 9 мс на тест</title></rect>
-        <rect x="200" y="1048" width="11" height="22" rx="4"><title>test_pachca_templates.py — 133 теста, 0,88 с, 7 мс на тест</title></rect>
+        <rect x="200" y="40" width="660" height="22" rx="4"><title>test_docker_state.py — 21 тест, 9,35 с, 445 мс на тест</title></rect>
+        <rect x="200" y="88" width="255" height="22" rx="4"><title>test_docs_counters.py — 5 тестов, 0,86 с, 172 мс на тест</title></rect>
+        <rect x="200" y="136" width="174" height="22" rx="4"><title>test_http_check.py — 11 тестов, 1,29 с, 117 мс на тест</title></rect>
+        <rect x="200" y="184" width="79" height="22" rx="4"><title>test_checks_fail_loudly.py — 12 тестов, 0,64 с, 53 мс на тест</title></rect>
+        <rect x="200" y="232" width="47" height="22" rx="4"><title>test_tv_idle.py — 25 тестов, 0,79 с, 32 мс на тест</title></rect>
+        <rect x="200" y="280" width="37" height="22" rx="4"><title>test_tv_launch.py — 10 тестов, 0,25 с, 25 мс на тест</title></rect>
+        <rect x="200" y="328" width="24" height="22" rx="4"><title>test_validate_config.py — 15 тестов, 0,24 с, 16 мс на тест</title></rect>
+        <rect x="200" y="376" width="21" height="22" rx="4"><title>test_thresholds.py — 22 теста, 0,31 с, 14 мс на тест</title></rect>
+        <rect x="200" y="424" width="19" height="22" rx="4"><title>test_ha_messages.py — 18 тестов, 0,23 с, 13 мс на тест</title></rect>
+        <rect x="200" y="472" width="18" height="22" rx="4"><title>test_compose_images.py — 4 теста, 0,05 с, 12 мс на тест</title></rect>
+        <rect x="200" y="520" width="12" height="22" rx="4"><title>test_release_images.py — 8 тестов, 0,06 с, 8 мс на тест</title></rect>
+        <rect x="200" y="568" width="10" height="22" rx="4"><title>test_workflow.py — 23 теста, 0,16 с, 7 мс на тест</title></rect>
+        <rect x="200" y="616" width="7" height="22" rx="4"><title>test_docs_toc.py — 2 теста, 0,01 с, 5 мс на тест</title></rect>
+        <rect x="200" y="664" width="7" height="22" rx="4"><title>test_validate_entities.py — 16 тестов, 0,08 с, 5 мс на тест</title></rect>
+        <rect x="200" y="712" width="4" height="22" rx="4"><title>test_gitignore.py — 22 теста, 0,06 с, 3 мс на тест</title></rect>
+        <rect x="200" y="760" width="4" height="22" rx="4"><title>test_pachca_templates.py — 133 теста, 0,43 с, 3 мс на тест</title></rect>
+        <rect x="200" y="808" width="4" height="22" rx="4"><title>test_restore_boundary.py — 22 теста, 0,06 с, 3 мс на тест</title></rect>
+        <rect x="200" y="856" width="3" height="22" rx="4"><title>test_check_image_updates.py — 32 теста, 0,05 с, 2 мс на тест</title></rect>
+        <rect x="200" y="904" width="3" height="22" rx="4"><title>test_dts_docs.py — 5 тестов, 0,01 с, 2 мс на тест</title></rect>
+        <rect x="200" y="952" width="3" height="22" rx="4"><title>test_license.py — 10 тестов, 0,02 с, 2 мс на тест</title></rect>
+        <rect x="200" y="1000" width="3" height="22" rx="4"><title>test_readme_diagram.py — 5 тестов, 0,01 с, 2 мс на тест</title></rect>
+        <rect x="200" y="1048" width="3" height="22" rx="4"><title>test_validate_docs.py — 6 тестов, 0,01 с, 2 мс на тест</title></rect>
+        <rect x="200" y="1096" width="1" height="22" rx="4"><title>test_check_ports.py — 20 тестов, 0,02 с, 1 мс на тест</title></rect>
+        <rect x="200" y="1144" width="1" height="22" rx="4"><title>test_env_example.py — 21 тест, 0,03 с, 1 мс на тест</title></rect>
       </g>
 
       <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="12.5" text-anchor="end">
         <text x="188" y="56">test_docker_state</text>
         <text x="188" y="104">test_docs_counters</text>
         <text x="188" y="152">test_http_check</text>
-        <text x="188" y="200">test_docs_toc</text>
-        <text x="188" y="248">test_checks_fail_loudly</text>
-        <text x="188" y="296">test_compose_images</text>
-        <text x="188" y="344">test_tv_idle</text>
-        <text x="188" y="392">test_readme_diagram</text>
-        <text x="188" y="440">test_validate_config</text>
-        <text x="188" y="488">test_release_images</text>
-        <text x="188" y="536">test_thresholds</text>
-        <text x="188" y="584">test_validate_docs</text>
-        <text x="188" y="632">test_ha_messages</text>
-        <text x="188" y="680">test_license</text>
-        <text x="188" y="728">test_validate_entities</text>
-        <text x="188" y="776">test_workflow</text>
-        <text x="188" y="824">test_env_example</text>
-        <text x="188" y="872">test_check_ports</text>
-        <text x="188" y="920">test_gitignore</text>
-        <text x="188" y="968">test_restore_boundary</text>
-        <text x="188" y="1016">test_check_image_updates</text>
-        <text x="188" y="1064">test_pachca_templates</text>
+        <text x="188" y="200">test_checks_fail_loudly</text>
+        <text x="188" y="248">test_tv_idle</text>
+        <text x="188" y="296">test_tv_launch</text>
+        <text x="188" y="344">test_validate_config</text>
+        <text x="188" y="392">test_thresholds</text>
+        <text x="188" y="440">test_ha_messages</text>
+        <text x="188" y="488">test_compose_images</text>
+        <text x="188" y="536">test_release_images</text>
+        <text x="188" y="584">test_workflow</text>
+        <text x="188" y="632">test_docs_toc</text>
+        <text x="188" y="680">test_validate_entities</text>
+        <text x="188" y="728">test_gitignore</text>
+        <text x="188" y="776">test_pachca_templates</text>
+        <text x="188" y="824">test_restore_boundary</text>
+        <text x="188" y="872">test_check_image_updates</text>
+        <text x="188" y="920">test_dts_docs</text>
+        <text x="188" y="968">test_license</text>
+        <text x="188" y="1016">test_readme_diagram</text>
+        <text x="188" y="1064">test_validate_docs</text>
+        <text x="188" y="1112">test_check_ports</text>
+        <text x="188" y="1160">test_env_example</text>
       </g>
       <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="12" opacity=".75">
-        <text x="848" y="56" text-anchor="end" fill="var(--surface)">468 мс</text>
-        <text x="658" y="104">316 мс</text>
-        <text x="463" y="152">178 мс</text>
-        <text x="363" y="200">107 мс</text>
-        <text x="359" y="248">104 мс</text>
-        <text x="309" y="296">69 мс</text>
-        <text x="298" y="344">61 мс</text>
-        <text x="275" y="392">45 мс</text>
-        <text x="270" y="440">41 мс</text>
-        <text x="266" y="488">38 мс</text>
-        <text x="264" y="536">37 мс</text>
-        <text x="261" y="584">35 мс</text>
-        <text x="256" y="632">31 мс</text>
-        <text x="246" y="680">24 мс</text>
-        <text x="240" y="728">20 мс</text>
-        <text x="239" y="776">19 мс</text>
-        <text x="232" y="824">14 мс</text>
-        <text x="229" y="872">12 мс</text>
-        <text x="229" y="920">12 мс</text>
-        <text x="229" y="968">12 мс</text>
-        <text x="225" y="1016">9 мс</text>
-        <text x="223" y="1064">7 мс</text>
+        <text x="848" y="56" text-anchor="end" fill="var(--surface)">445 мс</text>
+        <text x="467" y="104">172 мс</text>
+        <text x="386" y="152">117 мс</text>
+        <text x="291" y="200">53 мс</text>
+        <text x="259" y="248">32 мс</text>
+        <text x="249" y="296">25 мс</text>
+        <text x="236" y="344">16 мс</text>
+        <text x="233" y="392">14 мс</text>
+        <text x="231" y="440">13 мс</text>
+        <text x="230" y="488">12 мс</text>
+        <text x="224" y="536">8 мс</text>
+        <text x="222" y="584">7 мс</text>
+        <text x="219" y="632">5 мс</text>
+        <text x="219" y="680">5 мс</text>
+        <text x="216" y="728">3 мс</text>
+        <text x="216" y="776">3 мс</text>
+        <text x="216" y="824">3 мс</text>
+        <text x="215" y="872">2 мс</text>
+        <text x="215" y="920">2 мс</text>
+        <text x="215" y="968">2 мс</text>
+        <text x="215" y="1016">2 мс</text>
+        <text x="215" y="1064">2 мс</text>
+        <text x="213" y="1112">1 мс</text>
+        <text x="213" y="1160">1 мс</text>
       </g>
     </svg>
     <figcaption>
-      Двадцать два файла, каждый прогонялся отдельно, поэтому в его время
-      входят и ~0,19 с на запуск самого pytest. Этот порог объясняет
-      середину списка: <code>test_docs_toc</code> с двумя тестами и
-      <code>test_compose_images</code> с четырьмя стоят высоко не потому, что
-      тяжёлые, а потому, что запуск делится на два-четыре теста, а не на сотню.
-      Содержательная разница — на краях. <code>test_pachca_templates</code>
-      прогоняет 133 теста за 0,88 секунды, <code>test_check_image_updates</code>
-      — 32 за 0,29: оба разбирают данные в том же процессе, сеть второй
-      не трогает вовсе. <code>test_docker_state</code> на 21 тест тратит
-      почти десять секунд, потому что каждый поднимает подставной HTTP-сервер
-      и запускает скрипт отдельным процессом. Разница на тест — почти
-      семидесятикратная. <code>test_docs_counters</code> попал в ту же
-      верхушку по-честному: чтобы узнать, сколько в репозитории тестов, он
-      спрашивает об этом сам pytest, и делает это дважды. Рядом с ними
+      Двадцать четыре файла, каждый прогонялся отдельно, поэтому в его время
+      входят и ~0,15 с на запуск самого pytest. Этот порог объясняет
+      середину списка: <code>test_compose_images</code> с четырьмя тестами
+      стоит выше <code>test_workflow</code> с двадцатью тремя не потому, что
+      тяжелее, а потому, что запуск делится на четыре теста, а не на два
+      десятка. Содержательная разница — на краях.
+      <code>test_pachca_templates</code> прогоняет 133 теста за 0,43 секунды,
+      <code>test_check_image_updates</code> — 32 за 0,05: оба разбирают данные
+      в том же процессе, сеть второй не трогает вовсе.
+      <code>test_docker_state</code> на 21 тест тратит девять с лишним секунд,
+      потому что каждый поднимает подставной HTTP-сервер и запускает скрипт
+      отдельным процессом. Разница на тест — больше чем стократная.
+      <code>test_docs_counters</code> попал в ту же верхушку по-честному:
+      чтобы узнать, сколько в репозитории тестов, он спрашивает об этом
+      сам pytest, и делает это дважды. Рядом с ними
       <code>test_checks_fail_loudly</code> и <code>test_http_check</code> —
       по той же причине: оба запускают проверяемые скрипты отдельными
       процессами, иначе «проверка молчит, когда должна кричать» нечем
       доказать. Вывод практический: покрытие здесь дёшево, дорого именно
       порождение процессов, и оптимизировать при желании нужно четыре файла
-      из двадцати двух, а не «тесты вообще».
+      из двадцати четырёх, а не «тесты вообще».
     </figcaption>
   </figure>
 
   <div class="note"><b>Почему это вообще важно.</b> Восемь задач CI идут
     параллельно, так что на GitHub общее время определяет самая долгая, —
     а это установка зависимостей, не проверки. Локально же все проверки
-    подряд занимают около четырнадцати секунд, и это то число, ради которого
+    подряд занимают около шестнадцати секунд, и это то число, ради которого
     стоит гонять их перед каждым коммитом, а не надеяться на CI.</div>
 
   <h3 style="margin-top:34px;font-size:18px">NAS — как измерить у себя</h3>
