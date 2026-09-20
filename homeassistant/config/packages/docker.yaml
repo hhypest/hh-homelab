@@ -161,9 +161,23 @@ template:
         icon: mdi:chip
         unit_of_measurement: "%"
         # Обновляется вместе с метриками — то есть раз в час.
+        #
+        # ВАЖНО: агрегат исключает сам себя. Его entity_id —
+        # sensor.docker_top_cpu — подходит под '^sensor\\.docker_.*_cpu$'
+        # не хуже настоящих контейнеров, и сенсор попадал в собственную
+        # выборку. На состоянии это не видно (максимум множества, в котором
+        # лежит сам максимум, — тот же максимум), а вот имя победителя
+        # ломалось: в сводку приезжало «Больше всех процессора: top».
+        # Добивало округление. Состояние агрегата — round(1) от максимума,
+        # то есть 2,95 % у jellyfin превращались в 3,0 % у «top», и 3,0 > 2,95
+        # делало самозванца строго больше любого настоящего контейнера.
+        # Показометр памяти той же беды избежал случайно: он назван
+        # docker_top_ram, а ищет '_memory$' — то есть разошёлся с шаблоном
+        # по имени, а не по замыслу. Поэтому исключение прописано и там.
         state: >-
           {% set vals = states.sensor
              | selectattr('entity_id', 'search', '^sensor\\.docker_.*_cpu$')
+             | rejectattr('entity_id', 'in', ['sensor.docker_top_cpu'])
              | rejectattr('state', 'in', ['unknown', 'unavailable'])
              | map(attribute='state') | map('float', 0) | list %}
           {{ vals | max | round(1) if vals | count > 0 else 0 }}
@@ -172,6 +186,7 @@ template:
             {% set ns = namespace(best='—', val=-1) %}
             {% for s in states.sensor
                if s.entity_id is search('^sensor\\.docker_.*_cpu$')
+               and s.entity_id != 'sensor.docker_top_cpu'
                and s.state not in ['unknown', 'unavailable'] %}
               {% if s.state | float(0) > ns.val %}
                 {% set ns.val = s.state | float(0) %}
@@ -187,6 +202,7 @@ template:
         state: >-
           {% set vals = states.sensor
              | selectattr('entity_id', 'search', '^sensor\\.docker_.*_memory$')
+             | rejectattr('entity_id', 'in', ['sensor.docker_top_ram'])
              | rejectattr('state', 'in', ['unknown', 'unavailable'])
              | map(attribute='state') | map('float', 0) | list %}
           {{ vals | max | round(0) if vals | count > 0 else 0 }}
@@ -195,6 +211,7 @@ template:
             {% set ns = namespace(best='—', val=-1) %}
             {% for s in states.sensor
                if s.entity_id is search('^sensor\\.docker_.*_memory$')
+               and s.entity_id != 'sensor.docker_top_ram'
                and s.state not in ['unknown', 'unavailable'] %}
               {% if s.state | float(0) > ns.val %}
                 {% set ns.val = s.state | float(0) %}
