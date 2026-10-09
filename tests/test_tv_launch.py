@@ -150,3 +150,21 @@ def test_resume_does_not_wait_for_a_missing_app_session():
     condition = steps[min(stops)]["if"][0]["value_template"]
     assert as_bool(render(condition, LAUNCHER)), "не останавливается без Jellyfin"
     assert not as_bool(render(condition, JELLYFIN_PACKAGE)), "останавливается при открытом Jellyfin"
+
+
+def test_resume_targets_only_the_box_session():
+    """Просмотр на телефоне не должен получать команду от сценария телевизора."""
+    steps = scenario("tv_jellyfin_resume")
+    wait = next(step["wait_template"] for step in steps if "wait_template" in step)
+    target = next(step["variables"]["jf_target"] for step in steps
+                  if "jf_target" in step.get("variables", {}))
+    env = jinja2.Environment()
+    env.globals["integration_entities"] = lambda _: ["media_player.jellyfin_phone"]
+    env.globals["states"] = lambda name: (
+        "playing" if name == "media_player.jellyfin_phone" else "unavailable"
+    )
+    assert env.from_string(wait).render().strip() == "False"
+    assert env.from_string(target).render().strip() == ""
+    env.globals["states"] = lambda _: "idle"
+    assert env.from_string(wait).render().strip() == "True"
+    assert env.from_string(target).render().strip() == "media_player.jellyfin_rocktek_gx1"

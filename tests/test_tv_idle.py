@@ -219,6 +219,39 @@ def test_pause_is_sent_with_the_remote() -> None:
     assert pause and pause[0]["target"]["entity_id"] == REMOTE
 
 
+def test_night_check_confirms_pause_before_waiting_for_play() -> None:
+    """Неудачная пауза не должна закончиться выключением идущего фильма."""
+    data = yaml.load(PACKAGE.read_text(encoding="utf-8"), Loader=Loader)
+    steps = next(a for a in data["automation"]
+                 if a.get("id") == "tv_night_sleep_check")["actions"]
+    pause = next(i for i, step in enumerate(steps)
+                 if step.get("action") == "media_player.media_pause")
+    resume = next(i for i, step in enumerate(steps) if "wait_for_trigger" in step)
+    confirmations = [step for step in steps[pause + 1:resume] if "wait_template" in step]
+    assert confirmations, "без подтверждения паузы отсутствие нового on ничего не доказывает"
+    env = jinja2.Environment()
+    env.globals["is_state"] = lambda name, value: name == WATCHING and value == "off"
+    assert env.from_string(confirmations[0]["wait_template"]).render().strip() == "True"
+    env.globals["is_state"] = lambda *_: False
+    assert env.from_string(confirmations[0]["wait_template"]).render().strip() == "False"
+    gates = [step for step in steps[pause + 1:resume] if "if" in step]
+    assert gates and any("stop" in step for step in gates[0]["then"])
+    template = gates[0]["if"][0]["value_template"]
+    assert env.from_string(template).render(wait={"completed": False}).strip() == "True"
+    assert env.from_string(template).render(wait={"completed": True}).strip() == "False"
+
+
+def test_night_check_rechecks_override_and_playback_before_shutdown() -> None:
+    """За восемь минут зритель может включить защиту или возобновить просмотр."""
+    data = yaml.load(PACKAGE.read_text(encoding="utf-8"), Loader=Loader)
+    steps = next(a for a in data["automation"]
+                 if a.get("id") == "tv_night_sleep_check")["actions"]
+    assert steps[-1]["action"] == "script.tv_off"
+    guards = {step.get("entity_id"): step.get("state") for step in steps[-3:-1]
+              if step.get("condition") == "state"}
+    assert guards == {WATCHING: "off", "input_boolean.tv_no_auto_off": "off"}
+
+
 # ---------------------------------------------------------------------------
 #  Служба, которой нет
 # ---------------------------------------------------------------------------
