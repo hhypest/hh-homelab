@@ -54,8 +54,10 @@ services:
 
     environment:
       - TZ=${TZ:?см. .env.example}
-      # Отключаем автоматический сбор статистики использования
+      # Вывод Python сразу попадает в журнал контейнера.
       - PYTHONUNBUFFERED=1
+      # Один адрес для Monitor Docker и минутной проверки контейнеров.
+      - DOCKER_PROXY_URL=http://127.0.0.1:${DOCKERPROXY_PORT:?см. .env.example}
 
     volumes:
       - ./config:/config

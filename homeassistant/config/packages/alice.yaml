@@ -94,12 +94,22 @@ template:
           {% set ram = states('sensor.server_ram_load') | int(0) %}
           {% set temp = states('sensor.server_temperature') | int(0) %}
           {% set down = state_attr('sensor.docker_down', 'down_names') | default([], true) %}
+          {% set docker_ok = states('sensor.docker_down') not in ['unknown', 'unavailable']
+             and (state_attr('sensor.docker_down', 'error') | default('', true)) == ''
+             and state_attr('sensor.docker_down', 'total') | int(0) > 0 %}
+          {% set services_up = states.binary_sensor
+             | selectattr('entity_id', 'search', '^binary_sensor\\.svc_')
+             | selectattr('state', 'eq', 'on') | list | count %}
           {#- У truncate есть пятый аргумент — запас, и по умолчанию он равен
               пяти: строка длиной до 104 символов проходила фильтр нетронутой,
               хотя облачный режим YandexStation режет по сотне. Ноль вместо
               умолчания делает границу той, которая написана. -#}
           {% set head = 'Процессор ' ~ cpu ~ ', память ' ~ ram ~ ' процентов, ' ~ temp ~ ' градусов. ' %}
-          {% if down | count == 0 %}
+          {% if not docker_ok %}
+            {{ (head ~ 'Нет данных от Docker.') | truncate(99, true, '', 0) }}
+          {% elif down | count == 0 and services_up != 6 %}
+            {{ (head ~ 'Не все сервисы отвечают.') | truncate(99, true, '', 0) }}
+          {% elif down | count == 0 %}
             {{ (head ~ 'Всё работает.') | truncate(99, true, '', 0) }}
           {% elif down | count == 1 %}
             {{ (head ~ 'Не работает ' ~ down[0] ~ '.') | truncate(99, true, '', 0) }}

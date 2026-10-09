@@ -201,7 +201,7 @@ def test_watched_matches_docker_yaml() -> None:
     class Loader(yaml.SafeLoader):
         pass
 
-    for tag in ("!secret", "!include", "!include_dir_named"):
+    for tag in ("!secret", "!include", "!include_dir_named", "!env_var"):
         Loader.add_constructor(tag, lambda loader, node: None)
 
     package = yaml.load(

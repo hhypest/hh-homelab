@@ -141,12 +141,13 @@ template:
       #  и автоматика на него срабатывает. Сообщение придёт после каждого
       #  перезапуска, пока порог держится, и это лучше, чем не прийти вовсе.
       #
-      #  float(-1) по умолчанию — чтобы недоступный сенсор не превращался
-      #  в ноль и не выглядел как «всё хорошо»: -1 ниже любого порога.
+      #  availability отличает отсутствие данных от нормы; float(-1)
+      #  нужен лишь для безопасного вычисления шаблона при запуске.
       - name: "NAS hot"
         unique_id: nas_hot
         device_class: heat
         state: "{{ states('sensor.ds725_temperature') | float(-1) > 60 }}"
+        availability: "{{ is_number(states('sensor.ds725_temperature')) }}"
         delay_on: "00:10:00"
         delay_off: "00:05:00"
 
@@ -154,6 +155,7 @@ template:
         unique_id: nas_cpu_busy
         device_class: problem
         state: "{{ states('sensor.ds725_cpu_utilization_total') | float(-1) > 90 }}"
+        availability: "{{ is_number(states('sensor.ds725_cpu_utilization_total')) }}"
         delay_on: "00:20:00"
         delay_off: "00:05:00"
 
@@ -161,11 +163,13 @@ template:
         unique_id: nas_volume_filling
         device_class: problem
         state: "{{ states('sensor.ds725_volume_1_volume_used') | float(-1) > 85 }}"
+        availability: "{{ is_number(states('sensor.ds725_volume_1_volume_used')) }}"
 
       - name: "NAS volume critical"
         unique_id: nas_volume_critical
         device_class: problem
         state: "{{ states('sensor.ds725_volume_1_volume_used') | float(-1) > 93 }}"
+        availability: "{{ is_number(states('sensor.ds725_volume_1_volume_used')) }}"
 
 # -----------------------------------------------------------------------------
 # 2а. Накопительная статистика за сутки — для утренней сводки
@@ -247,6 +251,12 @@ automation:
         from: "off"
         to: "on"
         for: "00:01:00"
+    conditions:
+      # О коротком рестарте не было тревоги — восстановление тоже не шлём.
+      - condition: template
+        value_template: >-
+          {{ as_timestamp(trigger.to_state.last_changed)
+             - as_timestamp(trigger.from_state.last_changed) >= 300 }}
     actions:
       - action: script.pachca_notify
         data:
@@ -344,7 +354,9 @@ automation:
       Ловим любое отклонение SMART-статуса от «normal».
       Список entity_id заполните после шага 4.1 — их видно в карточке
       устройства Synology DSM.
-    mode: single
+    # Оба диска могут сменить статус одновременно; второе сообщение нужно.
+    mode: parallel
+    max: 2
     triggers:
       - trigger: state
         entity_id:

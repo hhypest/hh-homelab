@@ -74,9 +74,11 @@ def sensor_template(unique_id: str) -> str:
     raise AssertionError(f"в {PACKAGE.name} нет сенсора с unique_id={unique_id}")
 
 
-def render(template: str, states: dict[str, str], watching: str | None = None) -> str:
+def render(template: str, states: dict[str, str], watching: str | None = None,
+           app: str = "com.google.android.youtube.tv") -> str:
     env = jinja2.Environment()
     env.globals["states"] = lambda name: states.get(name, "unknown")
+    env.globals["state_attr"] = lambda entity, attr: app if entity == REMOTE and attr == "app_id" else None
     env.globals["is_state"] = lambda name, val: (
         watching == val if name == WATCHING else states.get(name) == val
     )
@@ -110,8 +112,15 @@ def idle(tv: str, cast: str, jellyfin: str | None = None,
             other_jellyfin: str | None = None) -> bool:
     """binary_sensor.tv_idle — он же, но с оглядкой на состояние телевизора."""
     playing = watching(tv, cast, jellyfin, other_jellyfin)
+    data = yaml.load(PACKAGE.read_text(encoding="utf-8"), Loader=Loader)
+    entry = next(e for block in data["template"] for e in block.get("binary_sensor", [])
+                 if e.get("unique_id") == "tv_watching")
+    available = as_bool(render(entry["availability"], {TV: tv, CAST: cast, JELLYFIN: jellyfin or "unknown"},
+                              app="org.jellyfin.androidtv" if jellyfin is not None
+                              else "com.google.android.youtube.tv"))
     return as_bool(render(
-        sensor_template("tv_idle_20min"), {TV: tv}, watching="on" if playing else "off",
+        sensor_template("tv_idle_20min"), {TV: tv},
+        watching=("on" if playing else "off") if available else "unavailable",
     ))
 
 
@@ -123,7 +132,7 @@ def idle(tv: str, cast: str, jellyfin: str | None = None,
         ("on", "paused", True, "двадцать минут на паузе — вышел и забыл"),
         ("on", "idle", True, "приставка на домашнем экране"),
         ("on", "off", True, "приставка выключена, телевизор горит"),
-        ("on", "unavailable", True, "приставки нет в сети — телевизор всё равно горит зря"),
+        ("on", "unavailable", False, "потеря источника состояния не доказывает простой"),
         ("playing", "off", False, "телевизор играет сам, из своего приложения"),
         ("off", "off", False, "телевизор выключен — простаивать нечему"),
         ("standby", "off", False, "дежурный режим"),

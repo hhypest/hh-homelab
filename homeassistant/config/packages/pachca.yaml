@@ -132,16 +132,29 @@ script:
             {{ states.binary_sensor
                | selectattr('entity_id', 'search', '^binary_sensor\\.svc_')
                | list | count }}
+          svc_running: >-
+            {{ states.binary_sensor
+               | selectattr('entity_id', 'search', '^binary_sensor\\.svc_')
+               | selectattr('state', 'eq', 'on') | list | count }}
+          svc_unknown: >-
+            {{ states.binary_sensor
+               | selectattr('entity_id', 'search', '^binary_sensor\\.svc_')
+               | rejectattr('state', 'in', ['on', 'off'])
+               | map(attribute='name') | map('replace', 'svc ', '') | list }}
           cont_down: "{{ states('sensor.docker_down') | int(0) }}"
           cont_detail: "{{ state_attr('sensor.docker_down', 'down_detail') | default([], true) }}"
-          cont_running: "{{ state_attr('sensor.docker_down', 'running') }}"
-          cont_total: "{{ state_attr('sensor.docker_down', 'total') }}"
+          cont_running: >-
+            {{ state_attr('sensor.docker_down', 'running')
+               if state_attr('sensor.docker_down', 'running') is not none else '—' }}
+          cont_total: >-
+            {{ state_attr('sensor.docker_down', 'total')
+               if state_attr('sensor.docker_down', 'total') is not none else '—' }}
           docker_ok: >-
             {{ states('sensor.docker_down') not in ['unknown', 'unavailable']
                and (state_attr('sensor.docker_down', 'error') | default('', true)) == ''
                and state_attr('sensor.docker_down', 'total') | int(0) > 0 }}
-          top_cpu: "{{ state_attr('sensor.docker_top_cpu', 'container') }}"
-          top_ram: "{{ state_attr('sensor.docker_top_ram', 'container') }}"
+          top_cpu: "{{ state_attr('sensor.docker_top_cpu', 'container') | default('—', true) }}"
+          top_ram: "{{ state_attr('sensor.docker_top_ram', 'container') | default('—', true) }}"
           cpu: "{{ states('sensor.ds725_cpu_utilization_total') }}"
           ram: "{{ states('sensor.ds725_memory_usage_real') }}"
           # Отдельной проверкой на доступность, потому что в общий список
@@ -159,11 +172,10 @@ script:
           # отвалилась, а сводка докладывает «Всё в порядке» и «0 °C».
           # Поэтому доступность проверяется до всякого приведения.
           nas_ok: >-
-            {% set значения = [states('sensor.ds725_temperature'),
-                               states('sensor.ds725_cpu_utilization_total'),
-                               states('sensor.ds725_memory_usage_real'),
-                               states('sensor.ds725_volume_1_volume_used')] %}
-            {{ 'unavailable' not in значения and 'unknown' not in значения }}
+            {{ is_number(states('sensor.ds725_temperature'))
+               and is_number(states('sensor.ds725_cpu_utilization_total'))
+               and is_number(states('sensor.ds725_memory_usage_real'))
+               and is_number(states('sensor.ds725_volume_1_volume_used')) }}
           # Простой за сутки history_stats отдаёт в часах — переводим в минуты
           # round(0) в Jinja возвращает дробное число, и в сводку уезжало
           # «Простой за сутки: 0.0 мин». int после round отрезает хвост.
@@ -173,6 +185,9 @@ script:
             {{ [states('sensor.ds725_drive_1_status'),
                 states('sensor.ds725_drive_2_status')]
                | reject('in', ['normal', 'unknown', 'unavailable']) | list }}
+          disks_ok: >-
+            {{ states('sensor.ds725_drive_1_status') not in ['unknown', 'unavailable', '']
+               and states('sensor.ds725_drive_2_status') not in ['unknown', 'unavailable', ''] }}
 
       - variables:
           # --- один общий вердикт в первой строке ---
@@ -183,6 +198,9 @@ script:
               ⚠️ Нет данных от Docker — проверьте dockerproxy
             {% elif cont_down | int > 0 or svc_down | count > 0 or disks | count > 0 %}
               🔴 Есть проблемы прямо сейчас
+            {% elif svc_unknown | count > 0 or svc_total | int != 6
+                    or disks_ok not in [true, 'True', 'true'] %}
+              ⚠️ Не все данные получены — проверьте HTTP-сенсоры и статусы дисков
             {% elif svc_down_min | int > 5 or cont_down_min | int > 5
                     or vol_used > 85 or nas_temp > 55 %}
               ⚠️ Работает, но есть на что посмотреть
@@ -200,7 +218,8 @@ script:
             {%- else -%}
             • Процессор {{ cpu }} % · память {{ ram }} % · {{ nas_temp | round | int }} °C
             • Том volume1 занят на {{ vol_used | round | int }} %
-            • Диски: {% if disks | count == 0 %}норма{% else %}⛔ {{ disks | join(', ') }}{% endif %}
+            • Диски: {% if disks | count > 0 %}⛔ {{ disks | join(', ') }}{% elif
+              disks_ok in [true, 'True', 'true'] %}норма{% else %}нет данных{% endif %}
             • Работает с {{ booted if booted not in ['unknown', 'unavailable', 'none', '']
                              else '— нет данных, проверьте sensor.ds725_last_boot' }}
             {%- endif %}
@@ -216,14 +235,22 @@ script:
             • Все запущены
             {% endif -%}
             • Простой за сутки: {{ cont_down_min }} мин
-            • Больше всех процессора: {{ top_cpu }} ({{ states('sensor.docker_top_cpu') }} %)
-            • Больше всех памяти: {{ top_ram }} ({{ states('sensor.docker_top_ram') }} MiB)
+            • Больше всех процессора: {% if states('sensor.docker_top_cpu') not in ['unknown', 'unavailable']
+              %}{{ top_cpu }} ({{ states('sensor.docker_top_cpu') }} %){% else %}нет данных{% endif %}
+            • Больше всех памяти: {% if states('sensor.docker_top_ram') not in ['unknown', 'unavailable']
+              %}{{ top_ram }} ({{ states('sensor.docker_top_ram') }} MiB){% else %}нет данных{% endif %}
 
-            **Сервисы** — {{ svc_total | int - svc_down | count }} из {{ svc_total }} отвечают
+            **Сервисы** — {{ svc_running }} из {{ svc_total }} отвечают
             {% if svc_down | count > 0 -%}
             • 🔴 Молчат: {{ svc_down | join(', ') }}
-            {% else -%}
+            {% elif svc_unknown | count == 0 and svc_total | int == 6 -%}
             • Все отвечают
+            {% endif -%}
+            {% if svc_unknown | count > 0 -%}
+            • Нет данных: {{ svc_unknown | join(', ') }}
+            {% endif -%}
+            {% if svc_total | int != 6 -%}
+            • Ожидаются шесть HTTP-проверок: проверьте загрузку packages/monitoring.yaml
             {% endif -%}
             • Простой за сутки: {{ svc_down_min }} мин
 

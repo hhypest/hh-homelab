@@ -83,7 +83,8 @@ SUMMARY = {
     "cont_running": 6, "cont_total": 8, "cont_down_min": 0,
     "top_cpu": "jellyfin", "top_ram": "jellyfin",
     "booted": "1 сентября, 10:00", "disks": [], "svc_total": 6, "svc_down_min": 0,
-    "nas_ok": True, "docker_ok": True,
+    "nas_ok": True, "docker_ok": True, "disks_ok": True,
+    "svc_unknown": [], "svc_running": 6,
     "states": lambda _: "0", "state_attr": lambda *_: "0",
 }
 
@@ -259,7 +260,14 @@ def test_nas_data_flag_is_computed_by_itself() -> None:
     def count(states: dict[str, str]) -> str:
         # Home Assistant обрезает пробелы у значения переменной, а свёрнутый
         # скаляр оставляет перенос после {% set %} — сравниваем по существу.
-        return "\n".join(render(template, states=lambda name: states.get(name, "unknown"))).strip()
+        def is_number(value):
+            try:
+                float(value)
+                return True
+            except ValueError:
+                return False
+        return "\n".join(render(template, states=lambda name: states.get(name, "unknown"),
+                                is_number=is_number)).strip()
 
     assert count(live) == "True"
 
@@ -281,7 +289,8 @@ def test_verdict_knows_about_integration_loss(nas_ok: bool, expected: str) -> No
     template = script_var("pachca.yaml", "pachca_report", "verdict")
     total = "\n".join(render(template, cont_down=0, svc_down=[], disks=[],
                                 svc_down_min=0, cont_down_min=0,
-                                vol_used=42.0, nas_temp=38.0, nas_ok=nas_ok, docker_ok=True))
+                                vol_used=42.0, nas_temp=38.0, nas_ok=nas_ok, docker_ok=True,
+                                svc_unknown=[], svc_total=6, disks_ok=True))
     assert expected in total
 
 
