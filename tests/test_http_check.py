@@ -1,7 +1,7 @@
 """
 Проверки http_check.py — скрипта, на котором держатся HTTP-проверки сервисов.
 
-Он запускается раз в минуту шестью command_line-сенсорами Home Assistant.
+Он запускается раз в минуту семью command_line-сенсорами Home Assistant.
 Требования к нему жёстче, чем к обычному скрипту:
 
   * всегда печатать ровно ON или OFF — иначе сенсор уйдёт в unknown,
@@ -83,7 +83,7 @@ def test_second_argument_adds_instead_of_replacing(server: str) -> None:
     """
     Здесь было записано обратное: «со вторым аргументом успехом считается
     только перечисленное». Код так и работал, а docstring скрипта обещал
-    «доп. коды» — и обещание не выполнялось ни для одного из шести сенсоров.
+    «доп. коды» — и обещание не выполнялось ни для одного из семи сенсоров.
 
     Стреляло бы это так: Radarr включает аутентификацию, /ping начинает
     отвечать 401, в команде сенсора перечислен 200 — и приходит «сервис
@@ -114,7 +114,7 @@ def test_sensors_pass_no_redundant_codes() -> None:
         encoding="utf-8"
     )
     commands = [s for s in text.splitlines() if "http_check.py" in s and "command:" in s]
-    assert len(commands) == 6
+    assert len(commands) == 7
     for command in commands:
         tail = command.split("http_check.py", 1)[1].strip().rstrip('"')
         assert len(tail.split()) == 1, f"лишний аргумент в команде: {command.strip()}"

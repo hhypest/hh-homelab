@@ -184,6 +184,8 @@ views:
                 name: Jellyfin
               - entity: sensor.docker_radarr_state
                 name: Radarr
+              - entity: sensor.docker_sonarr_state
+                name: Sonarr
               - entity: sensor.docker_prowlarr_state
                 name: Prowlarr
               - entity: sensor.docker_qbittorrent_state
@@ -211,6 +213,8 @@ views:
                 name: Home Assistant
               - entity: sensor.docker_radarr_cpu
                 name: Radarr
+              - entity: sensor.docker_sonarr_cpu
+                name: Sonarr
 
           - type: history-graph
             title: Память по контейнерам, сутки
@@ -220,6 +224,8 @@ views:
                 name: Jellyfin
               - entity: sensor.docker_radarr_memory
                 name: Radarr
+              - entity: sensor.docker_sonarr_memory
+                name: Sonarr
               - entity: sensor.docker_prowlarr_memory
                 name: Prowlarr
               - entity: sensor.docker_flaresolverr_memory
@@ -245,6 +251,8 @@ views:
                 name: Jellyfin
               - entity: binary_sensor.svc_radarr
                 name: Radarr
+              - entity: binary_sensor.svc_sonarr
+                name: Sonarr
               - entity: binary_sensor.svc_prowlarr
                 name: Prowlarr
               - entity: binary_sensor.svc_qbittorrent

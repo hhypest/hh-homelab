@@ -1,0 +1,7 @@
+{
+  "instanceName": "Sonarr",
+  "eventType": "Health",
+  "level": "error",
+  "message": "Клиент загрузок недоступен",
+  "type": "DownloadClientCheck"
+}

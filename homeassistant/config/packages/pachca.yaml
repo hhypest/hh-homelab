@@ -5,7 +5,7 @@
 #  ----------------
 #  Уведомления Home Assistant идут через отдельного бота «Home Assistant»,
 #  и он состоит РОВНО В ОДНОМ чате — «Мониторинг». Медиа-стек говорит
-#  своими четырьмя ботами в чате «Кинозал», их шаблоны лежат в pachca/.
+#  своими пятью ботами в чате «Кинозал», их шаблоны лежат в pachca/.
 #
 #  Пачка отдаёт боту постоянный URL «Входящего вебхука». Любой POST с телом
 #     {"message": "текст"}
@@ -198,7 +198,7 @@ script:
               ⚠️ Нет данных от Docker — проверьте dockerproxy
             {% elif cont_down | int > 0 or svc_down | count > 0 or disks | count > 0 %}
               🔴 Есть проблемы прямо сейчас
-            {% elif svc_unknown | count > 0 or svc_total | int != 6
+            {% elif svc_unknown | count > 0 or svc_total | int != 7
                     or disks_ok not in [true, 'True', 'true'] %}
               ⚠️ Не все данные получены — проверьте HTTP-сенсоры и статусы дисков
             {% elif svc_down_min | int > 5 or cont_down_min | int > 5
@@ -243,14 +243,14 @@ script:
             **Сервисы** — {{ svc_running }} из {{ svc_total }} отвечают
             {% if svc_down | count > 0 -%}
             • 🔴 Молчат: {{ svc_down | join(', ') }}
-            {% elif svc_unknown | count == 0 and svc_total | int == 6 -%}
+            {% elif svc_unknown | count == 0 and svc_total | int == 7 -%}
             • Все отвечают
             {% endif -%}
             {% if svc_unknown | count > 0 -%}
             • Нет данных: {{ svc_unknown | join(', ') }}
             {% endif -%}
-            {% if svc_total | int != 6 -%}
-            • Ожидаются шесть HTTP-проверок: проверьте загрузку packages/monitoring.yaml
+            {% if svc_total | int != 7 -%}
+            • Ожидаются семь HTTP-проверок: проверьте загрузку packages/monitoring.yaml
             {% endif -%}
             • Простой за сутки: {{ svc_down_min }} мин
 

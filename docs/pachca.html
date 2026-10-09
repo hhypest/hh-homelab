@@ -339,8 +339,8 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     </div>
     <div class="eyebrow">Справочник · уведомления в Пачку</div>
     <h1>Уведомления медиа-стека в Пачку</h1>
-    <p class="lede">Liquid-шаблоны, которые превращают JSON от Radarr, Prowlarr, Jellyfin и Seerr в читаемые сообщения.</p>
-    <div class="facts"><span class="fact">чата <b>2</b></span><span class="fact">ботов <b>5</b></span><span class="fact">шаблонов <b>5</b></span></div>
+    <p class="lede">Liquid-шаблоны, которые превращают JSON от Radarr, Sonarr, Prowlarr, Jellyfin и Seerr в читаемые сообщения.</p>
+    <div class="facts"><span class="fact">чата <b>2</b></span><span class="fact">ботов <b>6</b></span><span class="fact">шаблонов <b>6</b></span></div>
     <p class="crosslink">Соседние документы: <a href="media-stack.html">медиа-стек</a> · <a href="index.html">развёртывание Home Assistant</a>.</p>
   </div>
 </header>
@@ -358,15 +358,16 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <div class="kicker">Раздел 0</div>
     <h2 id="как-это-разложено-по-чатам">Как это разложено по чатам</h2>
   </div>
-<p>Пять ботов, два чата. Разделение по смыслу: в одном чате то, что смотреть, в другом — то, что чинить.</p>
+<p>Шесть ботов, два чата. Разделение по смыслу: в одном чате то, что смотреть, в другом — то, что чинить.</p>
 <div class="tablewrap"><table><thead><tr><th>Чат</th><th>Бот</th><th>Шаблон</th><th>О чём говорит</th></tr></thead><tbody>
 <tr><td><b>Кинозал</b></td><td>Radarr</td><td><a href="https://github.com/hhypest/hh-homelab/blob/main/pachca/radarr.liquid"><code>radarr.liquid</code></a></td><td>фильм скачался, обновилось качество, импорт застрял</td></tr>
+<tr><td><b>Кинозал</b></td><td>Sonarr</td><td><a href="https://github.com/hhypest/hh-homelab/blob/main/pachca/sonarr.liquid"><code>sonarr.liquid</code></a></td><td>серия скачалась, импорт нескольких эпизодов, обновление качества, ошибки</td></tr>
 <tr><td><b>Кинозал</b></td><td>Prowlarr</td><td><a href="https://github.com/hhypest/hh-homelab/blob/main/pachca/prowlarr.liquid"><code>prowlarr.liquid</code></a></td><td>индексаторы отвалились или ожили</td></tr>
 <tr><td><b>Кинозал</b></td><td>Jellyfin</td><td><a href="https://github.com/hhypest/hh-homelab/blob/main/pachca/jellyfin.liquid"><code>jellyfin.liquid</code></a></td><td>появилось новое, кто что смотрит, неудачный вход</td></tr>
 <tr><td><b>Кинозал</b></td><td>Seerr</td><td><a href="https://github.com/hhypest/hh-homelab/blob/main/pachca/seerr.liquid"><code>seerr.liquid</code></a></td><td>кто что попросил, что доехало, что не выполнилось</td></tr>
 <tr><td><b>Мониторинг</b></td><td>Home Assistant</td><td><i>шаблона нет</i></td><td>железо, контейнеры, сервисы, утренняя сводка</td></tr>
 </tbody></table></div>
-<p>Четыре бота с аватарами по сервисам — в чате сразу видно, кто говорит, и не нужно начинать каждое сообщение с названия сервиса.</p>
+<p>Пять ботов с аватарами по сервисам — в чате сразу видно, кто говорит, и не нужно начинать каждое сообщение с названия сервиса.</p>
 </section>
 
 <section id="s1">
@@ -374,7 +375,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <div class="kicker">Раздел 1</div>
     <h2 id="два-правила-которые-нельзя-нарушать">Два правила, которые нельзя нарушать</h2>
   </div>
-<p><b>Шаблон задаётся на боте, а не на вебхуке</b>, и применяется ко всем сообщениям этого бота. Поэтому у каждого сервиса свой бот: одним шаблоном четыре разных payload не обслужить.</p>
+<p><b>Шаблон задаётся на боте, а не на вебхуке</b>, и применяется ко всем сообщениям этого бота. Поэтому у каждого сервиса свой бот: одним шаблоном пять разных payload не обслужить.</p>
 <p><b>У бота Home Assistant шаблона быть не должно.</b> Он шлёт уже готовый текст — <code>{"message": "..."}</code> — и Пачка публикует его как есть. Стоит задать этому боту любой шаблон, и все уведомления мониторинга исчезнут: поля <code>movie</code> или <code>subject</code> в его payload нет, шаблон отрендерится в пустоту, а пустое сообщение Пачка не отправляет.</p>
 <p><b>Бот публикует во все групповые чаты, где состоит.</b> Добавьте бота Radarr заодно в Мониторинг — и туда полетят фильмы. Держите каждого ровно в одном чате.</p>
 </section>
@@ -488,6 +489,13 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
 </tbody></table></div>
 </section>
 
+<section id="sonarr">
+  <div class="sec-head"><div class="kicker">Сериалы</div><h2>Sonarr</h2></div>
+  <p>Отдельный бот Sonarr в Кинозале, шаблон <code>pachca/sonarr.liquid</code>. Settings → Connect → Webhook: POST, входящий URL бота, Test и фактическое сообщение в чате. Настройка целиком — <a href="media-stack.html#s6">медиа-стек, шаг 6.11</a>.</p>
+  <p>Grab использует series/episodes/release; Download — series/episodes/episodeFile и isUpgrade. Один файл может содержать несколько серий: сообщение сохраняет каждый номер SxxExx. Health и HealthRestored читают message из корня payload. Есть обработка SeriesAdd, SeriesDelete, Rename и ManualInteractionRequired. Уведомления HA о доступности Sonarr идут отдельно в Мониторинг.</p>
+  <p>При изменении шаблона вставьте новую версию в настройки бота: обновление клона на NAS само шаблон в Пачке не меняет.</p>
+</section>
+
 <section id="s6">
   <div class="sec-head">
     <div class="kicker">Раздел 6</div>
@@ -497,6 +505,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
 <div class="code"><button class="copy" type="button">копировать</button><pre><code>pip install python-liquid
 python3 scripts/render_pachca.py            # показать все сообщения
 python3 scripts/render_pachca.py radarr     # только Radarr
+python3 scripts/render_pachca.py sonarr     # только Sonarr
 python3 scripts/render_pachca.py --check    # молча, для CI</code></pre></div>
 <p>Скрипт рендерит каждый шаблон на каждом подходящем примере из <a href="samples/"><code>samples/</code></a> и заодно проверяет две вещи, которые Пачка не простит: пустое сообщение и превышение лимита в 40 000 байт.</p>
 <p>То же самое гоняется в CI на каждый push — сломанный шаблон не доедет до main.</p>

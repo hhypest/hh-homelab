@@ -348,8 +348,8 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <div class="facts">
       <span class="fact"><span class="dot home"></span>NAS <b>192.168.3.53</b></span>
       <span class="fact">контейнеров <b>8</b></span>
-      <span class="fact">файлов под версией <b>103</b></span><span class="fact">страниц документации <b>9</b></span>
-      <span class="fact">тестов <b>579</b></span>
+      <span class="fact">файлов под версией <b>111</b></span><span class="fact">страниц документации <b>9</b></span>
+      <span class="fact">тестов <b>617</b></span>
       <span class="fact">задач CI <b>8</b></span>
     </div>
 
@@ -382,7 +382,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
 
   <figure>
     <svg viewBox="0 0 900 450" role="img"
-         aria-label="Схема: два независимых compose-проекта на одном NAS. Медиа-стек из шести контейнеров в bridge-сети media публикует порты на хост, и Home Assistant, работающий в сети хоста, ходит к ним по 127.0.0.1. Docker-сокет доступен Home Assistant только через прокси на петлевом адресе. Наружу от медиа-стека уходят уведомления в Пачку; от Home Assistant — команды Алисе через облако, управление телевизором и приставкой и метрики Synology DSM.">
+         aria-label="Схема: два независимых compose-проекта на одном NAS. Медиа-стек из семи контейнеров в bridge-сети media публикует порты на хост, и Home Assistant, работающий в сети хоста, ходит к ним по 127.0.0.1. Docker-сокет доступен Home Assistant только через прокси на петлевом адресе. Наружу от медиа-стека уходят уведомления в Пачку; от Home Assistant — команды Алисе через облако, управление телевизором и приставкой и метрики Synology DSM.">
       <defs>
         <marker id="oa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
@@ -391,7 +391,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
 
       <!-- границы двух compose-проектов -->
       <g stroke="currentColor" fill="none" stroke-width="1.3" opacity=".4" stroke-dasharray="4 4">
-        <rect x="14" y="34" width="430" height="168" rx="12"></rect>
+        <rect x="14" y="34" width="430" height="176" rx="12"></rect>
         <rect x="14" y="238" width="430" height="176" rx="12"></rect>
       </g>
       <g fill="currentColor" font-family="IBM Plex Sans, sans-serif" font-size="11.5" opacity=".7">
@@ -399,7 +399,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
         <text x="30" y="230">Проект homeassistant · сеть хоста</text>
       </g>
 
-      <!-- шесть сервисов медиа-стека -->
+      <!-- семь сервисов медиа-стека -->
       <g stroke="currentColor" fill="none" stroke-width="1.3">
         <rect x="30" y="56" width="126" height="46" rx="8"></rect>
         <rect x="170" y="56" width="126" height="46" rx="8"></rect>
@@ -425,6 +425,9 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
         <text x="233" y="155">8096</text>
         <text x="373" y="155">5055</text>
       </g>
+
+      <g stroke="currentColor" fill="none" stroke-width="1.3"><rect x="30" y="175" width="406" height="27" rx="7"></rect></g>
+      <text x="233" y="193" fill="currentColor" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="11.5">Sonarr · 8989 · сериалы</text>
 
       <!-- Home Assistant и прокси: друг под другом, чтобы правый край HA был свободен -->
       <g stroke="currentColor" fill="none" stroke-width="1.3">
@@ -480,7 +483,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
         <path d="M448,111 H530 V60 H608" marker-end="url(#oa)"></path>
       </g>
       <text x="452" y="103" fill="currentColor" opacity=".6"
-            font-family="IBM Plex Sans, sans-serif" font-size="10.5">4 бота</text>
+            font-family="IBM Plex Sans, sans-serif" font-size="10.5">5 ботов</text>
 
       <!-- шина Б: Home Assistant -> Алиса, телевизор, DSM -->
       <g stroke="currentColor" fill="none" stroke-width="1.3" opacity=".75">
@@ -506,26 +509,18 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <table>
       <thead><tr><th>Область</th><th>Что содержит</th><th class="num-col">Строк</th><th class="num-col">Файлов</th></tr></thead>
       <tbody>
-        <tr><td><code class="path">docs/</code></td><td>чек-листы, гайды, справочники, дорожная карта, история версий</td><td class="num-col">13660</td><td class="num-col">9</td></tr>
-        <tr><td><code class="path">tests/</code></td><td>pytest на скрипты, шаблоны, сценарии, workflow, образцы <code>.env</code>, версии образов и сами страницы</td><td class="num-col">5028</td><td class="num-col">28</td></tr>
-        <tr><td><code class="path">homeassistant/</code></td><td>compose, образец <code>.env</code>, пакеты, дашборд, скрипты</td><td class="num-col">2809</td><td class="num-col">15</td></tr>
-        <tr><td><code class="path">scripts/</code></td><td>проверки конфигурации и документации</td><td class="num-col">1725</td><td class="num-col">8</td></tr>
-        <tr><td><code class="path">pachca/</code></td><td>Liquid-шаблоны уведомлений и примеры payload</td><td class="num-col">832</td><td class="num-col">23</td></tr>
+        <tr><td><code class="path">docs/</code></td><td>чек-листы, гайды, справочники, дорожная карта, история версий</td><td class="num-col">13902</td><td class="num-col">9</td></tr>
+        <tr><td><code class="path">tests/</code></td><td>pytest на скрипты, шаблоны, сценарии, workflow, образцы <code>.env</code>, версии образов и сами страницы</td><td class="num-col">5435</td><td class="num-col">30</td></tr>
+        <tr><td><code class="path">homeassistant/</code></td><td>compose, образец <code>.env</code>, пакеты, дашборд, скрипты</td><td class="num-col">2984</td><td class="num-col">15</td></tr>
+        <tr><td><code class="path">scripts/</code></td><td>проверки конфигурации и документации</td><td class="num-col">1724</td><td class="num-col">8</td></tr>
+        <tr><td><code class="path">pachca/</code></td><td>Liquid-шаблоны уведомлений и примеры payload</td><td class="num-col">1017</td><td class="num-col">30</td></tr>
         <tr><td><code class="path">.github/</code></td><td>workflow проверок, workflow выпуска и настройка Dependabot</td><td class="num-col">477</td><td class="num-col">3</td></tr>
-        <tr><td><code class="path">media/</code></td><td>compose медиа-стека и образец <code>.env</code></td><td class="num-col">377</td><td class="num-col">2</td></tr>
+        <tr><td><code class="path">media/</code></td><td>compose медиа-стека и образец <code>.env</code></td><td class="num-col">401</td><td class="num-col">2</td></tr>
       </tbody>
     </table>
   </div>
 
-  <div class="note why"><b>Что здесь необычного.</b> Отношение «документация и
-    проверки» к «собственно конфигурации» — 22 258 строк против 4018,
-    то есть примерно 5,5 к 1. За три недели перекос стал заметнее, чем был
-    (4 к 1 на выпуске 1.0.0), и вырос он не за счёт новых сервисов:
-    конфигурация прибавила семь с небольшим сотен строк, тесты — три с
-    половиной тысячи. Для домашнего сервера это выглядит странно, пока
-    не вспомнить, что настраивается он раз в год, а разбираться в нём
-    приходится в тот вечер, когда что-то сломалось и половина деталей
-    забыта.</div>
+  <div class="note why"><b>Срез на 9 октября 2026.</b> Таблица показывает текущие отслеживаемые файлы и число строк. Исторические замеры времени выполнения тестов ниже относятся к указанной там конфигурации и не пересчитываются при добавлении сервисов.</div>
 </section>
 
 <section id="s1">
@@ -891,7 +886,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <code class="path">.env</code> роняет запуск с внятным сообщением.
     Голое <code>${ИМЯ}</code> вместо этого подставило бы пустую строку
     и вернуло код 0 — стек поднялся бы от <code>root</code>, с UTC
-    и без опубликованных портов. Снаружи это шесть сломанных приложений,
+    и без опубликованных портов. Снаружи это семь сломанных приложений,
     а не забытый файл; чинят такое долго и не там. Правило простое:
     из двух вариантов выбирается тот, где отказ громкий, даже если
     он менее удобен.</div>
@@ -1344,7 +1339,7 @@ ps -eo state,pid,comm | awk '$1 ~ /D/'</code></pre></div>
       <thead><tr><th>Что поднимаете</th><th>Куда идти</th><th>Что там есть</th></tr></thead>
       <tbody>
         <tr>
-          <td><b>Медиа-стек</b><br>шесть контейнеров</td>
+          <td><b>Медиа-стек</b><br>семь контейнеров</td>
           <td><a href="media-stack.html">Чек-лист медиа-стека</a>, раздел 2</td>
           <td>клон, каталоги состояния, первый запуск и проверка томов</td>
         </tr>
@@ -1409,7 +1404,7 @@ ps -eo state,pid,comm | awk '$1 ~ /D/'</code></pre></div>
     Голое <code>${ИМЯ}</code> так не умеет — Compose подставил бы пустую
     строку, вернул код 0, и стек поднялся бы от <code>root</code>, с UTC
     и <b>без единого опубликованного порта</b>. Отказ, который выглядит
-    как шесть сломанных приложений, стоит дороже отказа, который называет
+    как семь сломанных приложений, стоит дороже отказа, который называет
     себя по имени.</div>
 
   <div class="note"><b>Цена решения — два файла вместо одного.</b>
@@ -1456,14 +1451,12 @@ ps -eo state,pid,comm | awk '$1 ~ /D/'</code></pre></div>
     </table>
   </div>
 
-  <div class="note"><b>Про память и новые сервисы.</b> Апгрейд до 12 ГБ снял
-    вопрос с памятью полностью: Sonarr и Bazarr вместе добавляют около
-    0,5–0,8 ГБ при свободных примерно шести. Но упрутся они
-    не в память, а в два ядра и два шпинделя: Sonarr в покое почти бесплатен,
-    а Bazarr при синхронизации субтитров разбирает звуковую дорожку через
-    ffmpeg и конкурирует ровно за тот ресурс, которого не хватает транскоду.
-    Том на NVMe и так стоит первым в приоритетах — Sonarr с Bazarr просто
-    добавят ему веса.</div>
+  <div class="note"><b>Про память и новые сервисы.</b> Sonarr включён в
+    1.3.0. После установки измерьте загрузку CPU, память и дисковую активность
+    в покое, при поиске и импорте эпизодов; локальные проверки конфигурации
+    не подтверждают запас ресурсов NAS. Bazarr остаётся отдельным будущим
+    расширением, нагрузку которого нужно оценить до установки. Том на NVMe
+    остаётся первым в приоритетах для сокращения случайного дискового ввода-вывода.</div>
 
   <p class="crosslink">Пошаговые документы:
     <a href="media-stack.html">настройка медиа-стека</a> ·

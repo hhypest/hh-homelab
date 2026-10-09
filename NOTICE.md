@@ -53,6 +53,7 @@ CC BY 4.0 разрешает копировать, переделывать и �
 |---|---|---|
 | Home Assistant Core | Apache-2.0 | [home-assistant/core](https://github.com/home-assistant/core) |
 | Jellyfin | GPL-2.0 | [jellyfin/jellyfin](https://github.com/jellyfin/jellyfin) |
+| Sonarr | GPL-3.0 | [Sonarr/Sonarr](https://github.com/Sonarr/Sonarr) |
 | Radarr | GPL-3.0 | [Radarr/Radarr](https://github.com/Radarr/Radarr) |
 | Prowlarr | GPL-3.0 | [Prowlarr/Prowlarr](https://github.com/Prowlarr/Prowlarr) |
 | qBittorrent | GPL-2.0-or-later, сборки — GPL-3.0-or-later, с исключением для OpenSSL | [qbittorrent/qBittorrent](https://github.com/qbittorrent/qBittorrent) |
@@ -72,7 +73,7 @@ CC BY 4.0 разрешает копировать, переделывать и �
 
 ### У образа и у программы внутри лицензии разные
 
-Пять сервисов запускаются из образов linuxserver.io. Образ — это не сама
+Шесть сервисов запускаются из образов linuxserver.io. Образ — это не сама
 программа, а сборка вокруг неё: базовый слой, s6-overlay, скрипты
 инициализации и работа с `PUID`/`PGID`. Эта обвязка распространяется под
 **GPL-3.0** независимо от того, под какой лицензией лежит приложение

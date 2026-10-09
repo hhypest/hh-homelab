@@ -8,7 +8,7 @@
 #   2. Monitor Docker     — метрики по каждому контейнеру, см. packages/docker.yaml
 #   3. Command line       — HTTP-пинг каждого сервиса стека: живой ли он
 #                           на самом деле, а не «контейнер запущен».
-#   4. Jellyfin / Radarr / qBittorrent — прикладные интеграции (шаг 4.4).
+#   4. Jellyfin / Radarr / Sonarr / qBittorrent — прикладные интеграции (шаг 4.4).
 #
 #  Почему мало одного Monitor Docker: он видит контейнер запущенным даже
 #  тогда, когда приложение внутри намертво висит. HTTP-проверка ловит ровно
@@ -25,7 +25,7 @@
 # Списки кодов из команд убраны. Раньше второй аргумент ЗАМЕНЯЛ набор
 # по умолчанию, и перечислять 200 приходилось, чтобы проверка не считала
 # живой сервис мёртвым. Теперь аргумент добавляет коды к набору
-# 200/201/204/301/302/401/403, и для всех шести сервисов он не нужен:
+# 200/201/204/301/302/401/403, и для всех семи сервисов он не нужен:
 # сенсор отвечает на вопрос «сервис жив?», а сервис за формой логина жив.
 command_line:
 
@@ -49,6 +49,14 @@ command_line:
       name: "svc Radarr"
       unique_id: svc_radarr_http
       command: "python3 /config/bin/http_check.py http://127.0.0.1:7878/ping"
+      device_class: connectivity
+      scan_interval: 60
+      command_timeout: 15
+
+  - binary_sensor:
+      name: "svc Sonarr"
+      unique_id: svc_sonarr_http
+      command: "python3 /config/bin/http_check.py http://127.0.0.1:8989/ping"
       device_class: connectivity
       scan_interval: 60
       command_timeout: 15

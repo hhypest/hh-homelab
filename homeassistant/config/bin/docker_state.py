@@ -59,6 +59,7 @@ WATCHED = [
     "qbittorrent",
     "prowlarr",
     "radarr",
+    "sonarr",
     "flaresolverr",
     "jellyfin",
     "seerr",

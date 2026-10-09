@@ -2,11 +2,11 @@
 #  Медиа-стек для Synology DS725+ (192.168.3.53)
 #  Проект Container Manager: /volume1/docker/hh-homelab/media
 # =============================================================================
-#  Шесть контейнеров в общей bridge-сети `media`. Все веб-интерфейсы
+#  Семь контейнеров в общей bridge-сети `media`. Все веб-интерфейсы
 #  опубликованы на хосте, поэтому Home Assistant, работающий в host-сети,
 #  достаёт их по 127.0.0.1 — см. homeassistant/config/packages/monitoring.yaml.
 #
-#  Порты: 9080 и 6881 (qBittorrent), 9696 (Prowlarr), 7878 (Radarr),
+#  Порты: 9080 и 6881 (qBittorrent), 9696 (Prowlarr), 7878 (Radarr), 8989 (Sonarr),
 #  8191 (FlareSolverr), 8096 и 7359 (Jellyfin), 5055 (Seerr).
 #
 #  ВСЕ НАСТРОЙКИ — В .env РЯДОМ С ЭТИМ ФАЙЛОМ, образец в .env.example.
@@ -25,10 +25,10 @@
 #  и при этом строки портов остаются читаемыми.
 #
 #  ПЕРЕМЕННАЯ ПОРТА МЕНЯЕТ ТОЛЬКО ПОРТ ХОСТА. Со стороны контейнера номера
-#  записаны литералами — 9080, 9696, 7878, 8191, 8096, 5055, — потому что
-#  они часть внутреннего устройства стека: Prowlarr, Radarr и Jellyfin
+#  записаны литералами — 9080, 9696, 7878, 8989, 8191, 8096, 5055, — потому что
+#  они часть внутреннего устройства стека: Prowlarr, Radarr, Sonarr и Jellyfin
 #  слушают их жёстко, а Prowlarr ходит к FlareSolverr по имени
-#  `flaresolverr:8191`, Radarr к qBittorrent — `qbittorrent:9080`.
+#  `flaresolverr:8191`, Radarr и Sonarr к qBittorrent — `qbittorrent:9080`.
 #  Сдвинь мы обе стороны разом — публикация указывала бы в пустоту,
 #  а настройки, сделанные по чек-листу, перестали бы совпадать.
 #  Конфликт же всегда на стороне ХОСТА, и лечится он только там.
@@ -51,7 +51,7 @@
 #  compose.yaml, поэтому весь стек переносится вместе с репозиторием:
 #  склонировали в другое место — и он поднимается там же, без правки путей.
 #  Каталоги создаются рядом с этим файлом:
-#      config/{qbittorrent,prowlarr,radarr,jellyfin,seerr}  состояние и базы
+#      config/{qbittorrent,prowlarr,radarr,sonarr,jellyfin,seerr}  состояние и базы
 #      cache/jellyfin                                       кэш метаданных
 #      watch/                                               .torrent на подхват
 #  Всё это в .gitignore: там базы SQLite и логи, версионировать их нечего.
@@ -68,7 +68,7 @@
 #  трогать не нужно.
 #
 #  Для хардлинков важна не абсолютность пути, а то, что том монтируется
-#  ЦЕЛИКОМ и одинаково в qBittorrent и Radarr: внутри обоих контейнеров
+#  ЦЕЛИКОМ и одинаково в qBittorrent, Radarr и Sonarr: внутри всех трёх контейнеров
 #  /data/torrents и /data/media лежат на одной файловой системе. Две
 #  отдельные папки вместо одного тома сломали бы импорт хардлинком —
 #  и это не зависит от того, записан путь абсолютно или через переменную.
@@ -82,7 +82,7 @@
 #  кончится место на томе, причём отнимает его у библиотеки и баз на том же
 #  /volume1. Заметнее всего у Jellyfin и FlareSolverr: первый пишет на каждый
 #  запрос плеера, второй — ход каждого обхода Cloudflare.
-#  Потолок на стек — 6 сервисов x 30 МБ = 180 МБ, дальше самые старые записи
+#  Потолок на стек — 7 сервисов x 30 МБ = 210 МБ, дальше самые старые записи
 #  вытесняются. Журналы лежат в /volume1/@docker/containers.
 #  Настройка применяется при СОЗДАНИИ контейнера: после правки нужен
 #  `docker compose up -d`, перезапуск её не подхватит. Подробности —
@@ -164,6 +164,28 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:4.0.20.3014-ls326
+    container_name: sonarr
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID:?см. .env.example}
+      - PGID=${PGID:?см. .env.example}
+      - UMASK=${UMASK:?см. .env.example}
+      - TZ=${TZ:?см. .env.example}
+    volumes:
+      - ./config/sonarr:/config
+      - ${MEDIA_ROOT:?см. .env.example}:/data
+    ports:
+      - "${BIND_ADDR:?см. .env.example}:${SONARR_PORT:?см. .env.example}:8989"
+    networks:
+      - media
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:v3.5.2
     container_name: flaresolverr
@@ -224,6 +246,7 @@ services:
       - "${BIND_ADDR:?см. .env.example}:${SEERR_PORT:?см. .env.example}:5055"
     depends_on:
       - radarr
+      - sonarr
       - jellyfin
     networks:
       - media

@@ -167,7 +167,7 @@ def test_finds_all_images_of_both_stacks():
     found = {}
     for path in ci.COMPOSE:
         found.update(ci.images(path))
-    assert len(found) == 9, f"ожидалось девять образов, найдено {len(found)}: {found}"
+    assert len(found) == 10, f"ожидалось десять образов, найдено {len(found)}: {found}"
     assert any("DOCKER_MODS" in name for name in found), (
         "образ из DOCKER_MODS потерялся — ровно его Dependabot и не видит"
     )

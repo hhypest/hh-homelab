@@ -103,7 +103,7 @@ def test_summary_distinguishes_missing_service_and_disk_data():
     base = {"nas_ok": True, "docker_ok": True, "cont_down": 0, "svc_down": [], "disks": [],
             "svc_down_min": 0, "cont_down_min": 0, "vol_used": 40, "nas_temp": 38}
     for unknown, disks_ok in [(["Radarr"], True), ([], False)]:
-        verdict = render(data["verdict"], svc_unknown=unknown, svc_total=6,
+        verdict = render(data["verdict"], svc_unknown=unknown, svc_total=7,
                          disks_ok=disks_ok, **base)
         assert "Всё в порядке" not in verdict
 
