@@ -5,7 +5,7 @@ import json
 import pytest
 import yaml
 from conftest import ROOT
-from test_ha_audit import package, render, sensor, variables
+from test_ha_audit import automation, package, render, sensor, variables
 from test_pachca_templates import PACHCA
 from test_pachca_templates import render as liquid_render
 
@@ -79,3 +79,29 @@ def test_voice_includes_sonarr_in_the_health_verdict(sonarr_state, healthy):
                    ("sensor.docker_down", "down_names"): []}, rows=rows)
     assert ("Всё работает" in text) is healthy
     assert len(text.strip()) <= 99
+
+
+@pytest.mark.parametrize("ident", ["mon_service_down", "mon_service_up"])
+def test_every_http_check_is_covered_by_outage_and_recovery_alerts(ident):
+    checks = package("monitoring.yaml")["command_line"]
+    expected = {"binary_sensor." + row["binary_sensor"]["name"].lower().replace(" ", "_")
+                for row in checks if "binary_sensor" in row}
+    triggers = automation("monitoring.yaml", ident)["triggers"]
+    actual = {entity for trigger in triggers for entity in trigger["entity_id"]}
+    assert actual == expected, "каждая HTTP-проверка требует отказа и восстановления"
+
+
+@pytest.mark.parametrize("media_type,manager", [("tv", "Sonarr"), ("movie", "Radarr")])
+@pytest.mark.parametrize("event,message", [("MEDIA_AUTO_APPROVED", ""),
+                                          ("MEDIA_FAILED", ""),
+                                          ("MEDIA_FAILED", "Не удалось добавить запрос")])
+def test_seerr_guidance_names_the_actual_request_manager(media_type, manager, event, message):
+    payload = {"service": "seerr", "type": event, "mediaType": media_type,
+               "subject": "Проверочный запрос", "requestedBy": "Тест", "message": message}
+    text = liquid_render(PACHCA / "seerr.liquid", payload)
+    assert manager in text
+    assert ("Radarr" if manager == "Sonarr" else "Sonarr") not in text
+    if event == "MEDIA_FAILED":
+        assert "Activity → Queue" in text
+        if message:
+            assert message in text

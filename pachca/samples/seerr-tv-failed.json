@@ -1,0 +1,9 @@
+{
+  "service": "seerr",
+  "type": "MEDIA_FAILED",
+  "event": "TV Request Failed",
+  "subject": "Северные истории (2024)",
+  "mediaType": "tv",
+  "requestedBy": "Тест",
+  "message": ""
+}

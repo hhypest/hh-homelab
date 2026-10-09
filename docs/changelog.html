@@ -346,9 +346,9 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     </p>
     <div class="facts">
       <span class="fact">текущий выпуск <b>1.3.0</b></span>
-      <span class="fact">контейнеров <b>8</b></span>
-      <span class="fact">задач CI <b>8</b></span>
-      <span class="fact">тестов <b>617</b></span>
+      <span class="fact">контейнеров <b>9</b></span>
+      <span class="fact">задач CI <b>10</b></span>
+      <span class="fact">тестов <b>637</b></span>
     </div>
     <p class="crosslink">Соседние документы: <a href="overview.html">обзор проекта</a>
       — как это устроено и почему именно так;
@@ -389,7 +389,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <li>Сохраните состояние сервисов и обновите клон. В существующий media/.env добавьте <code>SONARR_PORT=8989</code>, сохранив остальные свои значения. При переходе именно с 1.2.0 убедитесь, что есть FLARESOLVERR_BIND_ADDR=127.0.0.1. Не заменяйте .env целиком образцом.</li>
     <li>Создайте каталоги <code>MEDIA_ROOT/torrents/tv</code>, <code>MEDIA_ROOT/media/tv</code> и <code>media/config/sonarr</code> с владельцем PUID:PGID. Проверьте оба Compose с фактическими .env; порт 8989 должен быть свободен.</li>
     <li>Выполните pull и up -d для media, затем up -d для homeassistant: новое окружение прокси требует пересоздания HA. Проверьте журнал и конфигурацию HA.</li>
-    <li>Настройте Sonarr и связи сервисов по <a href="media-stack.html#s6">шагам 6.7–6.14</a> и 8.2. Добавьте библиотеку сериалов в Jellyfin/Seerr, вставьте шаблон в бота Sonarr, обновите YAML панели через интерфейс HA.</li>
+    <li>Настройте Sonarr и связи сервисов по <a href="media-stack.html#s6">шагам 6.7–6.14</a> и 8.2. Добавьте библиотеку сериалов в Jellyfin/Seerr, вставьте шаблон в бота Sonarr и обновите сохранённый шаблон бота Seerr из pachca/seerr.liquid, обновите YAML панели через интерфейс HA.</li>
     <li>Проверьте один эпизод от запроса до воспроизведения и хардлинк; в сводке ожидаются девять контейнеров и семь HTTP-проверок. После этого переходите к P1 из issue #70.</li>
   </ol>
   <div class="note warn"><b>Откат.</b> До обновления сохраните config/. При откате остановите Sonarr и верните совместимую копию изменённых баз сервисов; старый тег не отменяет миграции базы. Уже импортированные эпизоды остаются в MEDIA_ROOT. Не удаляйте данные вместе с контейнером.</div>

@@ -1,0 +1,9 @@
+{
+  "service": "seerr",
+  "type": "MEDIA_AUTO_APPROVED",
+  "event": "TV Request Automatically Approved",
+  "subject": "Северные истории (2024)",
+  "mediaType": "tv",
+  "requestedBy": "Тест",
+  "message": ""
+}

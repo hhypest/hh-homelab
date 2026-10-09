@@ -24,6 +24,7 @@ import re
 import subprocess
 import sys
 
+import pytest
 import yaml
 from conftest import ROOT
 
@@ -70,6 +71,24 @@ def test_test_count_in_headers():
 
 def test_doc_page_count_in_headers():
     expect_equal("страниц документации", len(DOCS))
+
+
+@pytest.mark.parametrize("page,stacks", [("media-stack.html", ["media"]),
+                                       ("overview.html", ["media", "homeassistant"]),
+                                       ("changelog.html", ["media", "homeassistant"])])
+def test_container_count_in_headers(page, stacks):
+    expected = sum(len(yaml.safe_load((ROOT / name / "compose.yaml").read_text(encoding="utf-8"))
+                       ["services"]) for name in stacks)
+    found = {path.name: value for path, value in badges("контейнеров")}
+    assert page in found, "исчезла плашка количества контейнеров"
+    assert found[page] == expected
+
+
+def test_ci_job_count_in_headers():
+    jobs = yaml.safe_load((ROOT / ".github/workflows/validate.yml").read_text(encoding="utf-8"))["jobs"]
+    expected = sum(len(job.get("strategy", {}).get("matrix", {}).get("python-version", [None]))
+                   for job in jobs.values())
+    expect_equal("задач CI", expected)
 
 
 def test_tracked_file_count_in_headers():

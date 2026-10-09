@@ -224,6 +224,7 @@ automation:
           - binary_sensor.svc_qbittorrent
           - binary_sensor.svc_prowlarr
           - binary_sensor.svc_radarr
+          - binary_sensor.svc_sonarr
           - binary_sensor.svc_flaresolverr
           - binary_sensor.svc_jellyfin
           - binary_sensor.svc_seerr
@@ -253,6 +254,7 @@ automation:
           - binary_sensor.svc_qbittorrent
           - binary_sensor.svc_prowlarr
           - binary_sensor.svc_radarr
+          - binary_sensor.svc_sonarr
           - binary_sensor.svc_flaresolverr
           - binary_sensor.svc_jellyfin
           - binary_sensor.svc_seerr
