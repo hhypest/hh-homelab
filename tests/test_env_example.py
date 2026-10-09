@@ -296,7 +296,7 @@ def test_flaresolverr_address_is_loopback() -> None:
 
 def test_other_services_stay_on_the_shared_address() -> None:
     """Разводить по сервисам всё подряд не нужно: у этих пяти есть вход по паролю."""
-    for port in ("9080", "9696", "7878", "8096", "5055"):
+    for port in ("9080", "9696", "7878", "8989", "8096", "5055"):
         assert "${BIND_ADDR" in publish_line(port), f"порт {port} ушёл со своим адресом"
 
 

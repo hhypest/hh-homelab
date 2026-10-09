@@ -107,7 +107,7 @@ template:
           {% set head = 'Процессор ' ~ cpu ~ ', память ' ~ ram ~ ' процентов, ' ~ temp ~ ' градусов. ' %}
           {% if not docker_ok %}
             {{ (head ~ 'Нет данных от Docker.') | truncate(99, true, '', 0) }}
-          {% elif down | count == 0 and services_up != 6 %}
+          {% elif down | count == 0 and services_up != 7 %}
             {{ (head ~ 'Не все сервисы отвечают.') | truncate(99, true, '', 0) }}
           {% elif down | count == 0 %}
             {{ (head ~ 'Всё работает.') | truncate(99, true, '', 0) }}

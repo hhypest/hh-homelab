@@ -8,7 +8,7 @@
 #  --------------------------------------
 #  МЕТРИКИ (CPU, память) снимаются раз в час. Docker отдаёт статистику
 #  потоком на каждый контейнер, это самая дорогая часть; на двухъядерном
-#  R1600 частый опрос восьми контейнеров — заметная постоянная нагрузка,
+#  R1600 частый опрос девяти контейнеров — заметная постоянная нагрузка,
 #  а в базе истории он оставляет сотни тысяч строк в сутки.
 #
 #  СОСТОЯНИЕ (жив контейнер или нет) проверяется раз в минуту отдельным
@@ -45,6 +45,7 @@ monitor_docker:
       - qbittorrent
       - prowlarr
       - radarr
+      - sonarr
       - flaresolverr
       - jellyfin
       - seerr
@@ -55,6 +56,7 @@ monitor_docker:
       qbittorrent: qBittorrent
       prowlarr: Prowlarr
       radarr: Radarr
+      sonarr: Sonarr
       flaresolverr: FlareSolverr
       jellyfin: Jellyfin
       seerr: Seerr

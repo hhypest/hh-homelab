@@ -351,7 +351,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
       <span class="fact">драйвер <b>json-file</b></span>
       <span class="fact">на файл <b>10 МБ</b></span>
       <span class="fact">файлов <b>3</b></span>
-      <span class="fact">потолок стека <b>180 МБ</b></span>
+      <span class="fact">потолок стека <b>210 МБ</b></span>
     </div>
 
     <p class="crosslink">Соседние документы:
@@ -468,7 +468,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
         <tr><td><code>max-size</code></td><td>не задан — файл не обрезается никогда</td><td><code>10m</code></td></tr>
         <tr><td><code>max-file</code></td><td>не задан</td><td><code>3</code> — активный плюс два архива</td></tr>
         <tr><td>Потолок на сервис</td><td>объём тома</td><td class="num-col">30 МБ</td></tr>
-        <tr><td>Потолок на стек</td><td>объём тома</td><td class="num-col">180 МБ (6 сервисов)</td></tr>
+        <tr><td>Потолок на стек</td><td>объём тома</td><td class="num-col">210 МБ (6 сервисов)</td></tr>
       </tbody>
     </table>
   </div>
@@ -491,7 +491,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <div class="kicker">Раздел 1</div>
     <h2>Что изменилось в compose.yaml</h2>
     <p>
-      Правка механическая и одинаковая для всех шести сервисов. Читать её
+      Правка механическая и одинаковая для всех семи сервисов. Читать её
       стоит один раз — чтобы понимать, что именно применяется на NAS
       в следующем разделе.
     </p>
@@ -536,7 +536,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
             включая активный. То есть активный плюс <code>.1</code> и <code>.2</code>.</li>
         </ul>
         <div class="note"><b>Считать надо произведение.</b> 10 × 3 = 30 МБ
-          на сервис в худшем случае, 180 МБ на весь стек. Частая ошибка —
+          на сервис в худшем случае, 210 МБ на весь стек. Частая ошибка —
           прочитать <code>max-size</code> как общий лимит и удивиться, что
           на диске втрое больше.</div>
         <div class="note why"><b>Почему именно 10 МБ, а не 1 и не 100.</b>
@@ -569,7 +569,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
         <div class="note warn"><b>Цена решения.</b> Седьмой сервис, добавленный
           в стек без блока <code>logging</code>, снова будет писать без
           ограничения. При добавлении контейнера блок нужно копировать —
-          это же относится к Sonarr и Bazarr из
+          это же относится к Bazarr из
           <a href="roadmap.html">дорожной карты</a>.</div>
       </div>
     </li>
@@ -620,7 +620,7 @@ git pull</code></pre></div>
 docker compose config | grep -A4 logging</code></pre></div>
         <p>
           <code>docker compose config</code> печатает конфигурацию так, как её
-          понял Docker. Блоков <code>logging</code> должно быть <b>шесть</b>,
+          понял Docker. Блоков <code>logging</code> должно быть <b>семь</b>,
           в каждом — <code>max-size</code> со значением 10m и <code>max-file</code>
           со значением 3. Если команда ругается на разбор — правьте YAML,
           до контейнеров дело ещё не дошло и ничего не сломано.
@@ -636,7 +636,7 @@ docker compose config | grep -A4 logging</code></pre></div>
 docker compose up -d</code></pre></div>
         <p>
           Compose сравнит желаемое состояние с текущим, увидит изменившийся
-          <code>LogConfig</code> и пересоздаст все шесть контейнеров:
+          <code>LogConfig</code> и пересоздаст все семь контейнеров:
           <code>Recreating qbittorrent … done</code> и так далее. Образы
           не перекачиваются, простой — несколько секунд на сервис.
         </p>
@@ -659,7 +659,7 @@ docker compose up -d</code></pre></div>
         <h3><span class="num">2.4</span> Убедиться, что всё поднялось</h3>
         <div class="code"><button class="copy" type="button">копировать</button><pre><code>docker compose ps</code></pre></div>
         <p>
-          Шесть строк в состоянии <code>running</code>. Дальше — обычная
+          Семь строк в состоянии <code>running</code>. Дальше — обычная
           проверка живости: открыть <a href="http://192.168.3.53:5055">Seerr</a>
           и <a href="http://192.168.3.53:8096">Jellyfin</a>, убедиться, что
           раздачи в qBittorrent продолжились.
@@ -690,10 +690,10 @@ docker compose up -d</code></pre></div>
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body">
         <h3><span class="num">3.1</span> Спросить сам контейнер<span class="tag key">главная проверка</span></h3>
-        <div class="code"><button class="copy" type="button">копировать</button><pre><code>for c in qbittorrent prowlarr radarr flaresolverr jellyfin seerr; do
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>for c in qbittorrent prowlarr radarr sonarr flaresolverr jellyfin seerr; do
   printf '%-13s %s\n' "$c" "$(docker inspect --format '{{json .HostConfig.LogConfig}}' "$c")"
 done</code></pre></div>
-        <p>Ожидаемый вывод — шесть одинаковых строк:</p>
+        <p>Ожидаемый вывод — семь одинаковых строк:</p>
         <div class="code"><pre><code>qbittorrent   {"Type":"json-file","Config":{"max-file":"3","max-size":"10m"}}</code></pre></div>
         <div class="note crit"><b>Пустой <code>Config</code> — значит контейнер не пересоздан.</b>
           <code>{"Type":"json-file","Config":{}}</code> говорит, что работает
@@ -823,7 +823,7 @@ done</code></pre></div>
             <thead><tr><th>Сервис</th><th>Собственные журналы</th><th>Кто их убирает</th></tr></thead>
             <tbody>
               <tr><td>Jellyfin</td><td><code class="path">/volume1/docker/hh-homelab/media/config/jellyfin/log/</code></td><td>сам, по своей политике хранения</td></tr>
-              <tr><td>Radarr</td><td><code class="path">/volume1/docker/hh-homelab/media/config/radarr/logs/</code></td><td>сам, кольцевой набор файлов</td></tr>
+              <tr><td>Radarr / Sonarr</td><td><code class="path">/volume1/docker/hh-homelab/media/config/radarr/logs/</code></td><td>сам, кольцевой набор файлов</td></tr>
               <tr><td>Prowlarr</td><td><code class="path">/volume1/docker/hh-homelab/media/config/prowlarr/logs/</code></td><td>сам, кольцевой набор файлов</td></tr>
               <tr><td>qBittorrent</td><td><code class="path">/volume1/docker/hh-homelab/media/config/qbittorrent/qBittorrent/data/logs/</code></td><td>сам, с ограничением из настроек</td></tr>
             </tbody>
@@ -878,7 +878,7 @@ docker logs --since 2026-08-30T22:00:00 --until 2026-08-30T23:00:00 qbittorrent<
         <h3><span class="num">5.2</span> Искать по всему стеку сразу</h3>
         <div class="code"><button class="copy" type="button">копировать</button><pre><code>cd /volume1/docker/hh-homelab/media
 
-<span class="c"># Все шесть сервисов одним потоком, с префиксом имени</span>
+<span class="c"># Все семь сервисов одним потоком, с префиксом имени</span>
 docker compose logs -f --tail 20
 
 <span class="c"># Только ошибки за сутки</span>
@@ -1013,7 +1013,7 @@ docker compose logs --since 24h | grep -iE 'error|fatal|exception'</code></pre><
           Объективная мера — сколько строк сервис пишет в минуту. Сравните
           до и после:
         </p>
-        <div class="code"><button class="copy" type="button">копировать</button><pre><code>for c in qbittorrent prowlarr radarr flaresolverr jellyfin seerr; do
+        <div class="code"><button class="copy" type="button">копировать</button><pre><code>for c in qbittorrent prowlarr radarr sonarr flaresolverr jellyfin seerr; do
   printf '%-13s %s строк за 10 минут\n' "$c" "$(docker logs --since 10m "$c" 2>&amp;1 | wc -l)"
 done</code></pre></div>
         <p>
@@ -1167,7 +1167,7 @@ docker compose config &gt;/dev/null &amp;&amp; docker compose up -d
 
   <p class="crosslink">Дальше по теме:
     <a href="media-stack.html">настройка медиа-стека</a> — что именно делает
-    каждый из шести сервисов, и <a href="roadmap.html">дорожная карта</a> —
+    каждый из семи сервисов, и <a href="roadmap.html">дорожная карта</a> —
     что в стеке планируется менять.</p>
 </section>
 

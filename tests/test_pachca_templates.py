@@ -19,7 +19,7 @@ from conftest import ROOT
 from liquid import Environment
 
 PACHCA = ROOT / "pachca"
-SERVICES = ["radarr", "prowlarr", "jellyfin", "seerr"]
+SERVICES = ["radarr", "sonarr", "prowlarr", "jellyfin", "seerr"]
 TEMPLATES = [PACHCA / f"{s}.liquid" for s in SERVICES] + [PACHCA / "media-router.liquid"]
 
 

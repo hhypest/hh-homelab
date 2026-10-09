@@ -1,0 +1,5 @@
+{
+  "instanceName": "Sonarr",
+  "eventType": "HealthRestored",
+  "message": "Клиент загрузок недоступен"
+}

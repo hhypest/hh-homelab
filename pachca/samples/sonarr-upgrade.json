@@ -1,0 +1,20 @@
+{
+  "instanceName": "Sonarr",
+  "series": {
+    "title": "Пример сериала",
+    "tvdbId": 12345
+  },
+  "episodes": [
+    {
+      "seasonNumber": 1,
+      "episodeNumber": 2,
+      "title": "Вторая серия"
+    }
+  ],
+  "eventType": "Download",
+  "episodeFile": {
+    "quality": "WEBDL-1080p",
+    "size": 1610612736
+  },
+  "isUpgrade": true
+}

@@ -80,11 +80,11 @@ def render(source: str, **data) -> list[str]:
 SUMMARY = {
     "verdict": "✅ Всё в порядке", "cpu": "12", "ram": "40",
     "nas_temp": 38.2, "vol_used": 62.4,
-    "cont_running": 6, "cont_total": 8, "cont_down_min": 0,
+    "cont_running": 9, "cont_total": 9, "cont_down_min": 0,
     "top_cpu": "jellyfin", "top_ram": "jellyfin",
-    "booted": "1 сентября, 10:00", "disks": [], "svc_total": 6, "svc_down_min": 0,
+    "booted": "1 сентября, 10:00", "disks": [], "svc_total": 7, "svc_down_min": 0,
     "nas_ok": True, "docker_ok": True, "disks_ok": True,
-    "svc_unknown": [], "svc_running": 6,
+    "svc_unknown": [], "svc_running": 7,
     "states": lambda _: "0", "state_attr": lambda *_: "0",
 }
 
@@ -168,7 +168,7 @@ def test_sections_are_separated_by_a_blank_line() -> None:
     заголовком раздела и не стоит после — список идёт сразу под ним.
     """
     lines = summary()
-    for heading in ("**Железо**", "**Контейнеры** — 6 из 8", "**Сервисы** — 6 из 6 отвечают"):
+    for heading in ("**Железо**", "**Контейнеры** — 9 из 9", "**Сервисы** — 7 из 7 отвечают"):
         place = lines.index(heading)
         assert lines[place - 1] == "", f"перед «{heading}» нет пустой строки"
         assert lines[place + 1].startswith("•"), f"после «{heading}» лишняя пустая строка"
@@ -190,7 +190,7 @@ def test_summary_matches_the_documentation_sample() -> None:
         **SUMMARY,
         "cont_down": 0, "cont_detail": [], "svc_down": [],
         "cpu": "11", "ram": "47", "nas_temp": 41.0, "vol_used": 63.2,
-        "cont_running": 8, "cont_total": 8, "top_cpu": "Jellyfin", "top_ram": "Radarr",
+        "cont_running": 9, "cont_total": 9, "top_cpu": "Jellyfin", "top_ram": "Radarr",
         "booted": "2026-08-24T03:11:00",
         "states": lambda name: {
             "sensor.docker_top_cpu": "7.2", "sensor.docker_top_ram": "312",
@@ -235,7 +235,7 @@ def test_without_nas_data_the_summary_prints_no_zeros() -> None:
     assert not any("°C" in s for s in lines), "напечатаны метрики, которых нет"
     assert not any("Том volume1" in s for s in lines)
     # Остальные разделы на месте: контейнеры и сервисы живут без DSM.
-    assert "**Контейнеры** — 6 из 8" in lines
+    assert "**Контейнеры** — 9 из 9" in lines
     assert any("Простой за сутки" in s for s in lines)
 
 
@@ -290,7 +290,7 @@ def test_verdict_knows_about_integration_loss(nas_ok: bool, expected: str) -> No
     total = "\n".join(render(template, cont_down=0, svc_down=[], disks=[],
                                 svc_down_min=0, cont_down_min=0,
                                 vol_used=42.0, nas_temp=38.0, nas_ok=nas_ok, docker_ok=True,
-                                svc_unknown=[], svc_total=6, disks_ok=True))
+                                svc_unknown=[], svc_total=7, disks_ok=True))
     assert expected in total
 
 
@@ -299,7 +299,7 @@ def test_verdict_knows_about_integration_loss(nas_ok: bool, expected: str) -> No
 def outage(details: list[str], oom: bool = False) -> list[str]:
     return render(
         automation_text("docker.yaml", "docker_container_down"),
-        running=8 - len(details), total=8,
+        running=9 - len(details), total=9,
         state_attr=lambda e, a: {"down_detail": details, "oom": oom}.get(a),
     )
 
@@ -311,7 +311,7 @@ def test_two_down_containers_on_two_lines() -> None:
 
 def test_counter_and_hint_are_separate_paragraphs() -> None:
     lines = outage(["radarr — Exited (1)"])
-    assert "Работает 7 из 8." in lines
+    assert "Работает 8 из 9." in lines
     assert any(s.startswith("Поднять:") for s in lines)
     assert "" in lines, "абзацы слиплись"
 

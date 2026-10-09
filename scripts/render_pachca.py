@@ -46,7 +46,7 @@ PACHCA = ROOT / "pachca"
 SAMPLES = PACHCA / "samples"
 ROUTER = PACHCA / "media-router.liquid"
 
-SERVICES = ["radarr", "prowlarr", "jellyfin", "seerr"]
+SERVICES = ["radarr", "sonarr", "prowlarr", "jellyfin", "seerr"]
 
 # Строки, которые шаблон подставляет, когда нужного поля в payload не нашлось.
 # Появление любой из них означает: либо пример неполон, либо шаблон смотрит

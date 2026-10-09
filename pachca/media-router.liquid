@@ -2,13 +2,13 @@
   Пачка · один бот на весь медиа-стек
   ==================================================================
   В ТЕКУЩЕЙ СХЕМЕ НЕ ИСПОЛЬЗУЕТСЯ. Сейчас в чате Кинозал работают
-  четыре отдельных бота, по одному на сервис, — см. README.md.
-  Этот файл лежит на случай, если четыре аватара в чате надоедят:
-  один входящий вебхук, один шаблон, все четыре сервиса шлют сюда.
+  пять отдельных ботов, по одному на сервис, — см. README.md.
+  Этот файл лежит на случай, если пять аватаров в чате надоедят:
+  один входящий вебхук, один шаблон, все пять сервисов шлют сюда.
 
   Чем платим: шаблон сокращённый. Здесь разобраны только события,
   ради которых уведомления и заводят, — остальные сводятся к одной
-  строке «сервис: событие». Полные версии лежат в radarr.liquid,
+  строке «сервис: событие». Полные версии лежат в radarr.liquid, sonarr.liquid,
   prowlarr.liquid, jellyfin.liquid и seerr.liquid.
 
   Как определяется отправитель
@@ -26,6 +26,8 @@
 {%- if svc == '' -%}
   {%- assign name = instanceName | default: '' | downcase -%}
   {%- if name contains 'prowlarr' -%}{%- assign svc = 'prowlarr' -%}
+  {%- elsif name contains 'sonarr' -%}{%- assign svc = 'sonarr' -%}
+  {%- elsif series.title -%}{%- assign svc = 'sonarr' -%}
   {%- elsif name contains 'radarr' -%}{%- assign svc = 'radarr' -%}
   {%- elsif movie -%}{%- assign svc = 'radarr' -%}
   {%- endif -%}
@@ -69,6 +71,58 @@
 {%- else -%}
 🎬 **Radarr · {{ eventType | default: 'событие' }}**: {{ named }}
 {%- endif -%}
+
+{%- when 'sonarr' -%}
+{%- assign title = series.title | default: 'сериал' -%}
+{%- assign gb = '' -%}
+{%- if release.size and release.size > 0 -%}
+  {%- assign gb = release.size | divided_by: 1073741824.0 | round: 2 -%}
+{%- endif -%}
+{%- if episodeFile.size and episodeFile.size > 0 -%}
+  {%- assign gb = episodeFile.size | divided_by: 1073741824.0 | round: 2 -%}
+{%- endif -%}
+{%- capture numbers -%}
+{%- for episode in episodes -%}
+  {% unless forloop.first %}, {% endunless %}S{% if episode.seasonNumber < 10 %}0{% endif %}{{ episode.seasonNumber }}E{% if episode.episodeNumber < 10 %}0{% endif %}{{ episode.episodeNumber }}
+{%- endfor -%}
+{%- endcapture -%}
+{%- case eventType -%}
+{%- when 'Grab' -%}
+⬇️ **Sonarr · забираю: {{ title }}**
+{{ numbers }} · {{ release.quality | default: '—' }}{% if gb != '' %} · {{ gb }} ГБ{% endif %}
+Индексатор: {{ release.indexer | default: '—' }}
+{%- when 'Download' -%}
+{% if isUpgrade %}⬆️ **Sonarr · обновлено качество: {{ title }}**{% else %}✅ **Sonarr · в библиотеке: {{ title }}**{% endif %}
+{{ numbers }} · {{ episodeFile.quality | default: '—' }}{% if gb != '' %} · {{ gb }} ГБ{% endif %}
+{%- when 'SeriesAdd' -%}
+📌 **Sonarr · отслеживается: {{ title }}**
+{%- when 'SeriesDelete' -%}
+🗑 **Sonarr · удалён сериал: {{ title }}**
+{%- when 'EpisodeFileDelete' -%}
+🗑 **Sonarr · удалён файл: {{ title }}**
+{{ numbers }} · {{ deleteReason | default: 'не указана' }}
+{%- when 'Rename' -%}
+🔤 **Sonarr · переименованы файлы: {{ title }}**
+{%- when 'ManualInteractionRequired' -%}
+🖐 **Sonarr · нужно вмешаться: {{ title }}**
+Импорт не прошёл — проверьте Activity → Queue.
+{%- when 'Health' -%}
+{% if level == 'error' %}🔴{% else %}⚠️{% endif %} **Sonarr: проблема со здоровьем**
+{{ message | default: 'без описания' }}
+{% if wikiUrl %}[Описание проверки]({{ wikiUrl }}){% endif %}
+{%- when 'HealthRestored' -%}
+✅ **Sonarr: снова в порядке**
+Было: {{ message | default: '—' }}
+{%- when 'ApplicationUpdate' -%}
+🆕 **Sonarr обновлён**
+{{ previousVersion | default: '?' }} → {{ newVersion | default: '?' }}
+{%- when 'Test' -%}
+🧪 **Проверка связи из Sonarr**
+Шаблон Пачки подключён.
+{%- else -%}
+📺 **Sonarr: {{ eventType | default: 'неизвестное событие' }}**
+{{ title }}
+{%- endcase -%}
 
 {%- when 'prowlarr' -%}
 {%- comment -%} ---------------- Prowlarr ---------------- {%- endcomment -%}
@@ -133,7 +187,7 @@
 ❓ **Неопознанный отправитель**
 Не удалось понять, какой сервис прислал уведомление. Проверьте, что в
 payload есть поле `service` (Jellyfin, Seerr) или `instanceName`
-(Radarr, Prowlarr).
+(Radarr, Sonarr, Prowlarr).
 ```
 {{ eventType | default: '' }}{{ type | default: '' }}{{ event | default: '' }}
 ```
