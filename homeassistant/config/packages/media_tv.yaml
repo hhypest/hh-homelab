@@ -137,6 +137,7 @@ rest:
           - SeriesName
           - IndexNumber
           - ParentIndexNumber
+          - UserData
 
 # -----------------------------------------------------------------------------
 # 3. Два сенсора: идёт ли просмотр и как долго телевизор горит впустую
@@ -188,6 +189,19 @@ template:
       - name: "TV watching"
         unique_id: tv_watching
         icon: mdi:television-play
+        # Исчезнувшая сессия активного приложения не означает паузу.
+        # На Jellyfin нужен его источник, для остальных приложений — Cast.
+        availability: >-
+          {{ states('media_player.lg_tv') not in ['unknown', 'unavailable']
+             and (is_state('media_player.lg_tv', 'playing')
+                  or states('media_player.rocktek_gx1_cast') in ['playing', 'buffering']
+                  or states('media_player.jellyfin_rocktek_gx1') in ['playing', 'buffering']
+                  or states('media_player.lg_tv') in ['off', 'standby']
+                  or (state_attr('media_player.rocktek_gx1', 'app_id') == 'org.jellyfin.androidtv'
+                      and states('media_player.jellyfin_rocktek_gx1') not in ['unknown', 'unavailable'])
+                  or (state_attr('media_player.rocktek_gx1', 'app_id') != 'org.jellyfin.androidtv'
+                      and state_attr('media_player.rocktek_gx1', 'app_id') not in [none, '']
+                      and states('media_player.rocktek_gx1_cast') not in ['unknown', 'unavailable'])) }}
         state: >-
           {% set tv = states('media_player.lg_tv') %}
           {% set cast = states('media_player.rocktek_gx1_cast') %}
@@ -423,7 +437,8 @@ script:
   # Схема: включаем связку → запускаем Jellyfin → ждём, пока клиент
   # зарегистрирует сессию на сервере (её видит интеграция Jellyfin и создаёт
   # для неё media_player) → отправляем в эту сессию недосмотренный элемент.
-  # Jellyfin сам продолжит с сохранённой позиции.
+  # После подтверждения нужного элемента явно восстанавливаем позицию:
+  # интеграция Jellyfin передаёт PlayNow без StartPositionTicks.
   tv_jellyfin_resume:
     alias: "Продолжить просмотр"
     icon: mdi:play-speed
@@ -455,8 +470,21 @@ script:
             {{ 'media_player.jellyfin_rocktek_gx1'
                if states('media_player.jellyfin_rocktek_gx1')
                not in ['unavailable', 'unknown', 'off'] else '' }}
-          resume_id: "{{ state_attr('sensor.jellyfin_resume', 'Id') | default('', true) }}"
+
+      # Обновляем перед запуском: за пять минут пользователь мог досмотреть
+      # старую серию. При недоступном REST не используем прежние атрибуты.
+      - action: homeassistant.update_entity
+        target:
+          entity_id: sensor.jellyfin_resume
+
+      - variables:
+          resume_id: >-
+            {{ state_attr('sensor.jellyfin_resume', 'Id') | default('', true)
+               if states('sensor.jellyfin_resume') not in ['unknown', 'unavailable', 'нечего продолжать'] else '' }}
           resume_type: "{{ (state_attr('sensor.jellyfin_resume', 'Type') | default('movie', true)) | lower }}"
+          resume_position: >-
+            {{ ((state_attr('sensor.jellyfin_resume', 'UserData') | default({}, true))
+                .get('PlaybackPositionTicks', 0) | float(0)) / 10000000 }}
 
       - choose:
           # Всё сошлось — отправляем контент в сессию
@@ -470,6 +498,30 @@ script:
                 data:
                   media_content_id: "{{ resume_id }}"
                   media_content_type: "{{ resume_type }}"
+              # Не перематываем посторонний ролик: ждём именно отправленный ID.
+              - wait_template: >-
+                  {{ state_attr(jf_target, 'media_content_id') == resume_id
+                     and states(jf_target) in ['playing', 'paused'] }}
+                timeout: "00:00:30"
+                continue_on_timeout: true
+              - if:
+                  - condition: template
+                    value_template: "{{ not wait.completed }}"
+                then:
+                  - action: persistent_notification.create
+                    data:
+                      title: "Продолжить просмотр: нет подтверждения"
+                      message: >-
+                        Клиент не подтвердил запуск нужного элемента за 30 секунд.
+                        Позицию не меняю; проверьте сессию Jellyfin и управление клиентом.
+                  - stop: "Воспроизведение нужного элемента не подтверждено"
+              - condition: template
+                value_template: "{{ resume_position | float(0) > 0 }}"
+              - action: media_player.media_seek
+                target:
+                  entity_id: "{{ jf_target }}"
+                data:
+                  seek_position: "{{ resume_position }}"
 
           # Сессия есть, а продолжать нечего — оставляем открытый Jellyfin
           - conditions:
@@ -479,7 +531,10 @@ script:
               - action: persistent_notification.create
                 data:
                   title: "Продолжить просмотр"
-                  message: "В Jellyfin нет недосмотренного — открыл приложение."
+                  message: >-
+                    {{ 'Нет данных от Jellyfin — проверьте REST, API-ключ и userId.'
+                       if states('sensor.jellyfin_resume') in ['unknown', 'unavailable']
+                       else 'В Jellyfin нет недосмотренного — открыл приложение.' }}
 
         # Сессия не появилась: приложение открыто, дальше руками с пульта.
         # На главном экране Jellyfin первая строка — «Продолжить просмотр».
@@ -569,6 +624,11 @@ automation:
       - condition: state
         entity_id: binary_sensor.tv_idle
         state: "on"
+      # delay_off у tv_idle равен 30 секундам: просмотр мог уже начаться,
+      # пока признак простоя ещё не успел погаснуть.
+      - condition: state
+        entity_id: binary_sensor.tv_watching
+        state: "off"
     actions:
       - action: script.tv_off
 
@@ -641,6 +701,15 @@ automation:
         continue_on_error: true
 
       - delay: "00:03:00"
+
+      # За время предупреждения человек мог включить защиту или сам
+      # завершить просмотр. В обоих случаях паузу уже отправлять не нужно.
+      - condition: state
+        entity_id: input_boolean.tv_no_auto_off
+        state: "off"
+      - condition: state
+        entity_id: binary_sensor.tv_watching
+        state: "on"
 
       - action: media_player.media_pause
         target:

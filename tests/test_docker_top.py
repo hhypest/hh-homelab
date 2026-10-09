@@ -123,3 +123,11 @@ def test_no_sensor_at_all_does_not_break_the_template(unique_id: str) -> None:
     """Пустой список — не повод уронить сводку: должно получиться «—»."""
     template = sensor("docker.yaml", unique_id)["attributes"]["container"]
     assert render(template, []) == "—"
+
+
+@pytest.mark.parametrize("unique_id", ["docker_top_cpu", "docker_top_ram"])
+def test_no_metrics_means_unavailable_not_zero(unique_id: str) -> None:
+    template = sensor("docker.yaml", unique_id)["availability"]
+    assert render(template, []) == "False"
+    rows = CPU_ROWS if unique_id == "docker_top_cpu" else RAM_ROWS
+    assert render(template, rows) == "True"

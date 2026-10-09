@@ -31,7 +31,7 @@
 
 monitor_docker:
   - name: Docker
-    url: "http://127.0.0.1:2375"
+    url: !env_var DOCKER_PROXY_URL http://127.0.0.1:2375
 
     # Раз в час. Падения ловит command_line-сенсор ниже, ему хватает минуты.
     scan_interval: 3600
@@ -59,8 +59,8 @@ monitor_docker:
       jellyfin: Jellyfin
       seerr: Seerr
       homeassistant: Home Assistant
-      # «Proxy», а не «Docker Proxy»: имя подставляется в шаблон
-      # "Docker {name} {sensor}", иначе вышло бы sensor.docker_docker_proxy_state
+      # rename меняет подпись; entity_id остаётся docker_dockerproxy_*
+      # (rename_entity по умолчанию выключен).
       dockerproxy: Proxy
 
     monitored_conditions:
@@ -119,7 +119,8 @@ template:
         device_class: problem
         icon: mdi:docker
         state: >-
-          {{ states('sensor.docker_down') | int(0) > 0
+          {{ states('sensor.docker_down') in ['unknown', 'unavailable']
+             or states('sensor.docker_down') | int(0) > 0
              or (state_attr('sensor.docker_down', 'error') | default('', true)) != '' }}
         delay_on: "00:02:00"
         delay_off: "00:01:00"
@@ -160,6 +161,10 @@ template:
         unique_id: docker_top_cpu
         icon: mdi:chip
         unit_of_measurement: "%"
+        availability: >-
+          {{ states.sensor | selectattr('entity_id', 'search', '^sensor\\.docker_.*_cpu$')
+             | rejectattr('entity_id', 'eq', 'sensor.docker_top_cpu')
+             | rejectattr('state', 'in', ['unknown', 'unavailable']) | list | count > 0 }}
         # Обновляется вместе с метриками — то есть раз в час.
         #
         # ВАЖНО: агрегат исключает сам себя. Его entity_id —
@@ -199,6 +204,10 @@ template:
         unique_id: docker_top_ram
         icon: mdi:memory
         unit_of_measurement: "MiB"
+        availability: >-
+          {{ states.sensor | selectattr('entity_id', 'search', '^sensor\\.docker_.*_memory$')
+             | rejectattr('entity_id', 'eq', 'sensor.docker_top_ram')
+             | rejectattr('state', 'in', ['unknown', 'unavailable']) | list | count > 0 }}
         state: >-
           {% set vals = states.sensor
              | selectattr('entity_id', 'search', '^sensor\\.docker_.*_memory$')
@@ -272,8 +281,8 @@ automation:
             Работает {{ running }} из {{ total }}.
             {%- if state_attr('sensor.docker_down', 'oom') %}
 
-            ⚠️ Код выхода 137 — процесс убит из-за нехватки памяти.
-            Посмотрите, что ещё занимало RAM в этот момент.
+            ⚠️ Код выхода 137 — SIGKILL, в том числе возможный результат нехватки памяти.
+            Проверьте OOMKilled в docker inspect и журнал NAS: код сам по себе не доказывает OOM.
             {%- endif %}
 
             Поднять: `cd /volume1/docker/<проект> && sudo docker compose up -d`
@@ -296,9 +305,9 @@ automation:
         data:
           title: "Контейнер перезапускается по кругу"
           text: |-
-            Уже десять минут какой-то контейнер стартует заново чаще, чем
-            раз в пять минут. Счётчик упавших при этом может показывать ноль:
-            контейнер успевает подняться до конца выдержки.
+            Минутная проверка видит хотя бы один контейнер в restarting
+            уже три минуты. Это признак возможного цикла перезапуска;
+            короткие переходы между опросами эта проверка не видит.
 
             Посмотреть, кто именно:
             `sudo docker ps --format '{{ "{{" }}.Names{{ "}}" }}\t{{ "{{" }}.Status{{ "}}" }}'`
@@ -311,14 +320,19 @@ automation:
     alias: "Docker: все контейнеры снова работают"
     mode: single
     triggers:
-      - trigger: numeric_state
-        entity_id: sensor.docker_down
-        below: 1
-        for: "00:02:00"
+      # Счётчик при ошибке прокси равен нулю и при восстановлении остаётся
+      # нулём. Переход признака проблемы ловит и этот случай.
+      - trigger: state
+        entity_id: binary_sensor.docker_problem
+        from: "on"
+        to: "off"
+        for: "00:01:00"
     conditions:
       # Не поздравляем сами себя, когда просто пропала связь с прокси
       - condition: template
         value_template: "{{ (state_attr('sensor.docker_down', 'error') | default('', true)) == '' }}"
+      - condition: template
+        value_template: "{{ state_attr('sensor.docker_down', 'total') | int(0) > 0 }}"
     actions:
       - action: script.pachca_notify
         data:
@@ -349,7 +363,7 @@ automation:
             Скрипт проверки не может обратиться к dockerproxy:
             `{{ state_attr('sensor.docker_down', 'error') }}`.
 
-            Проверьте на NAS: `curl -s http://127.0.0.1:2375/version`
+            Проверьте на NAS: `curl -s http://127.0.0.1:<DOCKERPROXY_PORT из .env>/version`
           level: warn
 
   # --- Контейнер надолго занял процессор -------------------------------------
@@ -374,5 +388,5 @@ automation:
             {{ states('sensor.docker_top_cpu') }} % в двух замерах подряд.
 
             Суммарно контейнеры занимают
-            {{ states('sensor.docker_containers_cpu_percentage') }} %.
+            {{ states('sensor.docker_cpu') }} %.
           level: warn

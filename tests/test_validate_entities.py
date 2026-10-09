@@ -109,3 +109,27 @@ def test_every_called_script_is_defined() -> None:
     assert called, "в конфигурации не нашлось ни одного вызова скрипта — тест бесполезен"
     missing = {name: path for name, path in called.items() if name not in defined}
     assert not missing, f"вызываются несуществующие скрипты: {missing}"
+
+
+@pytest.mark.parametrize("rename_entity,expected", [(False, "homeassistant"), (True, "home_assistant")])
+def test_monitor_docker_rename_is_a_label_unless_enabled(rename_entity, expected) -> None:
+    """Monitor Docker 1.20: sensor.py строит entity_id отдельно от имени."""
+    docs = {ROOT / "demo.yaml": {"monitor_docker": [{
+        "name": "Docker", "containers": ["homeassistant"],
+        "rename": {"homeassistant": "Home Assistant"}, "rename_entity": rename_entity,
+    }]}}
+    defined, problems = ve.collect_defined(docs)
+    assert not problems
+    assert f"sensor.docker_{expected}_state" in defined
+    other = "home_assistant" if not rename_entity else "homeassistant"
+    assert f"sensor.docker_{other}_state" not in defined
+
+
+def test_monitor_docker_global_ids_follow_description_names() -> None:
+    """const.py: метрики containers_cpu_percentage/memory называются CPU/Memory."""
+    docs = {ROOT / "demo.yaml": {"monitor_docker": [{"name": "Docker", "containers": []}]}}
+    defined, _ = ve.collect_defined(docs)
+    assert "sensor.docker_cpu" in defined
+    assert "sensor.docker_memory" in defined
+    assert "sensor.docker_containers_cpu_percentage" not in defined
+    assert "sensor.docker_containers_memory" not in defined

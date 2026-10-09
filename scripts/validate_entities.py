@@ -13,10 +13,9 @@ Android TV) появляются только на живой системе. З
 создаёт сам — скрипты, флаги, шаблонные сенсоры, HTTP-проверки, сенсоры
 Monitor Docker, — можно сверить прямо здесь.
 
-Именно на этом классе ошибок уже спотыкались: переименование контейнера
-dockerproxy в «Docker Proxy» дало бы sensor.docker_docker_proxy_state вместо
-ожидаемого sensor.docker_proxy_state, и карточка на дашборде молча показывала
-бы «объект не найден».
+Monitor Docker строит entity_id по имени контейнера и названию метрики,
+а rename меняет только подпись, пока не включён rename_entity. Подмена
+этого правила в проверке пропускала несуществующие сущности дашборда.
 
 Что делает
 ----------
@@ -64,15 +63,15 @@ OWNED = (
     "sensor.stack_",
 )
 
-# Суффиксы сенсоров Monitor Docker: имя = "Docker {контейнер} {метрика}".
+# Суффиксы из SensorEntityDescription.name в Monitor Docker 1.20.
 # Список должен отвечать monitored_conditions в packages/docker.yaml.
-DOCKER_SUFFIXES = ("state", "uptime", "cpu", "memory", "memory_percentage")
+DOCKER_SUFFIXES = ("state", "uptime", "cpu", "memory", "memory_percent")
 DOCKER_GLOBAL = (
     "sensor.docker_version",
     "sensor.docker_containers_running",
     "sensor.docker_containers_total",
-    "sensor.docker_containers_cpu_percentage",
-    "sensor.docker_containers_memory",
+    "sensor.docker_cpu",
+    "sensor.docker_memory",
 )
 
 ENTITY_RE = re.compile(
@@ -198,7 +197,7 @@ def collect_defined(docs: dict[pathlib.Path, dict]) -> tuple[set[str], list[str]
         for instance in data.get("monitor_docker", []) or []:
             rename = (instance or {}).get("rename", {}) or {}
             for container in (instance or {}).get("containers", []) or []:
-                label = rename.get(container, container)
+                label = rename.get(container, container) if instance.get("rename_entity", False) else container
                 for suffix in DOCKER_SUFFIXES:
                     defined.add(f"sensor.docker_{slug(label)}_{suffix}")
             defined.update(DOCKER_GLOBAL)

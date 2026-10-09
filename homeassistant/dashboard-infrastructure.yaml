@@ -154,7 +154,7 @@ views:
                 {% endfor %}
 
                 {% if state_attr('sensor.docker_down', 'oom') %}
-                > Код 137 — процесс убит из-за нехватки памяти.
+                > Код 137 — SIGKILL: возможна нехватка памяти; проверьте OOMKilled и журнал NAS.
                 {% endif %}
 
           - type: entities
@@ -162,9 +162,9 @@ views:
             entities:
               - entity: sensor.docker_containers_running
                 name: Запущено
-              - entity: sensor.docker_containers_cpu_percentage
+              - entity: sensor.docker_cpu
                 name: Процессор, все контейнеры
-              - entity: sensor.docker_containers_memory
+              - entity: sensor.docker_memory
                 name: Память, все контейнеры
               - type: attribute
                 entity: sensor.docker_top_cpu
@@ -192,9 +192,9 @@ views:
                 name: FlareSolverr
               - entity: sensor.docker_seerr_state
                 name: Seerr
-              - entity: sensor.docker_home_assistant_state
+              - entity: sensor.docker_homeassistant_state
                 name: Home Assistant
-              - entity: sensor.docker_proxy_state
+              - entity: sensor.docker_dockerproxy_state
                 name: Docker Proxy
 
           # Проценты и мегабайты — на разных карточках намеренно: на одной
@@ -207,7 +207,7 @@ views:
                 name: Jellyfin
               - entity: sensor.docker_qbittorrent_cpu
                 name: qBittorrent
-              - entity: sensor.docker_home_assistant_cpu
+              - entity: sensor.docker_homeassistant_cpu
                 name: Home Assistant
               - entity: sensor.docker_radarr_cpu
                 name: Radarr
@@ -226,7 +226,7 @@ views:
                 name: FlareSolverr
               - entity: sensor.docker_seerr_memory
                 name: Seerr
-              - entity: sensor.docker_home_assistant_memory
+              - entity: sensor.docker_homeassistant_memory
                 name: Home Assistant
 
       # -----------------------------------------------------------------
