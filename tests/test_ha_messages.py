@@ -83,7 +83,7 @@ SUMMARY = {
     "cont_running": 6, "cont_total": 8, "cont_down_min": 0,
     "top_cpu": "jellyfin", "top_ram": "jellyfin",
     "booted": "1 сентября, 10:00", "disks": [], "svc_total": 6, "svc_down_min": 0,
-    "nas_ok": True,
+    "nas_ok": True, "docker_ok": True,
     "states": lambda _: "0", "state_attr": lambda *_: "0",
 }
 
@@ -91,6 +91,30 @@ SUMMARY = {
 def summary(**over) -> list[str]:
     data = {**SUMMARY, "cont_down": 0, "cont_detail": [], "svc_down": [], **over}
     return render(script_var("pachca.yaml", "pachca_report", "body"), **data)
+
+
+def test_summary_does_not_claim_healthy_when_docker_is_unreachable() -> None:
+    """Сбой прокси даёт down=0, но ноль не означает исправный стек."""
+    source = script_var("pachca.yaml", "pachca_report", "docker_ok")
+    env = jinja2.Environment()
+    for state, error, total, expected in [
+        ("0", "TimeoutError", 0, False),
+        ("unavailable", None, None, False),
+        ("unknown", None, None, False),
+        ("0", "", 8, True),
+    ]:
+        env.globals["states"] = lambda _, value=state: value
+        env.globals["state_attr"] = lambda _, attr, err=error, count=total: {
+            "error": err, "total": count,
+        }.get(attr)
+        assert env.from_string(source).render().strip() == str(expected)
+    verdict = render(script_var("pachca.yaml", "pachca_report", "verdict"),
+                     **{**SUMMARY, "docker_ok": False, "disks": []},
+                     cont_down=0, svc_down=[])
+    assert "Всё в порядке" not in "\n".join(verdict)
+    body = "\n".join(summary(docker_ok=False, cont_running=0, cont_total=0))
+    assert "Все запущены" not in body
+    assert "Нет данных от Docker" in body
 
 
 
@@ -257,7 +281,7 @@ def test_verdict_knows_about_integration_loss(nas_ok: bool, expected: str) -> No
     template = script_var("pachca.yaml", "pachca_report", "verdict")
     total = "\n".join(render(template, cont_down=0, svc_down=[], disks=[],
                                 svc_down_min=0, cont_down_min=0,
-                                vol_used=42.0, nas_temp=38.0, nas_ok=nas_ok))
+                                vol_used=42.0, nas_temp=38.0, nas_ok=nas_ok, docker_ok=True))
     assert expected in total
 
 

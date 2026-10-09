@@ -445,25 +445,16 @@ script:
       # Ждём появления активной сессии Jellyfin. Полторы минуты — с запасом
       # на холодный старт приложения.
       - wait_template: >-
-          {% set ns = namespace(ok=false) %}
-          {% for e in integration_entities('jellyfin') if e.startswith('media_player.') %}
-            {% if states(e) not in ['unavailable', 'unknown', 'off'] %}
-              {% set ns.ok = true %}
-            {% endif %}
-          {% endfor %}
-          {{ ns.ok }}
+          {{ states('media_player.jellyfin_rocktek_gx1')
+             not in ['unavailable', 'unknown', 'off'] }}
         timeout: "00:01:30"
         continue_on_timeout: true
 
       - variables:
           jf_target: >-
-            {% set ns = namespace(found='') %}
-            {% for e in integration_entities('jellyfin') if e.startswith('media_player.') %}
-              {% if ns.found == '' and states(e) not in ['unavailable', 'unknown', 'off'] %}
-                {% set ns.found = e %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.found }}
+            {{ 'media_player.jellyfin_rocktek_gx1'
+               if states('media_player.jellyfin_rocktek_gx1')
+               not in ['unavailable', 'unknown', 'off'] else '' }}
           resume_id: "{{ state_attr('sensor.jellyfin_resume', 'Id') | default('', true) }}"
           resume_type: "{{ (state_attr('sensor.jellyfin_resume', 'Type') | default('movie', true)) | lower }}"
 
@@ -656,6 +647,18 @@ automation:
           entity_id: media_player.rocktek_gx1
         continue_on_error: true
 
+      # Команда пульта не подтверждает результат. Если приложение её
+      # проигнорировало или связь пропала, нового перехода в on не будет:
+      # признак просмотра уже on. В таком случае телевизор не выключаем.
+      - wait_template: "{{ is_state('binary_sensor.tv_watching', 'off') }}"
+        timeout: "00:00:15"
+        continue_on_timeout: true
+      - if:
+          - condition: template
+            value_template: "{{ not wait.completed }}"
+        then:
+          - stop: "Пауза не подтверждена — просмотр не прерываем"
+
       # Пять минут на то, чтобы нажать play. Нажали — выходим.
       - wait_for_trigger:
           - trigger: state
@@ -671,6 +674,14 @@ automation:
           # Проснулся и продолжил смотреть — до 03:00 больше не тревожим.
           - stop: "Просмотр продолжен"
 
+      # Флаг мог измениться за время предупреждения и ожидания; состояние
+      # просмотра проверяем ещё раз, включая случай быстрой реакции на play.
+      - condition: state
+        entity_id: binary_sensor.tv_watching
+        state: "off"
+      - condition: state
+        entity_id: input_boolean.tv_no_auto_off
+        state: "off"
       - action: script.tv_off
 
   # ---------------------------------------------------------------------------

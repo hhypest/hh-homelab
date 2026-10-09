@@ -136,6 +136,10 @@ script:
           cont_detail: "{{ state_attr('sensor.docker_down', 'down_detail') | default([], true) }}"
           cont_running: "{{ state_attr('sensor.docker_down', 'running') }}"
           cont_total: "{{ state_attr('sensor.docker_down', 'total') }}"
+          docker_ok: >-
+            {{ states('sensor.docker_down') not in ['unknown', 'unavailable']
+               and (state_attr('sensor.docker_down', 'error') | default('', true)) == ''
+               and state_attr('sensor.docker_down', 'total') | int(0) > 0 }}
           top_cpu: "{{ state_attr('sensor.docker_top_cpu', 'container') }}"
           top_ram: "{{ state_attr('sensor.docker_top_ram', 'container') }}"
           cpu: "{{ states('sensor.ds725_cpu_utilization_total') }}"
@@ -175,6 +179,8 @@ script:
           verdict: >-
             {% if nas_ok not in [true, 'True', 'true'] %}
               ⚠️ Нет данных от NAS — проверьте интеграцию Synology DSM
+            {% elif docker_ok not in [true, 'True', 'true'] %}
+              ⚠️ Нет данных от Docker — проверьте dockerproxy
             {% elif cont_down | int > 0 or svc_down | count > 0 or disks | count > 0 %}
               🔴 Есть проблемы прямо сейчас
             {% elif svc_down_min | int > 5 or cont_down_min | int > 5
@@ -200,7 +206,9 @@ script:
             {%- endif %}
 
             **Контейнеры** — {{ cont_running }} из {{ cont_total }}
-            {% if cont_down | int > 0 -%}
+            {% if docker_ok not in [true, 'True', 'true'] -%}
+            • Нет данных от Docker: проверка состояния контейнеров недоступна
+            {% elif cont_down | int > 0 -%}
             {% for line in cont_detail -%}
             • 🔻 {{ line }}
             {% endfor -%}
