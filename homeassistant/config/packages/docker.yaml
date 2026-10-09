@@ -344,24 +344,28 @@ automation:
 
   # --- Пропала связь с самим прокси ------------------------------------------
   - id: docker_proxy_unreachable
-    alias: "Docker: нет связи с dockerproxy"
+    alias: "Docker: нет данных о контейнерах"
     description: >-
-      Отдельный случай: скрипт отвечает, но не может достучаться до прокси.
+      Отдельный случай: скрипт не может достучаться до прокси или сам сенсор
+      недоступен (ошибка команды, таймаут, пакет не загрузился).
       Без этого сообщения «ноль упавших контейнеров» выглядело бы как
       «всё хорошо», хотя на деле мы просто ослепли.
     mode: single
     triggers:
       - trigger: template
         value_template: >-
-          {{ (state_attr('sensor.docker_down', 'error') | default('', true)) != '' }}
+          {{ states('sensor.docker_down') in ['unknown', 'unavailable']
+             or (state_attr('sensor.docker_down', 'error') | default('', true)) != '' }}
         for: "00:05:00"
     actions:
       - action: script.pachca_notify
         data:
           title: "Не вижу состояние контейнеров"
           text: >-
-            Скрипт проверки не может обратиться к dockerproxy:
-            `{{ state_attr('sensor.docker_down', 'error') }}`.
+            Состояние сенсора: `{{ states('sensor.docker_down') }}`.
+            Ошибка dockerproxy: `{{ state_attr('sensor.docker_down', 'error') | default('нет данных', true) }}`.
+
+            Проверьте журнал HA и выполнение /config/bin/docker_state.py.
 
             Проверьте на NAS: `curl -s http://127.0.0.1:<DOCKERPROXY_PORT из .env>/version`
           level: warn

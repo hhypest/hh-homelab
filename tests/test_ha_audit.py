@@ -122,6 +122,14 @@ def test_docker_recovery_uses_problem_transition():
     assert trigger["from"] == "on" and trigger["to"] == "off"
 
 
+def test_missing_docker_sensor_also_raises_observation_alarm():
+    source = automation("docker.yaml", "docker_proxy_unreachable")["triggers"][0]["value_template"]
+    for state, error, expected in [("unknown", "", True), ("unavailable", "", True),
+                                   ("0", "TimeoutError", True), ("0", "", False)]:
+        assert render(source, {"sensor.docker_down": state},
+                      {("sensor.docker_down", "error"): error}) == str(expected)
+
+
 @pytest.mark.parametrize("duration,expected", [(40, False), (299, False), (300, True), (900, True)])
 def test_service_recovery_is_quiet_after_short_restart(duration, expected):
     entry = automation("monitoring.yaml", "mon_service_up")

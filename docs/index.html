@@ -1240,7 +1240,7 @@ data:
               <tr><td><b>Упал контейнер</b></td><td>список упавших изменился и держится 2 минуты — с именем, причиной и подсказкой про нехватку памяти. Второе падение приходит отдельным сообщением, а не теряется в счётчике</td><td>🔴 crit</td></tr>
               <tr><td>Контейнер в цикле перезапуска</td><td>три минутных опроса подряд Docker держит контейнер в состоянии <code>restarting</code></td><td>⚠️ warn</td></tr>
               <tr><td>Контейнеры снова работают</td><td>признак проблемы сменился с <code>on</code> на <code>off</code> и остаётся там минуту; вместе с минутной задержкой сенсора — 2 минуты. Учитывается восстановление связи с прокси</td><td>✅ ok</td></tr>
-              <tr><td>Не видно состояние контейнеров</td><td>скрипт не достучался до dockerproxy 5 минут</td><td>⚠️ warn</td></tr>
+              <tr><td>Не видно состояние контейнеров</td><td>ошибка dockerproxy либо сам сенсор unknown/unavailable 5 минут</td><td>⚠️ warn</td></tr>
               <tr><td>Контейнер держит процессор</td><td>выше 150 % в двух часовых замерах подряд</td><td>⚠️ warn</td></tr>
               <tr><td>NAS перегревается</td><td>выше 60 °C десять минут</td><td>🔴 crit</td></tr>
               <tr><td>CPU под потолком</td><td>выше 90 % двадцать минут</td><td>⚠️ warn</td></tr>
@@ -2711,7 +2711,7 @@ sudo docker compose config &gt;/dev/null &amp;&amp; sudo docker compose up -d</c
       <tr><td><code>docker_container_down</code></td><td>Список остановленных изменился и стабилен 2 минуты; учитывает повторное падение другого контейнера</td></tr>
       <tr><td><code>docker_container_restarting</code></td><td>Хотя бы один restarting наблюдается 3 минуты; короткие промежутки между минутными опросами не видны</td></tr>
       <tr><td><code>docker_container_recovered</code></td><td>Признак проблемы on→off плюс 1 минута; проверяется доступность прокси и ненулевое число наблюдаемых контейнеров</td></tr>
-      <tr><td><code>docker_proxy_unreachable</code></td><td>Атрибут error непустой 5 минут; отдельное предупреждение о потере наблюдения</td></tr>
+      <tr><td><code>docker_proxy_unreachable</code></td><td>Атрибут error непустой или сенсор unknown/unavailable 5 минут; отдельное предупреждение о потере наблюдения</td></tr>
       <tr><td><code>docker_container_cpu_hog</code></td><td>Максимум CPU контейнеров &gt;150 % 65 минут; значение на часовых измерениях, после перехода через порог</td></tr>
       <tr><td><code>pachca_ha_started</code></td><td>Старт HA, задержка 2 минуты; подтверждает запуск HA, не здоровье всего стека</td></tr>
       <tr><td><code>pachca_daily_report</code></td><td>Сводка в 09:00 по Europe/Moscow; неизвестные данные перечисляются отдельно</td></tr>
