@@ -463,7 +463,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
 <tr><td>Webhook Name</td><td>Пачка</td></tr>
 <tr><td>Webhook Url</td><td>вебхук бота Jellyfin (чат Кинозал)</td></tr>
 <tr><td>Notification Type</td><td>Item Added, Playback Start, Authentication Failure, User Locked Out</td></tr>
-<tr><td>Item Type</td><td>Movies (и Episodes, если появятся сериалы)</td></tr>
+<tr><td>Item Type</td><td>Movies и Episodes для библиотеки сериалов</td></tr>
 <tr><td>Template</td><td>содержимое <a href="https://github.com/hhypest/hh-homelab/blob/main/pachca/payloads/jellyfin.handlebars"><code>payloads/jellyfin.handlebars</code></a></td></tr>
 </tbody></table></div>
 <p>Галку <b>Send All Properties</b> не ставьте: она игнорирует шаблон и шлёт всё подряд, отчего Liquid-шаблон перестанет находить свои поля.</p>
@@ -488,6 +488,8 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
 <tr><td>Типы уведомлений</td><td>Request Pending, Request Automatically Approved, Media Available, Request Failed</td></tr>
 </tbody></table></div>
 </section>
+
+<p>Шаблон Seerr выбирает менеджер по mediaType: tv → Sonarr, movie → Radarr. В событиях MEDIA_AUTO_APPROVED и MEDIA_FAILED указан нужный сервис; при ошибке — его Activity → Queue. После обновления замените сохранённый шаблон бота Seerr. Проверочные примеры сериалов: samples/seerr-tv-approved.json и samples/seerr-tv-failed.json.</p>
 
 <section id="sonarr">
   <div class="sec-head"><div class="kicker">Сериалы</div><h2>Sonarr</h2></div>

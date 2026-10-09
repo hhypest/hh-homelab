@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Пошаговая настройка медиа-стека на Synology DS725+: папки и хардлинки, qBittorrent, Prowlarr, Radarr, Jellyfin, Seerr.">
+<meta name="description" content="Пошаговая настройка медиа-стека на Synology DS725+: папки и хардлинки, qBittorrent, Prowlarr, Radarr, Sonarr, Jellyfin, Seerr.">
 <title>Медиа-стек на DS725+</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -342,7 +342,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
     <h1>Медиа-стек на DS725+</h1>
     <p class="lede">
       От пустого NAS до работающего конвейера: семь контейнеров поднимаются
-      и связываются так, что запрос в Seerr превращается в фильм в библиотеке
+      и связываются так, что запрос в Seerr превращается в фильм или эпизод сериала в библиотеке
       Jellyfin без единого лишнего копирования по диску. Установка —
       в разделе 2, дальше настройка приложений по цепочке.
     </p>
@@ -350,7 +350,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
       <span class="fact"><span class="dot home"></span>NAS <b>192.168.3.53</b></span>
       <span class="fact">сеть Docker <b>media</b></span>
       <span class="fact">данные <b>/volume1/data</b></span>
-      <span class="fact">контейнеров <b>6</b></span>
+      <span class="fact">контейнеров <b>7</b></span>
       <span class="fact">телевизор <b>1366×768</b></span>
     </div>
 
@@ -396,7 +396,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
 
   <figure>
     <svg viewBox="0 0 900 430" role="img"
-         aria-label="Схема конвейера: Seerr передаёт запрос в Radarr, Radarr ищет через Prowlarr в индексаторах, при защите Cloudflare Prowlarr обращается к FlareSolverr, найденный торрент уходит в qBittorrent, скачанные файлы лежат в /data/torrents, Radarr создаёт на них хардлинк в /data/media, оттуда Jellyfin отдаёт фильм на приставку и телевизор.">
+         aria-label="Схема конвейера: Seerr передаёт фильмы в Radarr, сериалы в Sonarr; оба ищут через Prowlarr в индексаторах, при защите Cloudflare Prowlarr обращается к FlareSolverr, найденный торрент уходит в qBittorrent, скачанные файлы лежат в /data/torrents, Radarr или Sonarr создаёт на них хардлинк в /data/media, оттуда Jellyfin отдаёт фильм или эпизод на приставку и телевизор.">
       <defs>
         <marker id="mar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
@@ -487,8 +487,9 @@ footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--muted);f
         <tr><td><b>FlareSolverr</b></td><td>обходит защиту Cloudflare для индексаторов</td><td>вторым, проверить и забыть</td></tr>
         <tr><td><b>Prowlarr</b></td><td>единый список трекеров, раздаёт его остальным</td><td>третьим</td></tr>
         <tr><td><b>Radarr</b></td><td>решает что качать, следит за качеством, импортирует</td><td>четвёртым</td></tr>
-        <tr><td><b>Jellyfin</b></td><td>отдаёт библиотеку на устройства</td><td>пятым</td></tr>
-        <tr><td><b>Seerr</b></td><td>витрина запросов поверх Radarr и Jellyfin</td><td>последним</td></tr>
+        <tr><td><b>Sonarr</b></td><td>управляет сериалами, качеством и импортом эпизодов</td><td>после Radarr, до Jellyfin и Seerr</td></tr>
+        <tr><td><b>Jellyfin</b></td><td>отдаёт библиотеку на устройства</td><td>после Radarr и Sonarr</td></tr>
+        <tr><td><b>Seerr</b></td><td>витрина запросов поверх Radarr, Sonarr и Jellyfin</td><td>последним</td></tr>
       </tbody>
     </table>
   </div>
@@ -1532,7 +1533,7 @@ sudo docker compose restart prowlarr</code></pre></div>
     <li class="step" data-key="m6-14">
       <label class="step-check"><input type="checkbox"><span class="box"></span></label>
       <div class="step-body"><h3><span class="num">6.14</span> Sonarr: проверить надзор и журнал</h3>
-        <p>После обновления HA проверьте <code>binary_sensor.svc_sonarr=on</code>, наличие Sonarr в Monitor Docker, графики CPU/RAM и сводку: <b>9 контейнеров и 7 HTTP-проверок</b>. CPU Monitor Docker после холодного старта может потребовать следующего часового измерения.</p><p>Журнал: <code>sudo docker logs --tail 100 sonarr</code>. Проверка отвечает на HTTP /ping; она не доказывает работу индексаторов или импорта — это подтверждают шаги 6.10–6.13.</p>
+        <p>После обновления HA проверьте <code>binary_sensor.svc_sonarr=on</code>, наличие Sonarr в Monitor Docker, графики CPU/RAM и сводку: <b>9 контейнеров и 7 HTTP-проверок</b>. CPU Monitor Docker после холодного старта может потребовать следующего часового измерения.</p><p>Журнал: <code>sudo docker logs --tail 100 sonarr</code>. Отдельное уведомление об отказе Sonarr приходит после пяти минут off, о восстановлении — после минуты on, если отказ длился не менее пяти минут. Проверка отвечает на HTTP /ping; она не доказывает работу индексаторов или импорта — это подтверждают шаги 6.10–6.13.</p>
       </div>
     </li>
   </ol>
@@ -1851,7 +1852,7 @@ sudo docker compose restart prowlarr</code></pre></div>
           </table>
         </div>
         <p>Затем <b>Settings → Services → Add Sonarr Server</b>: Default Server включить, Hostname <code>sonarr</code>, Port <code>8989</code>, API Key из Sonarr, Quality Profile из шага 6.8, Root Folder <code>/data/media/tv</code>, Season Folders и Enable Scan включить. Enable Automatic Search — если одобренный запрос должен сразу искать релиз. Test должен вернуть профили и папки; затем Save. Minimum Availability относится к Radarr, у Sonarr эту настройку не копируют.</p>
-        <p>Проверьте запрос одного сезона через Seerr: он должен появиться именно в Sonarr, а запрос фильма — в Radarr. Для сериалов настройте квоту запросов и права пользователей отдельно; Auto-Approve включайте только для выбранных домашних пользователей.</p>
+        <p>Проверьте запрос одного сезона через Seerr: он должен появиться именно в Sonarr, а запрос фильма — в Radarr. Обновите шаблон бота Seerr из pachca/seerr.liquid: одобренные запросы сериалов и диагностика ошибок должны указывать Sonarr, фильмы — Radarr. Для сериалов настройте квоту запросов и права пользователей отдельно; Auto-Approve включайте только для выбранных домашних пользователей.</p>
         <p>Нажать <b>Test</b>, затем сохранить.</p>
         <div class="note warn"><b>Minimum Availability = Released</b> — иначе
           Radarr начнёт искать фильм, которого ещё нет в природе, и будет

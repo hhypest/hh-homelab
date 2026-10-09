@@ -13,7 +13,12 @@
 {%- assign who = requestedBy | default: 'кто-то' -%}
 {%- assign what = subject | default: 'медиа' -%}
 {%- assign kind = 'фильм' -%}
-{%- if mediaType == 'tv' -%}{%- assign kind = 'сериал' -%}{%- endif -%}
+{%- assign manager = 'Radarr' -%}
+{%- if mediaType == 'tv' -%}
+  {%- assign kind = 'сериал' -%}
+  {%- assign manager = 'Sonarr' -%}
+{%- endif -%}
+{%- assign failure = manager | append: ' не смог довести загрузку до конца.' -%}
 
 {%- case type -%}
 
@@ -24,7 +29,7 @@
 {%- when 'MEDIA_AUTO_APPROVED' -%}
 👌 **Запрос принят автоматически**
 {{ who }} · {{ kind }}: **{{ what }}**
-Radarr уже ищет релиз.
+{{ manager }} уже ищет релиз.
 
 {%- when 'MEDIA_APPROVED' -%}
 👍 **Запрос одобрен**
@@ -40,8 +45,8 @@ Radarr уже ищет релиз.
 
 {%- when 'MEDIA_FAILED' -%}
 🔴 **Запрос не выполнен: {{ what }}**
-{{ message | default: 'Radarr не смог довести загрузку до конца.' }}
-Смотрите Activity → Queue в Radarr: чаще всего это отсутствие раздач
+{{ message | default: failure }}
+Смотрите Activity → Queue в {{ manager }}: чаще всего это отсутствие раздач
 или недостаток места на томе.
 
 {%- when 'ISSUE_CREATED' -%}
