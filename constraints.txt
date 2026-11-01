@@ -35,6 +35,6 @@ python-dateutil==2.9.0.post0
 python-liquid==2.3.2
 pytz==2026.4
 PyYAML==6.0.3
-ruff==0.16.9
+ruff==0.17.3
 six==1.17.0
 yamllint==1.38.0
